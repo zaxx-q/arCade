@@ -1,0 +1,6 @@
+# One line-ending rule for everybody: LF in the repo and in the working tree (Windows too).
+* text=auto eol=lf
+*.png binary
+*.ogg binary
+*.wav binary
+*.ps1 text eol=crlf

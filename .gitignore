@@ -1,0 +1,19 @@
+build/
+dist/
+out/
+*.o
+*.obj
+*.exe
+*.tmp
+compile_commands.json
+.cache/
+.vs/
+CMakeUserPresets.json
+# runtime data written next to the executable
+scores.txt
+# keep VS Code shared config, ignore the rest
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json

@@ -1,0 +1,57 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "dev",
+      "displayName": "Dev (Debug, warnings as errors)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "ARCADE_WERROR": "ON" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "ARCADE_WERROR": "ON" }
+    },
+    {
+      "name": "logic",
+      "displayName": "Logic only (no raylib, no download, fastest)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "ARCADE_WERROR": "ON", "ARCADE_LOGIC_ONLY": "ON" }
+    },
+    {
+      "name": "headless",
+      "displayName": "Headless (raylib CPU renderer, for smoke tests)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "ARCADE_WERROR": "ON", "ARCADE_HEADLESS": "ON" }
+    },
+    {
+      "name": "asan",
+      "displayName": "Logic only + AddressSanitizer/UBSan (Linux/macOS)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "ARCADE_WERROR": "ON", "ARCADE_LOGIC_ONLY": "ON", "ARCADE_SANITIZE": "ON" },
+      "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "logic", "configurePreset": "logic" },
+    { "name": "headless", "configurePreset": "headless" },
+    { "name": "asan", "configurePreset": "asan" }
+  ],
+  "testPresets": [
+    { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "logic", "configurePreset": "logic", "output": { "outputOnFailure": true } },
+    { "name": "headless", "configurePreset": "headless", "output": { "outputOnFailure": true } },
+    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true } }
+  ]
+}

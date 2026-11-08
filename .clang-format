@@ -1,0 +1,12 @@
+# Pinned for CI: clang-format 18.1.8  (pip install clang-format==18.1.8)
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 110
+UseTab: Never
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlignConsecutiveAssignments: None
+PointerAlignment: Right
+SortIncludes: Never

@@ -1,0 +1,20 @@
+ARCADE HUB - how to play
+========================
+
+Windows: unzip the folder anywhere (not inside a protected folder), double-click arcade-hub.exe.
+Linux:   tar xzf arcade-hub-*.tar.gz && cd arcade-hub-* && ./arcade-hub
+         (needs the usual desktop libraries: OpenGL and X11, present on any normal desktop install)
+
+Controls are shown on the menu for the selected game.
+  Menu:   Up/Down or mouse: choose   Enter or click: play   L: leaderboard   N: change name   Esc: quit
+  In a game: Esc returns to the menu.
+  Menu background: left mouse paints sand, right mouse paints water (on the right half of the screen).
+
+Scores are saved in scores.txt next to the program. Delete the file to reset the leaderboard.
+
+Command line (optional):
+  arcade-hub --version        print the version
+  arcade-hub --list           list the games
+  arcade-hub --help           all options
+
+Windows may show a SmartScreen warning for an unsigned program: choose "More info" -> "Run anyway".

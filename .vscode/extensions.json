@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "ms-vscode.cmake-tools",
+    "ms-vscode.cpptools",
+    "github.vscode-github-actions",
+    "editorconfig.editorconfig",
+    "bierner.markdown-mermaid"
+  ]
+}
