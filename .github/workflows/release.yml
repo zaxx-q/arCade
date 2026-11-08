@@ -72,15 +72,15 @@ jobs:
           cmake --preset release -DARCADE_VERSION="$VERSION"
           cmake --build --preset release
           ctest --preset release
-          strip build/release/bin/arcade-hub
-          vout="$(build/release/bin/arcade-hub --version)"
+          strip build/release/bin/arCade
+          vout="$(build/release/bin/arCade --version)"
           printf '%s\n' "$vout"
-          printf '%s\n' "$vout" | grep -q "arcade-hub $VERSION "
+          printf '%s\n' "$vout" | grep -q "arCade $VERSION "
       - name: Package
         run: |
-          name="arcade-hub-v${VERSION}-linux-x86_64"
+          name="arCade-v${VERSION}-linux-x86_64"
           mkdir -p "dist/$name"
-          cp build/release/bin/arcade-hub "dist/$name/"
+          cp build/release/bin/arCade "dist/$name/"
           cp -r assets "dist/$name/assets"
           cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
           cp packaging/PLAY.txt "dist/$name/README.txt"
@@ -117,14 +117,14 @@ jobs:
           cmake --preset release -DARCADE_VERSION="$VERSION" -DCMAKE_EXE_LINKER_FLAGS="-static"
           cmake --build --preset release
           ctest --preset release
-          vout="$(build/release/bin/arcade-hub.exe --version)"
+          vout="$(build/release/bin/arCade.exe --version)"
           printf '%s\n' "$vout"
-          printf '%s\n' "$vout" | grep -q "arcade-hub $VERSION "
+          printf '%s\n' "$vout" | grep -q "arCade $VERSION "
       - name: Package
         run: |
-          name="arcade-hub-v${VERSION}-windows-x86_64"
+          name="arCade-v${VERSION}-windows-x86_64"
           mkdir -p "dist/$name"
-          cp build/release/bin/arcade-hub.exe "dist/$name/"
+          cp build/release/bin/arCade.exe "dist/$name/"
           cp -r assets "dist/$name/assets"
           cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
           cp packaging/PLAY.txt "dist/$name/README.txt"
@@ -159,7 +159,7 @@ jobs:
             echo "### Dry run for $TAG (nothing published)" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Arcade Hub $TAG" --generate-notes)
+          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "arCade $TAG" --generate-notes)
           if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
           gh release create "$TAG" "${args[@]}" dist/*
           echo "### Released $TAG" >> "$GITHUB_STEP_SUMMARY"

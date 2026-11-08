@@ -13,11 +13,11 @@ Pitch-black maze navigated by sonar pings. Rules and status: `GAME.md`.
 - `tests/test_echo_maze.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^echo_maze\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke echo_maze --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke echo_maze --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - `EM_W` and `EM_H` must stay ODD (the carving lattice uses odd coordinates); the border tiles stay walls.

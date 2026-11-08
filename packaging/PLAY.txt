@@ -1,8 +1,8 @@
-ARCADE HUB - how to play
+arCade - how to play
 ========================
 
-Windows: unzip the folder anywhere (not inside a protected folder), double-click arcade-hub.exe.
-Linux:   tar xzf arcade-hub-*.tar.gz && cd arcade-hub-* && ./arcade-hub
+Windows: unzip the folder anywhere (not inside a protected folder), double-click arCade.exe.
+Linux:   tar xzf arCade-*.tar.gz && cd arCade-* && ./arCade
          (needs the usual desktop libraries: OpenGL and X11, present on any normal desktop install)
 
 Controls are shown on the menu for the selected game.
@@ -13,8 +13,8 @@ Controls are shown on the menu for the selected game.
 Scores are saved in scores.txt next to the program. Delete the file to reset the leaderboard.
 
 Command line (optional):
-  arcade-hub --version        print the version
-  arcade-hub --list           list the games
-  arcade-hub --help           all options
+  arCade --version        print the version
+  arCade --list           list the games
+  arCade --help           all options
 
 Windows may show a SmartScreen warning for an unsigned program: choose "More info" -> "Run anyway".

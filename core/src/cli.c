@@ -68,9 +68,9 @@ bool cli_parse(int argc, char **argv, CliOptions *o) {
 }
 
 const char *cli_usage(void) {
-    return "Arcade Hub\n"
+    return "arCade\n"
            "\n"
-           "Usage: arcade-hub [options]\n"
+           "Usage: arCade [options]\n"
            "  --version, -v          print the version and exit\n"
            "  --list                 list the registered games and exit\n"
            "  --smoke <id|all>       automated run with scripted input (CI); needs --frames etc.\n"

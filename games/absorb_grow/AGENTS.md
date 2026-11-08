@@ -13,11 +13,11 @@ Swallow the small, avoid the big, keep growing. Rules and status: `GAME.md`.
 - `tests/test_absorb_grow.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^absorb_grow\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke absorb_grow --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke absorb_grow --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - All size rules go through the `1.1x` margin and the area formula in `absorb_grow_step`; keep them in one place so "similar size = harmless" stays true.

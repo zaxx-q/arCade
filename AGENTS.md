@@ -6,10 +6,10 @@
 
 **Precedence:** the **closest `AGENTS.md`** to the files you're changing wins. Root holds global defaults only.
 
-Arcade Hub: a hub plus 8 small games in **plain C99** drawn with **raylib 6.2** (pinned). University project (Dasar Pemrograman): keep code simple and procedural.
+arCade: a hub plus 8 small games in **plain C99** drawn with **raylib 6.2** (pinned). University project (Dasar Pemrograman): keep code simple and procedural.
 
 ## Commands
-> Source: `CMakePresets.json`, `.github/workflows/*.yml`, `tools/`. Windows: use Git Bash or MSYS2 for `bash`; the exe is `arcade-hub.exe`.
+> Source: `CMakePresets.json`, `.github/workflows/*.yml`, `tools/`. Windows: use Git Bash or MSYS2 for `bash`; the exe is `arCade.exe`.
 
 | Task | Command | ~Time |
 |------|---------|-------|
@@ -18,8 +18,8 @@ Arcade Hub: a hub plus 8 small games in **plain C99** drawn with **raylib 6.2** 
 | Format (CI pins clang-format 18.1.8) | `bash tools/format.sh` (`--check` to verify) | ~2s |
 | Repo rules (game contract, portability) | `bash tools/check_repo.sh` | ~1s |
 | Full build (downloads raylib once) | `cmake --preset dev && cmake --build --preset dev` | ~2 min first |
-| Run the hub | `build/dev/bin/arcade-hub` | - |
-| Headless smoke of every game + PNGs | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arcade-hub --smoke all --frames 300 --out smoke-out` | ~1 min |
+| Run the hub | `build/dev/bin/arCade` | - |
+| Headless smoke of every game + PNGs | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | ~1 min |
 | Sanitizers (Linux/macOS) | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan` | ~30s |
 | New game | `cmake -DID=my_game -DTITLE="My Game" -DOWNER="Name" -P tools/new_game.cmake` | ~1s |
 | Next version preview | `bash tools/next_version.sh` | ~1s |
@@ -117,7 +117,7 @@ assets/               shipped with releases (beatmaps/)          .github/  CI + 
 | logic / front-end | pure `*_logic.c` rules vs raylib `*_game.c` drawing loop |
 | step | one fixed `ARC_DT` (1/60 s) update of game logic |
 | monkey | reproducible random `ArcadeInput` for tests and smoke runs |
-| smoke run | `arcade-hub --smoke`: scripted input, bounded frames, PNG screenshots |
+| smoke run | `arCade --smoke`: scripted input, bounded frames, PNG screenshots |
 | ranked | `GameDef.ranked`: result goes to the leaderboard |
 
 ## Scoped AGENTS.md (MUST read when working in these directories)

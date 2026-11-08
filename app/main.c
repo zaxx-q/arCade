@@ -1,4 +1,4 @@
-/* Arcade Hub entry point: parses the command line, then runs the screen state machine. */
+/* arCade entry point: parses the command line, then runs the screen state machine. */
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (opt.show_version) {
-        printf("arcade-hub %s (raylib %s)\n", ARCADE_VERSION_STRING, ARCADE_RAYLIB_TAG_STRING);
+        printf("arCade %s (raylib %s)\n", ARCADE_VERSION_STRING, ARCADE_RAYLIB_TAG_STRING);
         return 0;
     }
     if (opt.list_games)

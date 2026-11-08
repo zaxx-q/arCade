@@ -1,4 +1,4 @@
-# Arcade Hub
+# arCade
 
 A hub of 8 small, unusual games written in **plain C99** with **raylib 6.2**: an animated falling-sand menu, a persistent leaderboard, and one game per teammate. Built for the *Dasar Pemrograman* final project (procedural programming in C), designed so the leader can keep adding games without touching shared files.
 
@@ -9,9 +9,9 @@ A hub of 8 small, unusual games written in **plain C99** with **raylib 6.2**: an
 # 1. tools: see docs/DEVELOPMENT.md (gcc + g++, CMake >= 3.25, Ninja; Linux also needs X11/GL dev packages)
 cmake --preset logic && cmake --build --preset logic && ctest --preset logic      # fast, no download: expect "100% tests passed ... out of 12"
 cmake --preset dev && cmake --build --preset dev                                   # downloads raylib 6.2 once
-build/dev/bin/arcade-hub                                                           # Windows: build\dev\bin\arcade-hub.exe
+build/dev/bin/arCade                                                               # Windows: build\dev\bin\arCade.exe
 ```
-`arcade-hub --list` prints the registered games, `--version` the version, `--smoke all` runs every game automatically (see Testing).
+`arCade --list` prints the registered games, `--version` the version, `--smoke all` runs every game automatically (see Testing).
 
 ## What is in the box
 | Game (`id`) | Owner | Hook | State |
@@ -46,7 +46,7 @@ Why the logic/front-end split: it is what makes automated tests meaningful for v
 Locally: the table in `AGENTS.md` ("Commands"). CI cannot judge whether a game is fun; it checks rules, determinism, crashes and that every game draws something.
 
 ## Versions and releases
-Tags `vX.Y.Z`; the bump comes from Conventional Commits (`feat` minor, `feat!` major, otherwise patch, `[skip release]` skips). Every push to `main` that passes the full checks publishes a GitHub Release with `arcade-hub-vX.Y.Z-linux-x86_64.tar.gz`, `...-windows-x86_64.zip`, `SHA256SUMS.txt`. Manual run with bump/prerelease/dry-run inputs: Actions -> Release. Nothing ever commits back to the repo. See `docs/RELEASING.md`.
+Tags `vX.Y.Z`; the bump comes from Conventional Commits (`feat` minor, `feat!` major, otherwise patch, `[skip release]` skips). Every push to `main` that passes the full checks publishes a GitHub Release with `arCade-vX.Y.Z-linux-x86_64.tar.gz`, `...-windows-x86_64.zip`, `SHA256SUMS.txt`. Manual run with bump/prerelease/dry-run inputs: Actions -> Release. Nothing ever commits back to the repo. See `docs/RELEASING.md`.
 
 ## Remaining work (in this order)
 **A. Repository setup (Leader, ~30 min, by hand on GitHub)** - follow `docs/RELEASING.md` "One-time repository setup":
@@ -73,8 +73,8 @@ Tags `vX.Y.Z`; the bump comes from Conventional Commits (`feat` minor, `feat!` m
 | formatting | `bash tools/format.sh --check` | `format: OK` |
 | version logic | `bash tools/tests/test_next_version.sh` | `21 passed, 0 failed` |
 | add-a-game | `bash tools/tests/test_new_game.sh` | `new_game test: OK` |
-| hub registry | `build/dev/bin/arcade-hub --list` | 8 games, last line `8 game(s)` |
-| headless smoke | `build/headless/bin/arcade-hub --smoke all --frames 300 --out smoke-out` | 8 lines ending `-> OK`, exit code 0, PNGs in `smoke-out/` |
+| hub registry | `build/dev/bin/arCade --list` | 8 games, last line `8 game(s)` |
+| headless smoke | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 8 lines ending `-> OK`, exit code 0, PNGs in `smoke-out/` |
 
 ## Key decisions
 | Decision | Why |
