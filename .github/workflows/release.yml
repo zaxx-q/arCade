@@ -148,6 +148,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v7
         with:
+          pattern: release-*
           path: dist
           merge-multiple: true
       - name: Checksums
