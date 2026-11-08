@@ -13,11 +13,11 @@ TODO(@OWNER@): one-sentence hook. Rules and status: `GAME.md`.
 - `tests/test_@ID@.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^@ID@\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke @ID@ --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke @ID@ --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - TODO(@OWNER@): list the invariants of this game (bounds, caps, win/lose rules, anything that must stay true).

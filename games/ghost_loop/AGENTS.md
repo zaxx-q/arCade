@@ -13,11 +13,11 @@ Past runs replay as ghosts that help you. Rules and status: `GAME.md`.
 - `tests/test_ghost_loop.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^ghost_loop\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke ghost_loop --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke ghost_loop --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - The simulation ignores `dt` and always advances by `ARC_DT`: replays must be bit-for-bit identical. Never use real time here.

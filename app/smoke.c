@@ -1,4 +1,4 @@
-/* `arcade-hub --smoke <id|all>`: runs games with scripted random input for N frames and exports
+/* `arCade --smoke <id|all>`: runs games with scripted random input for N frames and exports
  * screenshots. Used by CI (headless build) and handy locally to check that nothing crashes. */
 #include <stdio.h>
 #include <string.h>

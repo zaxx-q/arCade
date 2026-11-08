@@ -13,11 +13,11 @@ Time only moves when you move. Rules and status: `GAME.md`.
 - `tests/test_time_shooter.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^time_shooter\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke time_shooter --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke time_shooter --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - The player always moves in REAL time (`dt`); everything else uses `wdt = dt * time_scale`. Any new moving thing must use `wdt`, or the "time freezes" hook breaks.

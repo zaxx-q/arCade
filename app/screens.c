@@ -51,7 +51,7 @@ static int draw_wrapped(const char *text, int x, int y, int size, int max_w, Col
 }
 
 static void draw_title(const char *sub) {
-    DrawText("ARCADE HUB", 48, 28, 44, ARC_COL_CYAN);
+    DrawText("arCade", 48, 28, 44, ARC_COL_CYAN);
     DrawText(sub, 52, 78, 18, ARC_COL_DIM);
 }
 

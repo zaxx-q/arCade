@@ -13,11 +13,11 @@ Be the sorting algorithm: fewest swaps wins. Rules and status: `GAME.md`.
 - `tests/test_sort_it.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^sort_it\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke sort_it --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke sort_it --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - Turn-based: `dt` is intentionally unused. Do not add real-time behaviour without updating `GAME.md`.

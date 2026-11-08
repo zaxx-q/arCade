@@ -22,7 +22,7 @@ void arcade_gfx_init(bool headless) {
     if (!headless)
         flags |= FLAG_MSAA_4X_HINT;
     SetConfigFlags(flags);
-    InitWindow(ARC_SCREEN_W, ARC_SCREEN_H, "Arcade Hub " ARCADE_VERSION_STRING);
+    InitWindow(ARC_SCREEN_W, ARC_SCREEN_H, "arCade " ARCADE_VERSION_STRING);
     SetExitKey(KEY_NULL); /* ESC means "back to the hub", not "close the window" */
     if (!headless)
         SetTargetFPS(ARC_FPS);
