@@ -193,6 +193,7 @@ For details on the loop contract and memory layout, see [docs/ARCHITECTURE.md](d
 - [docs/SANDBOX.md](docs/SANDBOX.md): cellular automata rules and how to add new materials.
 - [docs/RELEASING.md](docs/RELEASING.md): tag conventions and release workflows.
 - [docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md): mapping course requirements to code locations.
+- [docs/raylib_subset.md](docs/raylib_subset.md): signatures for the raylib 6.2 API subset used across games.
 
 ---
 

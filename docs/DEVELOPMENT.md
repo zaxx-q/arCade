@@ -2,6 +2,20 @@
 
 Everything builds with **CMake + a C compiler**. raylib is downloaded and built automatically on the first configure (needs Internet once).
 
+## Repository layout
+
+```
+app/         Hub executable: main loop, menu, leaderboard screen, smoke runner
+assets/      Beatmaps and game data
+cmake/       Build configuration, raylib FetchContent, warnings, toolchains
+core/        Pure C libraries (rng, input, leaderboard, sandbox, sortlib, fx, cli) and core/gfx (raylib helpers)
+docs/        Documentation, guides, architecture notes, and screenshots
+games/       Game packages: <id>_logic.[ch], <id>_game.c, tests, GAME.md
+packaging/   Release packaging notes and runtime instructions
+tests/       Harness (arcade_test.h) and unit tests for core libraries
+tools/       Scripts for formatting, rule checking, game scaffolding, and versioning
+```
+
 ## 1. Install the tools
 
 ### Windows (VS Code)
@@ -81,6 +95,19 @@ Run these checks to verify every layer of the project locally:
 | Hub game registry            | `build/dev/bin/arCade --list`                                        | 8 games registered                    |
 | Headless smoke run           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 8 lines ending `-> OK`, PNGs exported |
 
+### Continuous integration lanes
+
+| Lane | Trigger                                              | Checks                                                                                                                                                                                                                                     |
+| ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fast | Every pull request                                   | Clang-format check, repo rules, Linux GCC build and unit tests with `-Werror`, Windows MinGW GCC build, PR title conventional commit format                                                                                                |
+| Full | Push to `main`, PR labelled `full-ci`, or manual run | Fast lane checks plus AddressSanitizer and UBSan with Clang, cppcheck static analysis, version calculation and scaffolding test scripts, Windows MSVC compile, and headless smoke runs on Linux and Windows exporting screenshot artifacts |
+
+### Platform verification status
+
+- Linux (x86_64): Verified with GCC 13, Clang 18 (ASan and UBSan), headless software rendering, and X11 OpenGL.
+- Windows (x86_64): Verified with MinGW GCC (MSYS2 UCRT64) and MSVC on CI runners. Native execution on local hardware and physical audio output should be tested on clean Windows machines.
+- macOS and Wayland: Not officially targeted.
+
 ## 7. Roadmap and remaining work
 
 ### Phase 1: Foundation & Infrastructure (Completed)
@@ -93,6 +120,19 @@ Run these checks to verify every layer of the project locally:
 - [x] Automated release pipeline with cross-platform packaging and screenshot artifacts (`v0.1.1`).
 
 ### Phase 2: Game Polish & Mechanics (In Progress)
+
+### Team assignments
+
+| Game (`id`)   | Folder                 | Owner                      | Status                                                                  |
+| ------------- | ---------------------- | -------------------------- | ----------------------------------------------------------------------- |
+| Time Shooter  | `games/time_shooter/`  | Member 1                   | Core mechanic working (slow-motion, waves, shake)                       |
+| Echo Maze     | `games/echo_maze/`     | Member 2                   | Core mechanic working (recursive generator, sonar pulse, line of sight) |
+| Laser Mirrors | `games/laser_mirrors/` | Member 3                   | Core mechanic working (sample level, recursive beam tracing)            |
+| Ghost Loop    | `games/ghost_loop/`    | Member 4                   | Core mechanic working (record/replay, floor switches, door logic)       |
+| Beat Dodge    | `games/beat_dodge/`    | Member 5                   | Core mechanic working (beat clock, text beatmap loader, audio click)    |
+| Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ report editor) | Core mechanic working (growth rules, predator respawn scaling)          |
+| Sort It       | `games/sort_it/`       | Leader                     | Working (3 rounds, par and algorithm benchmarks)                        |
+| Sandbox       | `games/sandbox/`       | Leader                     | Working (falling-sand toy; engine powers menu background)               |
 
 Each game owner turns their placeholder into a full game:
 
