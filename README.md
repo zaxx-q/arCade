@@ -1,97 +1,204 @@
 # arCade
 
-A hub of 8 small, unusual games written in **plain C99** with **raylib 6.2**: an animated falling-sand menu, a persistent leaderboard, and one game per teammate. Built for the *Dasar Pemrograman* final project (procedural programming in C), designed so the leader can keep adding games without touching shared files.
+[![CI Status](https://github.com/zaxx-q/arCade/actions/workflows/release.yml/badge.svg)](https://github.com/zaxx-q/arCade/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/zaxx-q/arCade?color=blue)](https://github.com/zaxx-q/arCade/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Language: C99](https://img.shields.io/badge/Language-C99-blue.svg)](https://en.wikipedia.org/wiki/C99)
+[![Graphics: raylib 6.2](https://img.shields.io/badge/Graphics-raylib%206.2-red.svg)](https://www.raylib.com)
 
-> **Handoff note.** This repository is a working starting point, not a finished product: every game runs, is unit-tested and renders, but each is a *placeholder* with its core mechanic working. The remaining work is listed below and marked in code with `TODO(<owner>)`. Search with `grep -rn "TODO(" games core app`.
+**arCade** is a multi-game retro arcade hub featuring 8 distinct, unusual mini-games, an interactive falling-sand menu background, and persistent local leaderboards. Built entirely in **portable procedural C99** with **raylib 6.2**.
 
-## Quick start
+Every game is decoupled into a **deterministic, pure-C logic core** and a modular raylib visual layer, allowing full unit-test coverage, deterministic replayability, and headless continuous integration.
+
+---
+
+## 🎮 The Games
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/time_shooter/GAME.md">Time Shooter</a></h3>
+      <a href="games/time_shooter/GAME.md">
+        <img src="docs/screenshots/time_shooter.png" width="380" alt="Time Shooter Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> <i>Time only moves when you move.</i> Stand still to freeze the world, assess bullets in flight, and plan your next shot. Survive incoming enemy waves.<br/>
+        <b>Controls:</b> <code>WASD</code> / Arrows move &bull; Mouse aim &bull; Left Click shoot.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/echo_maze/GAME.md">Echo Maze</a></h3>
+      <a href="games/echo_maze/GAME.md">
+        <img src="docs/screenshots/echo_maze.png" width="380" alt="Echo Maze Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> The maze is pitch-black. Send out sonar pings that temporarily reveal walls within line of sight. Navigate to the green exit in minimal pings.<br/>
+        <b>Controls:</b> <code>WASD</code> / Arrows move &bull; <code>Space</code> sonar ping.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/laser_mirrors/GAME.md">Laser Mirrors</a></h3>
+      <a href="games/laser_mirrors/GAME.md">
+        <img src="docs/screenshots/laser_mirrors.png" width="380" alt="Laser Mirrors Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> Precision optics puzzle. Rotate mirrors and beam-splitters to bounce and branch laser beams across the grid until every target is lit.<br/>
+        <b>Controls:</b> Left Click mirrors to rotate.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/ghost_loop/GAME.md">Ghost Loop</a></h3>
+      <a href="games/ghost_loop/GAME.md">
+        <img src="docs/screenshots/ghost_loop.png" width="380" alt="Ghost Loop Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> Cooperate with your past self. Every 8-second attempt is recorded; past runs replay as ghosts to hold pressure pads and unlock doors.<br/>
+        <b>Controls:</b> <code>WASD</code> / Arrows move.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/beat_dodge/GAME.md">Beat Dodge</a></h3>
+      <a href="games/beat_dodge/GAME.md">
+        <img src="docs/screenshots/beat_dodge.png" width="380" alt="Beat Dodge Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> Rhythm bullet-dodger. Obstacles fall across 3 lanes and cross the beat line exactly on tempo according to plain-text song beatmaps.<br/>
+        <b>Controls:</b> <code>A</code> / <code>D</code> or <code>Left</code> / <code>Right</code> change lane.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/absorb_grow/GAME.md">Absorb & Grow</a></h3>
+      <a href="games/absorb_grow/GAME.md">
+        <img src="docs/screenshots/absorb_grow.png" width="380" alt="Absorb & Grow Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> Katamari in a petri dish. Swallow smaller green blobs to grow your mass; flee larger red predators that scale relative to your size.<br/>
+        <b>Controls:</b> <code>WASD</code> / Arrows move (speed decreases with mass).
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/sort_it/GAME.md">Sort It</a></h3>
+      <a href="games/sort_it/GAME.md">
+        <img src="docs/screenshots/sort_it.png" width="380" alt="Sort It Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> <i>You are the sorting algorithm.</i> Swap bars to sort shuffled permutations within a swap budget, measured against Bubble and Selection Sort.<br/>
+        <b>Controls:</b> Arrows / Click select &bull; <code>Space</code> / Click swap.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/sandbox/GAME.md">Sandbox</a></h3>
+      <a href="games/sandbox/GAME.md">
+        <img src="docs/screenshots/sandbox.png" width="380" alt="Sandbox Screenshot"/>
+      </a>
+      <p align="left">
+        <b>Hook:</b> Interactive falling-sand cellular automata toy with sand, water, and stone interactions (the same physics engine animates the hub backdrop).<br/>
+        <b>Controls:</b> Left Click paint &bull; Right Click erase &bull; <code>0-3</code> select element &bull; <code>+</code>/<code>-</code> brush size &bull; <code>Space</code> pause.
+      </p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## ✨ Features
+
+- **8 Mini-Games in One Hub:** Select, play, and switch between games seamlessly with zero shared-file merge conflicts.
+- **Falling-Sand Menu Simulation:** The arcade hub background runs a live cellular automata simulation with real-time fluid and powder physics.
+- **Persistent Leaderboard:** Saves high scores locally to `scores.txt` with insertion sorting and linear/binary search.
+- **Pure-C Architecture:** Every game's rule engine has zero graphics dependencies and can be compiled and unit-tested in isolation in milliseconds.
+- **Synthesized Audio:** Sound effects and rhythm clicks are generated procedurally in code without external audio assets.
+- **Deterministic Simulation:** Uses an embedded PCG32 random number generator and fixed `1/60s` physics timesteps for reproducible gameplay and ghost replays.
+- **Cross-Platform:** Runs natively on Linux (X11/Wayland) and Windows (MSYS2 UCRT64 / MSVC).
+
+---
+
+## 🚀 Quick Start
+
+### Download Prebuilt Releases
+
+Ready-to-run releases for Linux and Windows are available on the [**Releases Page**](https://github.com/zaxx-q/arCade/releases/latest):
+
+- **Windows:** Download and unzip `arCade-vX.Y.Z-windows-x86_64.zip`, then run `arCade.exe`.
+- **Linux:** Download and extract `arCade-vX.Y.Z-linux-x86_64.tar.gz`, then execute `./arCade`.
+
+### Build from Source
+
+**Prerequisites:** CMake $\ge$ 3.25, a C99 compiler (GCC, Clang, or MSVC), and Ninja. Raylib 6.2 is fetched and compiled automatically via CMake FetchContent.
+
 ```bash
-# 1. tools: see docs/DEVELOPMENT.md (gcc + g++, CMake >= 3.25, Ninja; Linux also needs X11/GL dev packages)
-cmake --preset logic && cmake --build --preset logic && ctest --preset logic      # fast, no download: expect "100% tests passed ... out of 12"
-cmake --preset dev && cmake --build --preset dev                                   # downloads raylib 6.2 once
-build/dev/bin/arCade                                                               # Windows: build\dev\bin\arCade.exe
+# 1. Fast build & run all unit tests (no raylib download needed)
+cmake --preset logic && cmake --build --preset logic && ctest --preset logic
+
+# 2. Build the full interactive hub with raylib graphics
+cmake --preset dev && cmake --build --preset dev
+
+# 3. Launch arCade!
+build/dev/bin/arCade        # On Windows: build\dev\bin\arCade.exe
 ```
-`arCade --list` prints the registered games, `--version` the version, `--smoke all` runs every game automatically (see Testing).
 
-## What is in the box
-| Game (`id`) | Owner | Hook | State |
-|-------------|-------|------|-------|
-| `time_shooter` | Member 1 | time only moves when you move | core mechanic, particles, shake |
-| `echo_maze` | Member 2 | black maze, sonar pings reveal walls (line of sight) | recursive generator, pings, win |
-| `laser_mirrors` | Member 3 | rotate mirrors to bounce a beam, splitters branch | one solvable level, recursive tracing |
-| `ghost_loop` | Member 4 | your past runs replay as ghosts that hold doors open | record/replay, pad + door puzzle |
-| `beat_dodge` | Member 5 | dodge obstacles that arrive exactly on the beat | beat clock, map file, synthesised tick |
-| `absorb_grow` | Member 6 (+ report) | swallow the small, avoid the big | growth rules, respawn scaling |
-| `sort_it` | Leader | be the sorting algorithm: fewest swaps | 3 rounds, par and algorithm comparison |
-| `sandbox` | Leader | falling-sand toy (sand, water, stone) | v1 working; same engine animates the hub |
+For full environment setup guides (MSYS2 on Windows, packages on Debian/Ubuntu/Fedora), see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-Plus: hub (`app/`), leaderboard (file I/O, insertion sort, linear + binary search), CI/release automation, and docs. Backlog for the leader's own additions: orbital slingshot, territory claim, (anything via `tools/new_game.cmake`).
+---
 
-## Layout
+## 🕹️ Hub Controls
+
+| Key                        | Action                                |
+| -------------------------- | ------------------------------------- |
+| `Up` / `Down` or `W` / `S` | Navigate game cards in the menu       |
+| `Enter` / `Space`          | Launch selected game                  |
+| `Tab`                      | View the global Leaderboard           |
+| `Esc`                      | Return to menu / Exit game / Quit hub |
+| `F11`                      | Toggle Fullscreen                     |
+
+Command-line utilities:
+
+```bash
+arCade --list                # List all registered games and exit
+arCade --version             # Print application and raylib versions
+arCade --smoke all           # Run automated headless smoke tests for all games
+arCade --smoke <id>          # Run smoke test for a specific game
 ```
-core/        pure-C library (rng, input, leaderboard, sandbox engine, sortlib, fx, cli) + core/gfx (raylib helpers)
-app/         the hub executable: menu, leaderboard screen, smoke runner
-games/<id>/  <id>_logic.[ch] (pure) + <id>_game.c (raylib) + tests/ + GAME.md + AGENTS.md      games/_template = scaffold source
-cmake/ tools/ tests/ docs/ assets/ packaging/ .github/ .vscode/ .githooks/
-AGENTS.md    instructions for AI coding agents (root + core/ + games/ + each game + .github/)
+
+---
+
+## 🏛️ Architecture Overview
+
+arCade enforces strict architectural separation between game logic and graphics:
+
 ```
-Why the logic/front-end split: it is what makes automated tests meaningful for visual games, and it keeps the drawing layer replaceable (if the lecturer rejects raylib, only `core/gfx` and `*_game.c` need replacing). Details: `docs/ARCHITECTURE.md`.
+app/ (hub menu, leaderboard, smoke runner)
+ └── games/<id>/<id>_game.c    (raylib drawing loop & front-end)
+      ├── core/gfx/            (window, loop helpers, neon drawing primitives)
+      └── games/<id>/<id>_logic.c (pure C99: simulation step, collision, score)
+           └── core/src/       (pure C99: RNG, input monkey, sandbox, sortlib, leaderboard)
+```
 
-## Testing (what CI runs)
-| Lane | When | What |
-|------|------|------|
-| fast | every PR | clang-format check, repo rules, Linux gcc (logic then full build, `-Werror`), Windows MinGW gcc, PR title check |
-| full | push to `main`, PR labelled `full-ci`, manual | fast + ASan/UBSan (clang), cppcheck, version-script + add-a-game tests, MSVC compile (non-blocking), headless smoke on Linux and Windows (non-blocking) with PNG screenshots as artifacts |
+1. **Pure Logic:** `games/<id>/<id>_logic.c` implements game mechanics without including `raylib.h`. It is completely headless, deterministic, and unit-tested in isolation via CTest.
+2. **Visual Front-End:** `games/<id>/<id>_game.c` handles input polling and raylib rendering calls.
+3. **Automated Discovery:** Drop a new folder into `games/<id>/` with `games/<id>/CMakeLists.txt`, and CMake automatically detects, registers, and surfaces the game on the menu.
 
-Locally: the table in `AGENTS.md` ("Commands"). CI cannot judge whether a game is fun; it checks rules, determinism, crashes and that every game draws something.
+For deep-dive diagrams, game contract details, and data formats, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Versions and releases
-Tags `vX.Y.Z`; the bump comes from Conventional Commits (`feat` minor, `feat!` major, otherwise patch, `[skip release]` skips). Every push to `main` that passes the full checks publishes a GitHub Release with `arCade-vX.Y.Z-linux-x86_64.tar.gz`, `...-windows-x86_64.zip`, `SHA256SUMS.txt`. Manual run with bump/prerelease/dry-run inputs: Actions -> Release. Nothing ever commits back to the repo. See `docs/RELEASING.md`.
+---
 
-## Remaining work (in this order)
-**A. Repository setup (Leader, ~30 min, by hand on GitHub)** - follow `docs/RELEASING.md` "One-time repository setup":
-1. `git init`, commit, create a private repo under your personal account (Education plan), push `main`.
-2. Squash-merge only; protect `main`; require the check **`CI OK`**; create the `full-ci` label.
-3. Open Actions -> Release -> *Run workflow* with `dry_run = true`. Fix anything that is red (see "Not verified" below), then merge a small PR titled `chore: first release` to get **v0.1.0**.
-4. Make each teammate install the toolchain (`docs/DEVELOPMENT.md`), and run the 3 quick-start commands on their own machine (Windows and Linux).
+## 📚 Documentation Index
 
-**B. Ask the lecturer** whether the raylib graphics library is allowed (suggested message in Indonesian: *"Pak/Bu, untuk project akhir, apakah boleh menggunakan library grafis raylib (bahasa C) untuk tampilan game?"*). If not, the logic layer survives; only `core/gfx` and `*_game.c` need a different front-end.
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md):** Toolchain installation, everyday commands, verification matrix, and project roadmap.
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):** Subsystem architecture, the GameDef contract, and technical decisions.
+- **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md):** Guide and scaffold tool (`tools/new_game.cmake`) for adding new games.
+- **[docs/SANDBOX.md](docs/SANDBOX.md):** How the cellular automata sand simulation engine works and how to add new elements.
+- **[docs/RELEASING.md](docs/RELEASING.md):** Versioning rules, conventional commits, and automated GitHub Release workflow.
+- **[docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md):** Academic course concept mapping (functions, arrays, structs, pointers, recursion, algorithms, file I/O).
 
-**C. Each owner: turn the placeholder into the real game.** Open `games/<id>/GAME.md` -> "Implementation steps", grep your `TODO(owner)`, and for every new rule: write the test first, then the logic, then the drawing. "Done" for the report means: mechanic beyond the placeholder, tests green, `GAME.md` pseudocode/flowchart/concept table updated, one good screenshot.
+---
 
-**D. Leader: extras** - add games from the backlog with `cmake -DID=... -DTITLE=... -DOWNER=... -P tools/new_game.cmake` (`docs/ADDING_A_GAME.md`), extend the sandbox (`docs/SANDBOX.md`: fire, oil, lava, plant, acid), add more beat maps in `assets/beatmaps/`, add more levels to laser_mirrors.
+## 📄 License
 
-**E. After the first green CI runs** - promote `windows-msvc` and `smoke` to blocking (delete `continue-on-error` in `.github/workflows/checks.yml`); check that Windows zips run on a clean machine.
-
-**F. Report and video** - `docs/REPORT_GUIDE.md` maps every report section to files in this repo (pseudocode and flowcharts already live in each `GAME.md`). Make the repository public (or add the lecturer) before submission.
-
-## How to verify the starter
-| Check | Command | Expected |
-|-------|---------|----------|
-| unit tests | `ctest --preset logic` | 12 tests, all passed |
-| contract + portability rules | `bash tools/check_repo.sh` | `check_repo: OK (8 games)` |
-| formatting | `bash tools/format.sh --check` | `format: OK` |
-| version logic | `bash tools/tests/test_next_version.sh` | `21 passed, 0 failed` |
-| add-a-game | `bash tools/tests/test_new_game.sh` | `new_game test: OK` |
-| hub registry | `build/dev/bin/arCade --list` | 8 games, last line `8 game(s)` |
-| headless smoke | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 8 lines ending `-> OK`, exit code 0, PNGs in `smoke-out/` |
-
-## Key decisions
-| Decision | Why |
-|----------|-----|
-| Plain C99, strict warnings, no C++/POSIX/Windows-only APIs | the course is C; identical behaviour on Linux and Windows; errors found by `-Werror` and cppcheck |
-| raylib 6.2 via CMake `FetchContent` (pinned tag) | no manual library install on 7 laptops; 6.x adds a CPU renderer that enables headless CI |
-| Logic/front-end split + deterministic logic (own PCG32 RNG, fixed step) | unit-testable and replayable (ghosts, tests, smoke runs) |
-| Auto-registered games | the leader can add games and 7 people can work in parallel without merge conflicts |
-| Tags as version source, no bump commits | no workflow loops, no conflicts; the PR title decides the release |
-| Release only from `main` after the full lane | broken code never becomes a download |
-| MinGW (MSYS2 UCRT64) as the Windows toolchain, MSVC as a compile check | same compiler family as Linux; MSVC catches VLAs and other gcc-only habits |
-| AGENTS.md only (no CLAUDE.md/GEMINI.md mirrors) | requested; Copilot, Cursor, Codex, Roo read AGENTS.md natively. Claude Code, Cline and Continue do not: if a teammate uses one of them, add a one-line pointer file for that tool |
-| Audio synthesised in code, no asset files | nothing to license; games stay silent if there is no sound device |
-
-## Verified in the build sandbox (Linux x86_64) vs. not verified
-Verified: desktop build with gcc 13 `-Werror`; 12/12 unit tests; ASan+UBSan (clang 18); cppcheck 2.13; clang-format 18.1.8; actionlint 1.7.12 on all workflows; 8/8 games in the headless smoke run and under `xvfb` with real OpenGL; the interactive hub driven by synthetic keystrokes (name entry, menu, launching a game, ESC, result screen, leaderboard, quit); Windows cross-compile with MinGW (static link, `-Werror`); `next_version.sh` (21 cases); scaffold test.
-**Not verified (first things to check when CI runs):** GitHub-hosted runs themselves (MSYS2 setup, `windows-latest`, the `msvc-dev-cmd` job, the publish step); a native Windows run of the exe; MSVC warnings (the job does not use `-Werror` yet); real audio output (no sound device here); macOS and Wayland (not targeted). Newer compilers on the CI runners (MSYS2 gcc, Ubuntu gcc/clang) may add warnings that `-Werror` turns into errors: fix the code, or as a stopgap pass `-DARCADE_WERROR=OFF` in the preset.
-
-## More documentation
-`docs/DEVELOPMENT.md` setup and troubleshooting - `docs/ARCHITECTURE.md` - `docs/ADDING_A_GAME.md` - `docs/RELEASING.md` - `docs/REPORT_GUIDE.md` - `docs/SANDBOX.md` - `docs/raylib_subset.md` (exact raylib 6.2 signatures; regenerate with `tools/gen_raylib_subset.sh`) - `THIRD_PARTY_NOTICES.md`.
+This project is licensed under the [MIT License](LICENSE). Third-party dependencies and notices are detailed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
