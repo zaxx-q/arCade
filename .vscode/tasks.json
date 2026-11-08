@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "logic: configure", "type": "shell", "command": "cmake", "args": ["--preset", "logic"], "problemMatcher": [] },
+    { "label": "logic: build", "type": "shell", "command": "cmake", "args": ["--build", "--preset", "logic"], "dependsOn": "logic: configure", "problemMatcher": ["$gcc"] },
+    { "label": "logic: test", "type": "shell", "command": "ctest", "args": ["--preset", "logic"], "dependsOn": "logic: build", "group": { "kind": "test", "isDefault": true }, "problemMatcher": [] },
+    { "label": "dev: configure", "type": "shell", "command": "cmake", "args": ["--preset", "dev"], "problemMatcher": [] },
+    { "label": "dev: build", "type": "shell", "command": "cmake", "args": ["--build", "--preset", "dev"], "dependsOn": "dev: configure", "group": { "kind": "build", "isDefault": true }, "problemMatcher": ["$gcc"] },
+    { "label": "format", "type": "shell", "command": "bash", "args": ["tools/format.sh"], "problemMatcher": [] },
+    { "label": "check repo", "type": "shell", "command": "bash", "args": ["tools/check_repo.sh"], "problemMatcher": [] },
+    {
+      "label": "new game",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-DID=${input:gameId}", "-DTITLE=${input:gameTitle}", "-DOWNER=${input:gameOwner}", "-P", "tools/new_game.cmake"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    { "id": "gameId", "type": "promptString", "description": "Game id (lowercase, digits, underscores), e.g. my_game" },
+    { "id": "gameTitle", "type": "promptString", "description": "Title shown in the menu" },
+    { "id": "gameOwner", "type": "promptString", "description": "Owner name" }
+  ]
+}

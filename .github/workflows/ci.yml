@@ -1,0 +1,87 @@
+# Runs on every pull request. Required status check for branch protection: "CI OK".
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Run the full lane (sanitizers, cppcheck, MSVC, smoke)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      full: ${{ steps.diff.outputs.full }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          FULL_INPUT: ${{ inputs.full }}
+        run: |
+          code=true
+          full=false
+          if [ "$EVENT" = "pull_request" ]; then
+            files="$(git diff --name-only "$BASE"...HEAD)"
+            # documentation-only changes skip the build lanes
+            if ! printf '%s\n' "$files" | grep -Eqv '^(docs/|LICENSE|THIRD_PARTY|\.vscode/|\.editorconfig$|.*\.md$)'; then code=false; fi
+            if printf '%s' "$LABELS" | grep -q 'full-ci'; then full=true; fi
+          else
+            full="$FULL_INPUT"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Title follows Conventional Commits
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          re='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9_./-]+\))?!?: .+'
+          if [[ ! "$TITLE" =~ $re ]]; then
+            echo "::error::PR title must look like 'feat(echo_maze): add pings' (types: feat fix docs style refactor perf test build ci chore revert). The squash-merge title decides the next version."
+            exit 1
+          fi
+
+  checks:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    uses: ./.github/workflows/checks.yml
+    with:
+      full: ${{ needs.changes.outputs.full == 'true' }}
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [pr-title, checks]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required jobs passed (or were legitimately skipped)
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+          esac

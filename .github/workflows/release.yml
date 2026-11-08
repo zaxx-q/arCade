@@ -1,0 +1,161 @@
+# Every push to main that passes the FULL checks becomes a GitHub Release (Linux + Windows downloads).
+# Manual run: Actions -> Release -> Run workflow (choose bump, prerelease, dry run).
+# Versions come from git tags + Conventional Commits (tools/next_version.sh). This workflow NEVER commits.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (auto = decide from commit messages)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+      prerelease:
+        description: "Mark the release as a pre-release"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Build everything but do not create the release"
+        type: boolean
+        default: false
+
+# One release at a time. A newer push waits (and replaces older waiting runs: their commits are
+# included in the newer release anyway).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      full: true
+
+  version:
+    needs: checks
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.v.outputs.skip }}
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      bump: ${{ steps.v.outputs.bump }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags and history are needed
+      - id: v
+        env:
+          BUMP: ${{ inputs.bump || 'auto' }}
+        run: bash tools/next_version.sh --bump "$BUMP" | tee -a "$GITHUB_OUTPUT"
+
+  build-linux:
+    needs: version
+    if: needs.version.outputs.skip != 'true'
+    # Oldest Ubuntu runner still offered: binaries built on older glibc run on more distributions.
+    runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
+      - name: Build, test, check version
+        run: |
+          cmake --preset release -DARCADE_VERSION="$VERSION"
+          cmake --build --preset release
+          ctest --preset release
+          strip build/release/bin/arcade-hub
+          build/release/bin/arcade-hub --version | tee /dev/stderr | grep -q "arcade-hub $VERSION "
+      - name: Package
+        run: |
+          name="arcade-hub-v${VERSION}-linux-x86_64"
+          mkdir -p "dist/$name"
+          cp build/release/bin/arcade-hub "dist/$name/"
+          cp -r assets "dist/$name/assets"
+          cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
+          cp packaging/PLAY.txt "dist/$name/README.txt"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-linux
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  build-windows:
+    needs: version
+    if: needs.version.outputs.skip != 'true'
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            git
+            zip
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+      - name: Build (static, no extra DLLs needed), test, check version
+        run: |
+          cmake --preset release -DARCADE_VERSION="$VERSION" -DCMAKE_EXE_LINKER_FLAGS="-static"
+          cmake --build --preset release
+          ctest --preset release
+          build/release/bin/arcade-hub.exe --version | tee /dev/stderr | grep -q "arcade-hub $VERSION "
+      - name: Package
+        run: |
+          name="arcade-hub-v${VERSION}-windows-x86_64"
+          mkdir -p "dist/$name"
+          cp build/release/bin/arcade-hub.exe "dist/$name/"
+          cp -r assets "dist/$name/assets"
+          cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
+          cp packaging/PLAY.txt "dist/$name/README.txt"
+          (cd dist && zip -qr "$name.zip" "$name")
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-windows
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the tag and the release
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      PRERELEASE: ${{ inputs.prerelease }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum * | tee SHA256SUMS.txt
+      - name: Create the release
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: would publish $TAG with:"; ls -l dist
+            echo "### Dry run for $TAG (nothing published)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Arcade Hub $TAG" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
+          gh release create "$TAG" "${args[@]}" dist/*
+          echo "### Released $TAG" >> "$GITHUB_STEP_SUMMARY"

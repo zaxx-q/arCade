@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Arcade Hub",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "cwd": "${command:cmake.launchTargetDirectory}",
+      "MIMode": "gdb",
+      "setupCommands": [{ "description": "Pretty printing", "text": "-enable-pretty-printing", "ignoreFailures": true }]
+    },
+    {
+      "name": "Debug a game smoke run (set the id)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": ["--smoke", "echo_maze", "--frames", "300", "--out", "smoke-out"],
+      "cwd": "${command:cmake.launchTargetDirectory}",
+      "MIMode": "gdb"
+    }
+  ]
+}
