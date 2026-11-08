@@ -3,7 +3,7 @@
 # AGENTS.md - core/
 
 ## Overview
-Shared library for every game and the hub. Two parts: **pure C** (`core/src`, headers in `core/include/arcade/` except `gfx.h`) that is unit-tested without raylib, and **raylib helpers** (`core/gfx/`, `gfx.h`) for window, frame loop, input polling, drawing and audio.
+Shared library for every game and arCade. Two parts: **pure C** (`core/src`, headers in `core/include/arcade/` except `gfx.h`) that is unit-tested without raylib, and **raylib helpers** (`core/gfx/`, `gfx.h`) for window, frame loop, input polling, drawing and audio.
 
 ## Key Files
 | File | Role |

@@ -13,11 +13,11 @@ Rotate mirrors so the beam hits every target. Rules and status: `GAME.md`.
 - `tests/test_laser_mirrors.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^laser_mirrors\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke laser_mirrors --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke laser_mirrors --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - Directions are 0=right, 1=down, 2=left, 3=up. `'/'` maps `d -> 3 - d`, `'\'` maps `d -> d ^ 1`. Keep these identities in one place (`trace`).

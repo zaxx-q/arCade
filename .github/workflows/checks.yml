@@ -54,10 +54,10 @@ jobs:
           cmake --build --preset dev
       - name: Hub starts and every game is registered (no window needed)
         run: |
-          build/dev/bin/arcade-hub --version
-          build/dev/bin/arcade-hub --list
+          build/dev/bin/arCade --version
+          build/dev/bin/arCade --list
           expected="$(find games -mindepth 1 -maxdepth 1 -type d ! -name '_*' | wc -l)"
-          build/dev/bin/arcade-hub --list | tail -n 1 | grep -qx "${expected} game(s)"
+          build/dev/bin/arCade --list | tail -n 1 | grep -qx "${expected} game(s)"
 
   windows-mingw:
     name: windows-mingw
@@ -87,8 +87,8 @@ jobs:
           cmake --build --preset dev
       - name: Hub starts and every game is registered (no window needed)
         run: |
-          build/dev/bin/arcade-hub.exe --version
-          build/dev/bin/arcade-hub.exe --list
+          build/dev/bin/arCade.exe --version
+          build/dev/bin/arCade.exe --list
 
   # ---------------------------------------------------------------- full lane
   sanitizers:
@@ -147,7 +147,7 @@ jobs:
           cmake -S . -B build/msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl
           cmake --build build/msvc
           ctest --test-dir build/msvc --output-on-failure
-          build/msvc/bin/arcade-hub.exe --version
+          build/msvc/bin/arCade.exe --version
 
   smoke:
     name: smoke (headless, ${{ matrix.os }})
@@ -178,14 +178,14 @@ jobs:
         run: |
           cmake --preset headless
           cmake --build --preset headless
-          build/headless/bin/arcade-hub --smoke all --frames 600 --out smoke-out
+          build/headless/bin/arCade --smoke all --frames 600 --out smoke-out
       - name: Headless build + smoke run of every game (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
           cmake --preset headless
           cmake --build --preset headless
-          build/headless/bin/arcade-hub.exe --smoke all --frames 600 --out smoke-out
+          build/headless/bin/arCade.exe --smoke all --frames 600 --out smoke-out
       - uses: actions/upload-artifact@v6
         if: always()
         with:

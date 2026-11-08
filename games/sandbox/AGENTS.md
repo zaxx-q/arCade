@@ -13,11 +13,11 @@ Falling-sand toy on the shared `core/sandbox` engine (also animates the hub back
 - `tests/test_sandbox.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^sandbox\."`
-- Smoke run (headless build): `build/headless/bin/arcade-hub --smoke sandbox --frames 300 --out smoke-out`
+- Smoke run (headless build): `build/headless/bin/arCade --smoke sandbox --frames 300 --out smoke-out`
 
 ## Code style & conventions
 - Function prefix is `sbx_` (NOT `sandbox_`): `sandbox_*` belongs to the core engine.

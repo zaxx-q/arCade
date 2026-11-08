@@ -21,7 +21,7 @@ The assignment needs: source code, demo video, report (one PDF). This repo alrea
 - **Pseudocode**: copy the "Pseudocode" block of each `GAME.md`.
 - **Flowchart**: each `GAME.md` has a Mermaid flowchart. Render it: paste into <https://mermaid.live> and export PNG/SVG, or `npx @mermaid-js/mermaid-cli -i flow.mmd -o flow.png`. GitHub also shows Mermaid inline.
 - **Demo video** (1-6 min): screen-record on the machine you tested on. Suggested script: intro + name entry + menu with the sand playground (30 s) -> about 30 s per game (show the hook working) -> leaderboard after two plays, then restart the app to show scores persist (30 s). Upload to Google Drive, set "anyone with the link", put the link in the report.
-- Handy screenshots for the report: `build/headless/bin/arcade-hub --smoke all --frames 400 --out report-shots` produces one PNG per game.
+- Handy screenshots for the report: `build/headless/bin/arCade --smoke all --frames 400 --out report-shots` produces one PNG per game.
 
 ## Bab III - Penutup
 Kesimpulan: what the project demonstrates; Saran: the backlog (`README.md` "Remaining work": more levels, more sandbox elements, extra games).

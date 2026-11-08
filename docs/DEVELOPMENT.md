@@ -26,7 +26,7 @@ pip install clang-format==18.1.8     # the exact version CI uses (tools/format.s
 
 ## 2. VS Code
 Install the recommended extensions (the editor prompts you; list in `.vscode/extensions.json`): *CMake Tools*, *C/C++*, *GitHub Actions*, *EditorConfig*, *Markdown Preview Mermaid Support*.
-- Command Palette -> **CMake: Select Configure Preset** -> `dev`, then **CMake: Build** and **CMake: Debug** (launches `arcade-hub`).
+- Command Palette -> **CMake: Select Configure Preset** -> `dev`, then **CMake: Build** and **CMake: Debug** (launches `arCade`).
 - **Terminal -> Run Task...** has `logic: test`, `dev: build`, `format`, `check repo`, `new game`.
 - Do not turn on "format on save" with the C/C++ extension: its bundled clang-format differs from CI's. Run `bash tools/format.sh` instead.
 
@@ -35,8 +35,8 @@ Install the recommended extensions (the editor prompts you; list in `.vscode/ext
 |------|---------|
 | Fast loop (no raylib) | `cmake --preset logic && cmake --build --preset logic && ctest --preset logic` |
 | One game's tests | `ctest --preset logic -R "^echo_maze\."` |
-| Play | `cmake --preset dev && cmake --build --preset dev` then `build/dev/bin/arcade-hub` (`.exe` on Windows) |
-| Headless screenshots | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arcade-hub --smoke all --frames 300 --out smoke-out` |
+| Play | `cmake --preset dev && cmake --build --preset dev` then `build/dev/bin/arCade` (`.exe` on Windows) |
+| Headless screenshots | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` |
 | Sanitizers (Linux/macOS) | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan` |
 | Windows build from Linux | see `cmake/toolchains/mingw-w64-x86_64.cmake` |
 | Offline / local raylib | add `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=/path/to/raylib` to the configure command |

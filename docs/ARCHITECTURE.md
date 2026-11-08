@@ -29,7 +29,7 @@ while (arcade_loop_running()) {          // false on ESC, window close, or max_f
 ## Testing pyramid
 1. **Unit tests** (`ctest`, pure code, any OS, no raylib): rules, determinism, "every seed is solvable", file parsers, a monkey test per game (thousands of random inputs, invariants must hold).
 2. **Sanitizers**: the same tests under ASan + UBSan (clang, Linux).
-3. **Smoke runs** (`arcade-hub --smoke all`): each game runs N frames with scripted input and exports PNGs; the run fails if a game crashes or draws a single flat colour. Two backends: raylib 6's CPU renderer (`headless` preset, no GPU/window) and a real window under `xvfb`.
+3. **Smoke runs** (`arCade --smoke all`): each game runs N frames with scripted input and exports PNGs; the run fails if a game crashes or draws a single flat colour. Two backends: raylib 6's CPU renderer (`headless` preset, no GPU/window) and a real window under `xvfb`.
 4. **Compile checks**: gcc (Linux), MinGW gcc (Windows), MSVC (non-blocking), `-Werror`.
 What CI cannot check: whether a game is fun, or exact pixel output.
 

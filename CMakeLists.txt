@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22) # raylib 6.2 itself requires 3.22
-project(ArcadeHub LANGUAGES C)
+project(arCade LANGUAGES C)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -53,5 +53,5 @@ endif()
 
 # ---- Summary ---------------------------------------------------------------
 get_property(_ids GLOBAL PROPERTY ARCADE_GAME_IDS)
-message(STATUS "Arcade Hub ${ARCADE_VERSION_RESOLVED} | logic-only=${ARCADE_LOGIC_ONLY} headless=${ARCADE_HEADLESS} werror=${ARCADE_WERROR} sanitize=${ARCADE_SANITIZE}")
+message(STATUS "arCade ${ARCADE_VERSION_RESOLVED} | logic-only=${ARCADE_LOGIC_ONLY} headless=${ARCADE_HEADLESS} werror=${ARCADE_WERROR} sanitize=${ARCADE_SANITIZE}")
 message(STATUS "Games: ${_ids}")

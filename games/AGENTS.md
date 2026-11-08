@@ -17,11 +17,11 @@ Every folder `games/<id>/` is one game and is discovered automatically by CMake 
 Create a new game: `cmake -DID=my_game -DTITLE="My Game" -DOWNER="Name" -P tools/new_game.cmake` (copies `_template/`), then build.
 
 ## Setup & environment
-Logic-only builds need no raylib: `cmake --preset logic`. To see the game: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arcade-hub`.
+Logic-only builds need no raylib: `cmake --preset logic`. To see the game: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - One game: `ctest --preset logic -R "^<id>\."` (tests are named `<id>.test_<id>`)
-- Every game: `ctest --preset logic`; playable smoke: `build/headless/bin/arcade-hub --smoke <id> --frames 300`
+- Every game: `ctest --preset logic`; playable smoke: `build/headless/bin/arCade --smoke <id> --frames 300`
 - Contract check: `bash tools/check_repo.sh`
 
 ## Code style & conventions
