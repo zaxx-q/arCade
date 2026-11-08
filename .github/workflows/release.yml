@@ -73,7 +73,9 @@ jobs:
           cmake --build --preset release
           ctest --preset release
           strip build/release/bin/arcade-hub
-          build/release/bin/arcade-hub --version | tee /dev/stderr | grep -q "arcade-hub $VERSION "
+          vout="$(build/release/bin/arcade-hub --version)"
+          printf '%s\n' "$vout"
+          printf '%s\n' "$vout" | grep -q "arcade-hub $VERSION "
       - name: Package
         run: |
           name="arcade-hub-v${VERSION}-linux-x86_64"
@@ -115,7 +117,9 @@ jobs:
           cmake --preset release -DARCADE_VERSION="$VERSION" -DCMAKE_EXE_LINKER_FLAGS="-static"
           cmake --build --preset release
           ctest --preset release
-          build/release/bin/arcade-hub.exe --version | tee /dev/stderr | grep -q "arcade-hub $VERSION "
+          vout="$(build/release/bin/arcade-hub.exe --version)"
+          printf '%s\n' "$vout"
+          printf '%s\n' "$vout" | grep -q "arcade-hub $VERSION "
       - name: Package
         run: |
           name="arcade-hub-v${VERSION}-windows-x86_64"
