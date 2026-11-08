@@ -137,8 +137,6 @@ jobs:
   windows-msvc:
     name: windows-msvc (compile check)
     if: inputs.full
-    # Not blocking yet: flip this to false after the first fully green run.
-    continue-on-error: true
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -154,8 +152,6 @@ jobs:
   smoke:
     name: smoke (headless, ${{ matrix.os }})
     if: inputs.full
-    # raylib's software renderer is new: non-blocking until it has proven stable on both OSes.
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
