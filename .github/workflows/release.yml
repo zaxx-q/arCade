@@ -85,7 +85,7 @@ jobs:
           cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
           cp packaging/PLAY.txt "dist/$name/README.txt"
           tar -C dist -czf "dist/$name.tar.gz" "$name"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: release-linux
           path: dist/*.tar.gz
@@ -129,7 +129,7 @@ jobs:
           cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
           cp packaging/PLAY.txt "dist/$name/README.txt"
           (cd dist && zip -qr "$name.zip" "$name")
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: release-windows
           path: dist/*.zip
