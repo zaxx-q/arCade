@@ -20,7 +20,7 @@ static void draw(const time_shooter_State *s, float t, Vec2 shake) {
     DrawRectangle(16, ARC_SCREEN_H - 24, 204, 12, Fade(ARC_COL_PANEL, 0.9f));
     DrawRectangle(18, ARC_SCREEN_H - 22, (int)(200.0f * s->time_scale), 8,
                   s->time_scale > 0.5f ? ARC_COL_GREEN : ARC_COL_CYAN);
-    DrawText("TIME", 228, ARC_SCREEN_H - 26, 16, ARC_COL_DIM);
+    gfx_text("TIME", 228, ARC_SCREEN_H - 26, 16, ARC_COL_DIM);
     if (s->time_scale < 0.5f)
         DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_CYAN, 0.04f));
 }

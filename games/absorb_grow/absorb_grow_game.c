@@ -17,7 +17,7 @@ static void draw(const absorb_grow_State *s, float t) {
     float k = arc_clampf(s->r / AG_WIN_R, 0.0f, 1.0f); /* progress bar toward the win size */
     DrawRectangle(16, ARC_SCREEN_H - 24, 304, 12, Fade(ARC_COL_PANEL, 0.9f));
     DrawRectangle(18, ARC_SCREEN_H - 22, (int)(300.0f * k), 8, ARC_COL_CYAN);
-    DrawText("SIZE", 328, ARC_SCREEN_H - 26, 16, ARC_COL_DIM);
+    gfx_text("SIZE", 328, ARC_SCREEN_H - 26, 16, ARC_COL_DIM);
 }
 
 static GameResult play(const GameContext *ctx) {
