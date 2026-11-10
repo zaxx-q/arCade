@@ -41,6 +41,7 @@ if(NOT ARCADE_LOGIC_ONLY)
 endif()
 
 add_subdirectory(games)
+add_subdirectory(tools)
 
 if(ARCADE_BUILD_TESTS)
   add_subdirectory(tests)

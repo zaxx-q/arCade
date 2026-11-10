@@ -1,0 +1,11 @@
+# Songs built by tools/songs/build_songs.sh:  slug | title | MIDI file (relative to tools/songs/)
+# Order = order in the menu (the script appends missing songs to assets/beatmaps/songs.txt in this order).
+bopeebo|Bopeebo|fnf/bopeebo.mid
+satin_panties|Satin Panties|fnf/satin_panties.mid
+roses|Roses|fnf/roses.mid
+high|High|fnf/high.mid
+eggnog|Eggnog|fnf/eggnog.mid
+south|South|fnf/south.mid
+dad_battle|Dad Battle|fnf/dad_battle.mid
+milf|M.I.L.F|fnf/milf.mid
+thorns|Thorns|fnf/thorns.mid
