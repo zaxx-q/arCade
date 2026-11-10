@@ -11,9 +11,9 @@ static void draw_palette(const sbx_State *s) {
         DrawRectangle(x, ARC_SCREEN_H - 34, 24, 24, swatch);
         if ((int)s->element == i)
             DrawRectangleLines(x - 3, ARC_SCREEN_H - 37, 30, 30, ARC_COL_CYAN);
-        DrawText(TextFormat("%d %s", i, e->name), x + 34, ARC_SCREEN_H - 32, 18, ARC_COL_TEXT);
+        gfx_text(TextFormat("%d %s", i, e->name), x + 34, ARC_SCREEN_H - 32, 18, ARC_COL_TEXT);
     }
-    DrawText(TextFormat("brush %d   [+/-]   [C] clear   [R] reset   [Space] %s   right mouse: erase",
+    gfx_text(TextFormat("brush %d   [+/-]   [C] clear   [R] reset   [Space] %s   right mouse: erase",
                         s->brush, s->paused ? "RESUME" : "pause"),
              16 + EL_COUNT * 170, ARC_SCREEN_H - 32, 16, ARC_COL_DIM);
 }
