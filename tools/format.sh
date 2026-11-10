@@ -12,7 +12,7 @@ if ! command -v clang-format >/dev/null 2>&1; then
 fi
 version="$(clang-format --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
 [ "$version" = "18.1.8" ] || echo "note: clang-format $version differs from CI's 18.1.8; results may differ slightly" >&2
-mapfile -t files < <(find core app games tests tools -type f \( -name '*.c' -o -name '*.h' \) ! -path 'games/_template/*' | sort)
+mapfile -t files < <(find core app games tests -type f \( -name '*.c' -o -name '*.h' \) ! -path 'games/_template/*' | sort)
 if [ "${1:-}" = "--check" ]; then
   clang-format --dry-run --Werror "${files[@]}"
   echo "format: OK (${#files[@]} files)"

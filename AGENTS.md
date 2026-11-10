@@ -22,7 +22,6 @@ arCade: a hub plus 8 small games in **plain C99** drawn with **raylib 6.2** (pin
 | Headless smoke of every game + PNGs | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | ~1 min |
 | Sanitizers (Linux/macOS) | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan` | ~30s |
 | New game | `cmake -DID=my_game -DTITLE="My Game" -DOWNER="Name" -P tools/new_game.cmake` | ~1s |
-| Convert MIDI songs for Beat Dodge | `bash tools/songs/build_songs.sh` | ~2s |
 | Next version preview | `bash tools/next_version.sh` | ~1s |
 | Script tests | `bash tools/tests/test_next_version.sh && bash tools/tests/test_new_game.sh` | ~30s |
 
@@ -72,7 +71,6 @@ assets/               shipped with releases (beatmaps/)          .github/  CI + 
 | Particles, screen shake | `fx_burst`, `shake_start` | `fx.h` |
 | High scores, sorting, search | `lb_*`, `sort_*` | `leaderboard.h`, `sortlib.h` |
 | Falling sand | `sandbox_*` | `sandbox.h` |
-| MIDI files, synthesised music | `midi_load`, `synth_render`, `tools/midi2beatmap` | `midi.h`, `synth.h`, `docs/SONGS.md` |
 | Drawing, HUD, glow, audio tone | `gfx_*`, `arcade_*` | `gfx.h` (front-ends only) |
 
 ## Heuristics (quick decisions)
@@ -106,7 +104,6 @@ assets/               shipped with releases (beatmaps/)          .github/  CI + 
 ### Never Do
 - Include `raylib.h` / `arcade/gfx.h` from `*_logic.*`, `core/src`, or tests
 - Use `rand()`, `time()`, `M_PI`, VLAs, POSIX/Windows-only APIs in shared code
-- Call `DrawText()`/`MeasureText()` (use `gfx_text()`/`gfx_text_width()`: they apply the project font, Poiret One)
 - Call `EndDrawing()` in a game (use `arcade_frame_end()`); skip `arcade_loop_begin(ctx)`
 - Commit `build/`, `scores.txt`, secrets; push directly to `main`; edit generated files (`build/**/generated`, `docs/raylib_subset.md`)
 
