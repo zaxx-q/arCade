@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     arc_strlcpy(app.player, "PLAYER", sizeof(app.player));
     app_sort_games(&app);
 
-    arcade_gfx_init(false, app.assets_dir);
+    arcade_gfx_init(false);
     if (!IsWindowReady()) {
         fprintf(stderr, "error: could not open the game window\n");
         return 1;

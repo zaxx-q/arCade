@@ -1,43 +1,42 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-09 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-08 -->
 
 # AGENTS.md - Beat Dodge (`beat_dodge`)
 
 Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 5 | Ranked
 
 ## Overview
-Rhythm dodger. Songs (`bd_Song`) have 1-3 charts (easy/normal/hard, 3-5 lanes) and a melody played by the built-in synth. Songs are text files in `assets/beatmaps/`, listed in `assets/beatmaps/songs.txt`, converted from MIDI by `tools/midi2beatmap` (see `docs/SONGS.md`).
+Dodge obstacles that arrive exactly on the beat. Rules and status: `GAME.md`.
 
 ## Key Files
-- `beat_dodge_logic.[ch]`: song format (load/save), song list, menu logic, game rules
-- `beat_dodge_convert.[ch]`: MIDI -> song (thinning, pitch-to-lane DP), used by the tool and tests
-- `beat_dodge_game.c`: select screen, music playback (WAV in memory), drawing
-- `tests/test_beat_dodge.c`, `tests/test_beat_dodge_convert.c`
+- `beat_dodge_logic.[ch]`: pure rules (no raylib), state struct, `init/step/is_over/score`
+- `beat_dodge_game.c`: raylib loop + drawing + `game_beat_dodge_def`
+- `tests/test_beat_dodge.c`: unit tests (logic only)
 
 ## Setup & environment
-`cmake --preset logic` needs no raylib. Play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
+`cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^beat_dodge\."`
-- Every song in `songs.txt` is loaded and perfect-played by `test_every_shipped_song_is_playable`: regenerate songs with `bash tools/songs/build_songs.sh` after changing the converter.
-- Smoke: `build/headless/bin/arCade --smoke beat_dodge --frames 420 --out smoke-out` (also writes `beat_dodge_select.png`)
+- Smoke run (headless build): `build/headless/bin/arCade --smoke beat_dodge --frames 300 --out smoke-out`
 
 ## Code style & conventions
-- Time comes from `time`/`step_sec`/`lead`, never from frame counts. Obstacle `i` arrives at `lead + i * step_sec`; `beat_dodge_obstacle_y` and the hit test must keep using `beat_dodge_arrival()`.
-- Music timeline == game clock: a melody note sounds when its obstacle reaches the line (`bd_song_to_synth(song, lead, ...)`). `beat_dodge_sync` only corrects drifts > 0.15 s.
-- Audio is optional: guard with `arcade_audio_ready()`; smoke runs never load audio.
-- `bd_song_load` must keep rejecting bad files without touching its output. Charts never place two obstacles closer than 0.2 s.
-- Lanes in converted songs come from pitch (low = left); do not shuffle them.
+- Timing is derived from `time` and `spb` (seconds per beat), never from frame counts, so the BPM can change per map.
+- An obstacle for beat `i` arrives at `(i + BD_LEAD_BEATS) * spb`; `beat_dodge_obstacle_y` and the hit test must keep using that same formula.
+- Audio is optional: guard every sound call with `arcade_audio_ready()` (smoke runs and CI have no audio device). The front-end skips loading map files when `ctx->headless` so smoke runs are deterministic.
+- `bd_beatmap_load` must keep rejecting bad files without touching its output (see `tests/test_beat_dodge.c`).
+- Test: `ctest --preset logic -R "^beat_dodge\."`
+- Follow the game contract in `../AGENTS.md` (loop pattern, determinism, fixed arrays, `finished` semantics).
 
 ## Security & safety
-- Only read songs from `ctx->assets_dir/beatmaps`; validate everything you parse.
+- Only write under `ctx->data_dir`; read assets from `ctx->assets_dir`; validate any file you parse.
 
 ## PR/commit checklist
-- [ ] `ctest --preset logic`, `bash tools/format.sh`, `bash tools/check_repo.sh` clean
-- [ ] `GAME.md` and `docs/SONGS.md` match the code
+- [ ] New rule has a unit test; `GAME.md` pseudocode, flowchart and concept table still match the code
+- [ ] `bash tools/format.sh`, `bash tools/check_repo.sh` and the game's tests are clean
 
 ## Examples
-- Good: `arrive = beat_dodge_arrival(s, i);` for drawing and hit testing.
-- Bad: `PlaySound()` without `arcade_audio_ready()`; hard-coding 3 lanes (use `s->lanes`).
+- Good: `arrive = ((float)i + BD_LEAD_BEATS) * s->spb;` used for both drawing and hit testing
+- Bad: `PlaySound(tick)` without `arcade_audio_ready()`
 
 ## When stuck
-Read `docs/SONGS.md`, then `GAME.md` (Implementation steps).
+Read `GAME.md` (Implementation steps), copy a pattern from the nearest Golden Sample in the root `AGENTS.md`, run the monkey test to find crashes.

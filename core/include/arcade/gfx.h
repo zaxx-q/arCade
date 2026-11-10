@@ -51,8 +51,7 @@
     }
 
 /* ---- Window lifecycle: called ONCE by the hub (app/), never by a game ---- */
-void arcade_gfx_init(bool headless,
-                     const char *assets_dir); /* opens the 1280x720 window and loads the font */
+void arcade_gfx_init(bool headless); /* opens the 1280x720 window; headless = no FPS cap */
 void arcade_gfx_shutdown(void);
 bool arcade_quit_requested(void); /* true when the window close button was pressed */
 void arcade_flush_input(void);    /* draws one blank frame so stale key presses are consumed */
@@ -81,18 +80,6 @@ bool arcade_screenshot_ok(void); /* smoke: at least one non-blank snapshot was e
 bool arcade_audio_ready(void); /* false in smoke runs and on machines without a sound device */
 /* Synthesises a short decaying sine beep. Check arcade_audio_ready() first; free with UnloadSound(). */
 Sound gfx_make_tone(float freq_hz, float seconds, float volume);
-
-/* ---- Text: ALWAYS use these instead of DrawText()/MeasureText() so every screen uses the project font ----
- */
-#define GFX_TEXT_SCALE 1.25f     /* multiplies every requested size (the font has a small x-height) */
-#define GFX_TEXT_TRACKING 0.04f  /* extra letter spacing, fraction of the pixel size */
-#define GFX_TEXT_YSHIFT 0.0f     /* vertical nudge, fraction of the pixel size */
-#define GFX_TEXT_BOLD_BELOW 34   /* faux-bold (strike three times, 1 px apart) below this pixel size */
-#define GFX_TEXT_SHADOW_BELOW 44 /* soft shadow for pixel sizes below this */
-void gfx_text_init(const char *assets_dir); /* called by arcade_gfx_init */
-void gfx_text_shutdown(void);
-void gfx_text(const char *text, int x, int y, int size, Color c); /* x,y = top-left of the text box */
-int gfx_text_width(const char *text, int size);
 
 /* ---- Drawing helpers ---- */
 void gfx_backdrop(float time_s); /* dark background with a faint animated grid */

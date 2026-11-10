@@ -1,6 +1,5 @@
 # Beat map for Beat Dodge. One character per beat: '.' = rest, '0' '1' '2' = obstacle in that lane.
 # Lines are concatenated. Use any text editor: this is how you author new songs.
-title Practice
 bpm 120
 ....0.1.2.1.0.1.
 2.1.0.2.1.0.1.2.
