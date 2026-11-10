@@ -14,9 +14,6 @@ Shared library for every game and arCade. Two parts: **pure C** (`core/src`, hea
 | `include/arcade/leaderboard.h` | text-file scores, insertion sort, linear + binary search |
 | `include/arcade/sandbox.h`, `src/sandbox.c` | falling-sand engine (hub background + `games/sandbox`) |
 | `include/arcade/sortlib.h` | bubble/selection/insertion sort with swap counters |
-| `include/arcade/synth.h`, `src/synth.c` | pure software synth (notes + drums -> 16-bit PCM, WAV header) |
-| `include/arcade/midi.h`, `src/midi.c` | Standard MIDI File reader (note events per track) |
-| `gfx/gfx_text.c` | project font (Poiret One): one atlas per pixel size; ALWAYS draw text via `gfx_text()` |
 | `gfx/gfx.c`, `gfx/gfx_draw.c` | the only code that calls raylib for loop/input/drawing helpers |
 
 ## Setup & environment

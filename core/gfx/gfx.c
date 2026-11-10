@@ -16,14 +16,13 @@ static struct {
     bool shot_ok;
 } g;
 
-void arcade_gfx_init(bool headless, const char *assets_dir) {
+void arcade_gfx_init(bool headless) {
     SetTraceLogLevel(LOG_WARNING);
     unsigned flags = FLAG_VSYNC_HINT;
     if (!headless)
         flags |= FLAG_MSAA_4X_HINT;
     SetConfigFlags(flags);
     InitWindow(ARC_SCREEN_W, ARC_SCREEN_H, "arCade " ARCADE_VERSION_STRING);
-    gfx_text_init(assets_dir);
     SetExitKey(KEY_NULL); /* ESC means "back to the hub", not "close the window" */
     if (!headless)
         SetTargetFPS(ARC_FPS);
@@ -34,7 +33,6 @@ void arcade_gfx_init(bool headless, const char *assets_dir) {
 }
 
 void arcade_gfx_shutdown(void) {
-    gfx_text_shutdown();
     if (IsAudioDeviceReady())
         CloseAudioDevice();
     if (IsWindowReady())

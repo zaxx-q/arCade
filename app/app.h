@@ -35,17 +35,6 @@ Screen screen_launch(AppState *app);
 Screen screen_result(AppState *app);
 Screen screen_leaderboard(AppState *app);
 
-typedef enum ScreenPreview {
-    PREVIEW_NAME,
-    PREVIEW_MENU,
-    PREVIEW_RESULT,
-    PREVIEW_LEADERBOARD,
-    PREVIEW_COUNT
-} ScreenPreview;
-const char *screens_preview_name(int which);
-/* Draws one hub screen with the state in `app` (inside an already begun frame). */
-void screens_draw_preview(AppState *app, int which, float t);
-
 /* backdrop.c: the live sand simulation drawn behind the hub screens */
 void backdrop_init(unsigned seed);
 void backdrop_shutdown(void);

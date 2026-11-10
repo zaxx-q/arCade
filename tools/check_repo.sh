@@ -50,13 +50,10 @@ for f in "${logic[@]}"; do
 done
 
 # ---- 3. portability: things that only exist on one OS -------------------------------------------
-mapfile -t all < <(find core app games tests tools -type f \( -name '*.c' -o -name '*.h' \) ! -path 'games/_template/*' | sort)
+mapfile -t all < <(find core app games tests -type f \( -name '*.c' -o -name '*.h' \) ! -path 'games/_template/*' | sort)
 for f in "${all[@]}"; do
   if grep -nE '#[[:space:]]*include[[:space:]]*[<"](conio|windows|unistd|sys/[a-z_]+|dirent|pthread|curses|ncurses)\.h[>"]' "$f" >/dev/null; then
     err "$f: platform-specific header (conio.h, windows.h, unistd.h, sys/*, ...). Use standard C or raylib"
-  fi
-  if code_lines "$f" | grep -E '\b(DrawText|MeasureText)[[:space:]]*\(' >/dev/null; then
-    err "$f: use gfx_text()/gfx_text_width() (project font) instead of DrawText()/MeasureText()"
   fi
   if code_lines "$f" | grep -E '\bsystem[[:space:]]*\(' >/dev/null; then
     err "$f: system() is not portable (and not allowed)"

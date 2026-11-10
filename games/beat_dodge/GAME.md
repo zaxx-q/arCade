@@ -1,6 +1,6 @@
 # Beat Dodge - design brief
 
-**Owner:** Member 5  **Folder:** `games/beat_dodge/`  **Status:** songs from MIDI (9 included), 3 difficulties, 3-4 lane charts, synthesised music
+**Owner:** Member 5  **Folder:** `games/beat_dodge/`  **Status:** placeholder (beat clock, map file and scoring work)
 
 ## Hook
 A rhythm bullet-dodger: obstacles fall down three lanes and arrive at your line exactly on the beat of the song. The song is a beat map text file anyone can write.
@@ -62,10 +62,3 @@ flowchart TD
 | Math (12) | `beat_dodge_obstacle_y` (linear interpolation), `gfx_make_tone` (`sinf` synthesised beep) |
 | Perulangan (6) | the `while` loop that resolves arrived obstacles |
 | Percabangan (5) | hit / dodge logic in `beat_dodge_step` |
-
-
-## Songs (added)
-- Song files: `assets/beatmaps/*.txt` + index `songs.txt`; format in `beat_dodge_logic.h`. Convert MIDI with `tools/midi2beatmap` / `tools/songs/build_songs.sh`.
-- Difficulty = thinning of the same notes: easy (quarter notes, gap >= 0.55 s, 3 lanes), normal (8ths, 0.45 s, 3 lanes), hard (16ths, 0.30 s, 4 lanes). Score is normalised to 1000 for a perfect run times x1.0 / x1.5 / x2.0.
-- Controls: Left/Right or `1`-`4` (direct lane). Song select: Up/Down song, Left/Right difficulty, Enter.
-- Course concepts added: file parsing of binary MIDI (`core/src/midi.c`), sorting (`qsort`/insertion), dynamic programming (`partition_pitches`), arrays of structs, math functions (`sinf`, `powf`) in the synth.
