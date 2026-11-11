@@ -118,7 +118,7 @@ jobs:
           cppcheck --version
           # raylib-based files (*_game.c, core/gfx, app/) are covered by the compiler's -Wall -Wextra -Werror instead:
           # cppcheck cannot parse raylib's compound-literal colour macros.
-          find core/src core/include games tests -type f \( -name '*.c' -o -name '*.h' \) ! -name '*_game.c' ! -name 'gfx.h' ! -path 'games/_template/*' | sort > cppcheck-files.txt
+          find core/src core/include games tests tools -type f \( -name '*.c' -o -name '*.h' \) ! -name '*_game.c' ! -name 'gfx.h' ! -path 'games/_template/*' | sort > cppcheck-files.txt
           cppcheck --std=c99 --enable=warning,portability --inline-suppr --error-exitcode=1 -q \
             --suppress=missingIncludeSystem -I core/include --file-list=cppcheck-files.txt
 

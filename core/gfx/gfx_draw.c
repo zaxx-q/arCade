@@ -22,11 +22,11 @@ void gfx_backdrop(float t) {
 }
 
 void gfx_text_center(const char *text, int cx, int y, int size, Color c) {
-    DrawText(text, cx - MeasureText(text, size) / 2, y, size, c);
+    gfx_text(text, cx - gfx_text_width(text, size) / 2, y, size, c);
 }
 
 void gfx_text_right(const char *text, int right_x, int y, int size, Color c) {
-    DrawText(text, right_x - MeasureText(text, size), y, size, c);
+    gfx_text(text, right_x - gfx_text_width(text, size), y, size, c);
 }
 
 void gfx_glow_circle(float x, float y, float r, Color c) {
@@ -47,11 +47,11 @@ void gfx_glow_line(Vec2 a, Vec2 b, float thick, Color c) {
 void gfx_hud(const char *title, int score, const char *extra) {
     char buf[64];
     DrawRectangle(0, 0, ARC_SCREEN_W, 36, Fade(ARC_COL_PANEL, 0.85f));
-    DrawText(title, 16, 8, 22, ARC_COL_CYAN);
+    gfx_text(title, 16, 5, 22, ARC_COL_CYAN);
     snprintf(buf, sizeof(buf), "SCORE %d", score);
-    gfx_text_center(buf, ARC_SCREEN_W / 2, 8, 22, ARC_COL_YELLOW);
+    gfx_text_center(buf, ARC_SCREEN_W / 2, 5, 22, ARC_COL_YELLOW);
     if (extra && extra[0])
-        gfx_text_right(extra, ARC_SCREEN_W - 16, 10, 18, ARC_COL_DIM);
+        gfx_text_right(extra, ARC_SCREEN_W - 16, 7, 18, ARC_COL_DIM);
 }
 
 void gfx_draw_particles(const ParticleSystem *ps, Vec2 offset) {
