@@ -40,13 +40,70 @@ static const char *clock_text(float seconds) {
 
 /* ------------------------------------------------------------------ song select */
 #define MENU_ROWS 8
+/* layout of the select screen (shared by drawing and mouse hit-testing) */
+#define ROW_X 48
+#define ROW_Y0 128
+#define ROW_PITCH 64
+#define ROW_W 560
+#define ROW_H 56
+#define CARD_X 678
+#define CARD_Y0 250
+#define CARD_PITCH 100
+#define CARD_W 526
+#define CARD_H 84
+#define PLAY_X 678
+#define PLAY_Y 556
+#define PLAY_W 526
+#define PLAY_H 56
+
+static int menu_first(const bd_Menu *m, const bd_SongList *list) {
+    return arc_clampi(m->song - MENU_ROWS / 2, 0, arc_maxi(0, list->count - MENU_ROWS));
+}
+
+static bool in_rect(float x, float y, float rx, float ry, float rw, float rh) {
+    return x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+}
+
+/* Mouse: click a song to pick it, click a difficulty to pick it (click it again to start), click PLAY to
+ * start; the wheel scrolls through the songs. */
+static void menu_mouse(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list) {
+    if (list->count == 0)
+        return;
+    if (in->wheel != 0) {
+        m->song = (m->song + (in->wheel > 0 ? list->count - 1 : 1)) % list->count;
+        m->chart = list->songs[m->song].chart_count > 1 ? 1 : 0;
+    }
+    if (!in->fire_pressed)
+        return;
+    float x = in->aim_x, y = in->aim_y;
+    int first = menu_first(m, list);
+    for (int row = 0; row < MENU_ROWS && first + row < list->count; row++)
+        if (in_rect(x, y, ROW_X, (float)(ROW_Y0 + row * ROW_PITCH), ROW_W, ROW_H)) {
+            if (first + row != m->song) {
+                m->song = first + row;
+                m->chart = list->songs[m->song].chart_count > 1 ? 1 : 0;
+            }
+            return;
+        }
+    for (int c = 0; c < list->songs[m->song].chart_count; c++)
+        if (in_rect(x, y, CARD_X, (float)(CARD_Y0 + c * CARD_PITCH), CARD_W, CARD_H)) {
+            if (c == m->chart)
+                m->chosen = true;
+            else
+                m->chart = c;
+            return;
+        }
+    if (in_rect(x, y, PLAY_X, PLAY_Y, PLAY_W, PLAY_H))
+        m->chosen = true;
+}
 
 static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
+    Vector2 mouse = GetMousePosition();
     gfx_backdrop(t);
     gfx_text("Beat Dodge", 48, 22, 40, ARC_COL_CYAN);
     gfx_text("choose a song and a difficulty", 52, 76, 18, ARC_COL_DIM);
 
-    int first = arc_clampi(m->song - MENU_ROWS / 2, 0, arc_maxi(0, list->count - MENU_ROWS));
+    int first = menu_first(m, list);
     for (int row = 0; row < MENU_ROWS && first + row < list->count; row++) {
         int i = first + row, y = 128 + row * 64;
         bool sel = i == m->song;
@@ -54,6 +111,8 @@ static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
         DrawRectangleRounded(r, 0.2f, 8, Fade(ARC_COL_PANEL, sel ? 0.97f : 0.8f));
         if (sel)
             DrawRectangleRoundedLinesEx(r, 0.2f, 8, 2.0f, ARC_COL_CYAN);
+        else if (in_rect(mouse.x, mouse.y, r.x, r.y, r.width, r.height))
+            DrawRectangleRoundedLinesEx(r, 0.2f, 8, 1.0f, Fade(ARC_COL_CYAN, 0.5f));
         gfx_text(list->songs[i].title, 66, y + 12, 24, sel ? ARC_COL_CYAN : ARC_COL_TEXT);
         gfx_text_right(TextFormat("%d BPM", list->songs[i].bpm), 590, y + 16, 17, ARC_COL_DIM);
     }
@@ -74,6 +133,8 @@ static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
         DrawRectangleRounded(r, 0.15f, 8, Fade(sel ? ARC_COL_BG : ARC_COL_PANEL, 0.95f));
         if (sel)
             DrawRectangleRoundedLinesEx(r, 0.15f, 8, 2.0f, ARC_COL_YELLOW);
+        else if (in_rect(mouse.x, mouse.y, r.x, r.y, r.width, r.height))
+            DrawRectangleRoundedLinesEx(r, 0.15f, 8, 1.0f, Fade(ARC_COL_YELLOW, 0.5f));
         float secs = bd_song_seconds(song, c);
         float per_sec = (float)bd_chart_obstacles(ch) / (secs > 5.0f ? secs - 5.0f : 1.0f);
         gfx_text(ch->name, 698, 262 + c * 100, 26, sel ? ARC_COL_YELLOW : ARC_COL_TEXT);
@@ -83,8 +144,14 @@ static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
         gfx_text_right(TextFormat("score x%.1f", bd_chart_multiplier(ch->name)), 1188, 266 + c * 100, 17,
                        ARC_COL_DIM);
     }
-    gfx_text("[Up/Down] song   [Left/Right] difficulty   [Enter] play   [Esc] back", 48, ARC_SCREEN_H - 36,
-             17, ARC_COL_DIM);
+    Rectangle play = {PLAY_X, PLAY_Y, PLAY_W, PLAY_H};
+    bool play_hover = in_rect(mouse.x, mouse.y, play.x, play.y, play.width, play.height);
+    DrawRectangleRounded(play, 0.3f, 8, Fade(ARC_COL_CYAN, play_hover ? 0.35f : 0.18f));
+    DrawRectangleRoundedLinesEx(play, 0.3f, 8, 2.0f, ARC_COL_CYAN);
+    gfx_text_center("PLAY", (int)(PLAY_X + PLAY_W / 2), (int)PLAY_Y + 12, 28, ARC_COL_TEXT);
+    gfx_text("[Up/Down] or click a song   [Left/Right] or click a difficulty   [Enter] or PLAY: start   "
+             "[Esc] back",
+             48, ARC_SCREEN_H - 36, 17, ARC_COL_DIM);
 }
 
 /* ------------------------------------------------------------------ music */
@@ -201,6 +268,7 @@ static bool select_song(const GameContext *ctx) {
         ArcadeInput in;
         arcade_poll(&in);
         bd_menu_step(&g_menu, &in, &g_list);
+        menu_mouse(&g_menu, &in, &g_list);
         t += ARC_DT;
         BeginDrawing();
         draw_select(&g_list, &g_menu, t);
