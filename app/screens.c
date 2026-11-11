@@ -210,6 +210,8 @@ Screen screen_launch(AppState *app) {
     ctx.data_dir = app->data_dir;
     ctx.assets_dir = app->assets_dir;
 
+    arcade_flush_input(); /* consume the Enter/click that launched the game, or its first frame would see it
+                             too */
     GameResult r = g->play(&ctx);
     arcade_flush_input();
     if (arcade_quit_requested())
