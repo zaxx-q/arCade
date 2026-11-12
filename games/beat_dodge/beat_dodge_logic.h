@@ -59,6 +59,10 @@ bool bd_song_load(const char *path, bd_Song *out); /* false if missing or invali
 bool bd_song_save(const char *path, const bd_Song *song);
 void bd_song_default(bd_Song *out, unsigned seed); /* built-in generated practice song, always valid */
 int bd_chart_obstacles(const bd_Chart *chart);
+/* The chart step a melody note belongs to: its start (1/24 beat) rounded to the nearest step, halves going to
+ * the even step like Python's round(). The converter, the metrics and the audio all use this ONE function, so
+ * a note and the bead made from it always agree. */
+int bd_note_step(int start, int steps_per_beat);
 float bd_chart_multiplier(const char *name);           /* score multiplier: easy 1.0, normal 1.5, hard 2.0 */
 float bd_song_seconds(const bd_Song *song, int chart); /* time at which the chart is finished */
 /* Converts the melody to synth notes shifted by `delay` seconds; returns how many were written (<=
@@ -82,24 +86,44 @@ typedef struct bd_Menu {
 void bd_menu_init(bd_Menu *m);
 void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list);
 
-typedef struct beat_dodge_State {
-    bd_Song song;
-    int chart; /* index of the chart being played */
+/* The part of a run that does not depend on the rules of a game mode: the clock, the beat, the lane the
+ * player stands in and the chart being played. Beat Dodge embeds it in beat_dodge_State and Beat Catch embeds
+ * the same struct, so both games share one clock and one definition of "when does a bead arrive". */
+typedef struct bd_Run {
+    bd_Song song; /* private copy of the song being played (~16 KB: keep the owner `static`) */
+    int chart;    /* index of the chart being played */
     int lanes, length;
-    float time;      /* seconds since the start; the first obstacle needs `lead` seconds to fall */
+    float time;      /* seconds since the start; the first bead needs `lead` seconds to fall */
     float spb;       /* seconds per beat */
     float step_sec;  /* seconds per chart step */
-    float lead;      /* fall time of an obstacle */
+    float lead;      /* fall time of a bead */
     float end_time;  /* the song is won when time reaches this */
-    int next_hit;    /* first step whose obstacle has not yet reached the player line */
-    int last_beat;   /* beat number seen in the previous step */
-    bool beat_event; /* true for the one step in which a new beat begins */
+    int next_hit;    /* first step whose bead has not yet reached the player line */
+    int last_beat;   /* beat number seen in the previous tick */
+    bool beat_event; /* true for the one tick in which a new beat begins */
     int lane;        /* player lane */
+    float last_in_lane[BD_MAX_LANES]; /* the time the player last stood in each lane (-1000 = never) */
+    float hit_flash;                  /* seconds of red flash after a hit or a miss */
+    bool over, won;
+} bd_Run;
+
+void bd_run_start(bd_Run *r, const bd_Song *song,
+                  int chart); /* (re)start: copies the song, resets the clock */
+/* One tick of the shared part: time, beat event, flash timer, lane keys. Does nothing once the run is over.
+ */
+void bd_run_tick(bd_Run *r, const ArcadeInput *in, float dt);
+/* Follow an external clock (the music): only corrects drifts larger than 0.15 s so small offsets never
+ * jitter. */
+void bd_run_sync(bd_Run *r, float clock_seconds);
+float bd_run_arrival(const bd_Run *r, int step); /* when the bead of `step` reaches the player line */
+/* Vertical pixel position of the bead of `step` (for drawing); < BD_TOP_Y means "not spawned yet". */
+float bd_run_obstacle_y(const bd_Run *r, int step);
+
+typedef struct beat_dodge_State {
+    bd_Run run;
     int lives, dodged, hits, combo, best_combo;
     int points, max_points;
     float multiplier;
-    float hit_flash; /* seconds of red flash after a hit */
-    bool over, won;
 } beat_dodge_State;
 
 void beat_dodge_init(beat_dodge_State *s, unsigned seed); /* the built-in practice song */

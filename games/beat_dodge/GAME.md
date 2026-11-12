@@ -286,6 +286,21 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 | Diam di lane yang paling jarang kena: game over pada | 18% lagu | 13% lagu | 22% lagu |
 | Kalau aturan dibalik jadi "catch": rintangan yang butuh pindah lane | 53% | 52% | 56% |
 
+**Baseline Fase 0** (sebelum ribbon; angka "sebelum" untuk setiap gate). Direproduksi oleh program, bukan skrip luar: `build/logic/bin/midi2beatmap --metrics assets/beatmaps/fnf/*.txt` (9 lagu FNF, Practice tidak dihitung). Definisi ada di lampiran A rencana implementasi dan di komentar `bd_ChartMetrics` (`beat_dodge_convert.h`).
+
+| Ukuran | easy | normal | hard |
+|--------|------|--------|------|
+| Lane | 3 | 3 | 4 |
+| Rintangan per detik (dibagi waktu rintangan terakhir) | 1,10 | 1,62 | 2,29 |
+| Onset yang terdengar dan punya rintangan | 29% | 40% | 56% |
+| Burst 3 not atau lebih yang tampil dengan 0 atau 1 rintangan (311 burst) | 60% | 41% | 17% |
+| Rintangan berikutnya di lane yang sama | 47% | 48% | 44% |
+| Rintangan yang dihindari bot pemalas tanpa menekan tombol | 73% | 77% | 86% |
+| Jendela 5 detik dengan satu lane kosong | 64% | 45% | 65% |
+| Jendela 10 detik dengan satu lane kosong | 29% | 18% | 30% |
+
+Catatan pengukuran: pembagi "rintangan per detik" adalah waktu rintangan terakhir (cocok dengan 1,10 / 1,62 / 2,29 di rencana; pembagi "dari yang pertama sampai yang terakhir" memberi angka 5% lebih tinggi). Onset memakai pembulatan setengah-ke-genap seperti `round()` di Python (`bd_note_step`), karena hanya itu yang menghasilkan tepat 311 burst. Jendela memakai batas inklusif; dua sel (normal dan hard 5 detik) selisih 1 poin dari rencana (44 dan 64). Tumpang tindih dua voice: 12% ketukan.
+
 ### Langkah dari design awal
 1. Audio asli: muat file `.ogg`/`.wav` dari `assets/` (raylib `LoadMusicStream`) dan gerakkan `beat_dodge_step` dari jam musik supaya beat tetap terkunci ke audio (sisakan fallback ke step tetap untuk run headless). *(Sebagian sudah ada: musik disintesis di memori dan `beat_dodge_sync` mengikuti jam audio. Yang belum: memuat file audio sungguhan.)*
 2. Editor beat map di dalam game (rekam ketukan saat lagu berjalan, simpan ke `ctx->data_dir` dengan format teks yang sama).
