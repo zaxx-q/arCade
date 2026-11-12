@@ -22,12 +22,13 @@ static Ev g_kept[BD_MAX_STEPS];      /* the events kept for the chart being buil
 
 /* difficulty presets: how many lanes, which steps may hold an obstacle, and the minimum time between
  * obstacles */
+#define PRESETS 3 /* easy, normal, hard */
 static const struct {
     const char *name;
     int lanes;
     int grid; /* 1 = any 16th, 2 = only 8th-note positions, 4 = only quarter-note positions */
     float min_gap;
-} k_preset[BD_MAX_CHARTS] = {
+} k_preset[PRESETS] = {
     {"easy", 3, 4, 0.55f},
     {"normal", 3, 2, 0.45f},
     {"hard", 4, 1, 0.30f},
@@ -188,8 +189,8 @@ bool bd_convert_midi(const MidiSong *midi, const char *title, const char *player
 
     /* 5. one chart per difficulty preset */
     float step_sec = 60.0f / (float)out->bpm / (float)STEPS_PER_BEAT;
-    out->chart_count = BD_MAX_CHARTS;
-    for (int c = 0; c < BD_MAX_CHARTS; c++) {
+    out->chart_count = PRESETS;
+    for (int c = 0; c < PRESETS; c++) {
         bd_Chart *chart = &out->charts[c];
         arc_strlcpy(chart->name, k_preset[c].name, sizeof(chart->name));
         chart->lanes = k_preset[c].lanes;
@@ -214,7 +215,7 @@ bool bd_convert_midi(const MidiSong *midi, const char *title, const char *player
         for (int i = 0; i < kept_n; i++)
             chart->lane[g_kept[i].tick] = (int8_t)lane_of[g_kept[i].pitch & 127];
         chart->length = arc_maxi(8, max_step + 1);
-        stats->obstacles[c] = bd_chart_obstacles(chart);
+        stats->obstacles[c] = bd_chart_beads(chart);
         stats->lanes[c] = chart->lanes;
         stats->per_second[c] = (float)stats->obstacles[c] /
                                (bd_song_seconds(out, c) - (BD_LEAD_BEATS + 1.0f) * 60.0f / (float)out->bpm);
@@ -265,11 +266,28 @@ static float empty_lane_windows(const bd_Chart *c, float step_sec, float win, in
     return windows > 0 ? (float)bad / (float)windows : 0.0f;
 }
 
+/* The longest stretch (seconds) in which one lane has no bead, counted from t = 0 to the last bead. */
+static float longest_idle_lane(const bd_Chart *c, float step_sec, int last_step) {
+    float since[BD_MAX_LANES] = {0.0f}, longest = 0.0f;
+    for (int i = 0; i <= last_step; i++) {
+        if (c->lane[i] < 0)
+            continue;
+        float t = (float)i * step_sec;
+        longest = arc_maxf(longest, t - since[c->lane[i]]);
+        since[c->lane[i]] = t;
+    }
+    for (int l = 0; l < c->lanes; l++)
+        longest = arc_maxf(longest, (float)last_step * step_sec - since[l]);
+    return longest;
+}
+
 void bd_chart_metrics(const bd_Song *song, int chart, bd_ChartMetrics *out) {
     memset(out, 0, sizeof(*out));
     const bd_Chart *c = &song->charts[chart];
     float step_sec = 60.0f / (float)song->bpm / (float)song->steps;
-    int beads = bd_chart_obstacles(c), last_step = -1, same = 0, prev_lane = -1, pairs = 0;
+    out->fail_step = -1;
+    out->playable = bd_chart_playable(song, chart, &out->fail_step);
+    int beads = bd_chart_beads(c), last_step = -1, same = 0, prev_lane = -1, pairs = 0;
     out->beads = beads;
     if (beads == 0)
         return;
@@ -300,6 +318,7 @@ void bd_chart_metrics(const bd_Song *song, int chart, bd_ChartMetrics *out) {
     out->lazy_idle = (float)idle / (float)beads;
     out->empty5 = empty_lane_windows(c, step_sec, 5.0f, last_step);
     out->empty10 = empty_lane_windows(c, step_sec, 10.0f, last_step);
+    out->longest_idle = longest_idle_lane(c, step_sec, last_step);
 
     /* onsets and bursts */
     static int onset[BD_MAX_NOTES];

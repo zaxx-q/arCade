@@ -27,12 +27,34 @@ void bd_song_default(bd_Song *out, unsigned seed) {
     }
 }
 
-int bd_chart_obstacles(const bd_Chart *chart) {
+int bd_chart_beads(const bd_Chart *chart) {
     int n = 0;
     for (int i = 0; i < chart->length; i++)
         if (chart->lane[i] >= 0)
             n++;
     return n;
+}
+
+int bd_chart_objects(const bd_Chart *chart) {
+    int n = 0;
+    for (int i = 0; i < chart->length; i++)
+        if (chart->lane[i] >= 0 && !chart->link[i])
+            n++;
+    return n;
+}
+
+int bd_chart_next_bead(const bd_Chart *chart, int step) {
+    int i = step + 1;
+    while (i < chart->length && chart->lane[i] < 0)
+        i++;
+    return i;
+}
+
+bool bd_chart_in_ribbon(const bd_Chart *chart, int step) {
+    if (chart->lane[step] < 0)
+        return false;
+    int next = bd_chart_next_bead(chart, step);
+    return chart->link[step] || (next < chart->length && chart->link[next]);
 }
 
 int bd_note_step(int start, int steps_per_beat) {
@@ -92,27 +114,67 @@ static bool is_directive(const char *line, const char *word) {
 
 typedef enum Section { SEC_NONE, SEC_CHART, SEC_MELODY } Section;
 
+/* true when some step already in the chart holds a bead: a ribbon letter needs an object to continue. */
+static bool has_bead(const bd_Chart *c) {
+    for (int i = c->length - 1; i >= 0; i--) /* from the end: the nearest bead is usually just behind us */
+        if (c->lane[i] >= 0)
+            return true;
+    return false;
+}
+
 static bool add_pattern(bd_Chart *c, const char *p) {
     for (; *p; p++) {
         if (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
             continue;
         if (c->length >= BD_MAX_STEPS)
             return false;
-        if (*p == '.')
-            c->lane[c->length++] = -1;
-        else if (*p >= '0' && *p < '0' + c->lanes)
-            c->lane[c->length++] = (int8_t)(*p - '0');
-        else
-            return false; /* unknown character or a lane the chart does not have */
+        int i = c->length;
+        if (*p == '.') {
+            c->lane[i] = -1;
+        } else if (*p >= '0' && *p < '0' + c->lanes) { /* a bead that starts a new object */
+            c->lane[i] = (int8_t)(*p - '0');
+        } else if (*p >= 'a' && *p < 'a' + c->lanes && has_bead(c)) { /* a bead that continues the object */
+            c->lane[i] = (int8_t)(*p - 'a');
+            c->link[i] = 1;
+        } else {
+            return false; /* unknown character, a lane the chart does not have, or a letter with nothing to
+                             continue */
+        }
+        c->length++;
     }
     return true;
+}
+
+/* "chart <name> [lanes] [catch|dodge]": strict, any other shape rejects the whole file. */
+static bool parse_chart_header(const char *args, char *name, size_t name_size, int *lanes,
+                               bd_ChartKind *kind) {
+    char w[4][16] = {"", "", "", ""};
+    int got = sscanf(args, "%15s %15s %15s %15s", w[0], w[1], w[2], w[3]);
+    if (got < 1 || got > 3 || strlen(w[0]) >= name_size)
+        return false;
+    arc_strlcpy(name, w[0], name_size);
+    *lanes = 3;
+    *kind = BD_CHART_DODGE;
+    if (got >= 2) {
+        for (const char *d = w[1]; *d; d++)
+            if (!isdigit((unsigned char)*d))
+                return false;
+        *lanes = atoi(w[1]);
+    }
+    if (got == 3) {
+        if (strcmp(w[2], "catch") == 0)
+            *kind = BD_CHART_CATCH;
+        else if (strcmp(w[2], "dodge") != 0)
+            return false; /* unknown third word */
+    }
+    return *lanes >= 2 && *lanes <= BD_MAX_LANES;
 }
 
 bool bd_song_load(const char *path, bd_Song *out) {
     FILE *fp = fopen(path, "r");
     if (!fp)
         return false;
-    static bd_Song song; /* ~16 KB: not on the stack */
+    static bd_Song song; /* ~34 KB: not on the stack */
     memset(&song, 0, sizeof(song));
     arc_strlcpy(song.title, "Untitled", sizeof(song.title));
     song.steps = 1;
@@ -136,13 +198,14 @@ bool bd_song_load(const char *path, bd_Song *out) {
         } else if (is_directive(line, "chart")) {
             char name[16] = "";
             int lanes = 3;
-            int got = sscanf(line + 5, "%15s %d", name, &lanes);
-            ok = got >= 1 && strlen(name) < sizeof(chart->name) && lanes >= 2 && lanes <= BD_MAX_LANES &&
-                 song.chart_count < BD_MAX_CHARTS;
+            bd_ChartKind kind = BD_CHART_DODGE;
+            ok = song.chart_count < BD_MAX_CHARTS &&
+                 parse_chart_header(line + 5, name, sizeof(chart->name), &lanes, &kind);
             if (ok) {
                 chart = &song.charts[song.chart_count++];
                 arc_strlcpy(chart->name, name, sizeof(chart->name));
                 chart->lanes = lanes;
+                chart->kind = kind;
                 section = SEC_CHART;
             }
         } else if (is_directive(line, "melody")) {
@@ -159,8 +222,9 @@ bool bd_song_load(const char *path, bd_Song *out) {
                 n->pitch = (uint8_t)pitch;
                 n->voice = (uint8_t)voice;
             }
-        } else if (isdigit((unsigned char)line[0]) || line[0] == '.') { /* pattern line */
-            if (song.chart_count == 0) { /* first-version file: an implicit chart */
+        } else if (isdigit((unsigned char)line[0]) || line[0] == '.' ||
+                   (line[0] >= 'a' && line[0] <= 'e')) { /* pattern line */
+            if (song.chart_count == 0) {                 /* first-version file: an implicit chart */
                 chart = &song.charts[song.chart_count++];
                 arc_strlcpy(chart->name, "normal", sizeof(chart->name));
                 chart->lanes = 3;
@@ -191,9 +255,12 @@ bool bd_song_save(const char *path, const bd_Song *song) {
     fprintf(fp, "title %s\nbpm %d\nsteps %d\n", song->title, song->bpm, song->steps);
     for (int c = 0; c < song->chart_count; c++) {
         const bd_Chart *ch = &song->charts[c];
-        fprintf(fp, "chart %s %d\n", ch->name, ch->lanes);
+        fprintf(fp, "chart %s %d%s\n", ch->name, ch->lanes, ch->kind == BD_CHART_CATCH ? " catch" : "");
         for (int i = 0; i < ch->length; i++) {
-            fputc(ch->lane[i] < 0 ? '.' : '0' + ch->lane[i], fp);
+            if (ch->lane[i] < 0)
+                fputc('.', fp);
+            else
+                fputc((ch->link[i] ? 'a' : '0') + ch->lane[i], fp); /* letters continue the previous object */
             if (i % 64 == 63 || i == ch->length - 1)
                 fputc('\n', fp);
         }
@@ -258,6 +325,118 @@ void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list) {
     m->chart = arc_clampi(m->chart, 0, charts - 1);
     if (in->action_pressed)
         m->chosen = true;
+}
+
+/* ------------------------------------------------------------------ reachable-lane check */
+void bd_reach_start(bd_Reach *r, int lanes) {
+    r->lanes = lanes;
+    for (int l = 0; l < BD_MAX_LANES; l++)
+        r->lane[l] = l == lanes / 2;
+}
+
+int bd_reach_steps(float seconds) {
+    if (seconds <= 0.0f)
+        return 0;
+    return (int)floorf(seconds / BD_HUMAN_STEP_SEC + 0.001f); /* + 0.001: 0.36 s must give 3 steps, not 2 */
+}
+
+void bd_reach_advance(bd_Reach *r, float seconds) {
+    int w = bd_reach_steps(seconds);
+    if (w == 0)
+        return;
+    bool grown[BD_MAX_LANES] = {false};
+    for (int l = 0; l < r->lanes; l++)
+        for (int k = 0; k < r->lanes; k++)
+            if (r->lane[k] && abs(l - k) <= w)
+                grown[l] = true;
+    for (int l = 0; l < r->lanes; l++)
+        r->lane[l] = grown[l];
+}
+
+void bd_reach_bead(bd_Reach *r, bd_ChartKind kind, int bead_lane, bool in_ribbon) {
+    if (kind == BD_CHART_DODGE) {
+        r->lane[bead_lane] = false; /* standing there now would be a hit */
+        return;
+    }
+    int tolerance = in_ribbon ? 1 : 0; /* catch: a ribbon is caught from its middle lane */
+    for (int l = 0; l < r->lanes; l++)
+        if (abs(l - bead_lane) > tolerance)
+            r->lane[l] = false;
+}
+
+bool bd_reach_empty(const bd_Reach *r) {
+    for (int l = 0; l < r->lanes; l++)
+        if (r->lane[l])
+            return false;
+    return true;
+}
+
+bool bd_chart_playable(const bd_Song *song, int chart, int *fail_step) {
+    const bd_Chart *c = &song->charts[chart];
+    float step_sec = 60.0f / (float)song->bpm / (float)song->steps;
+    float lead = BD_LEAD_BEATS * 60.0f / (float)song->bpm;
+    bd_Reach reach;
+    bd_reach_start(&reach, c->lanes);
+    float before = 0.0f; /* the player stands in the middle lane from t = 0 */
+    for (int i = 0; i < c->length; i++) {
+        if (c->lane[i] < 0)
+            continue;
+        float t = lead + (float)i * step_sec;
+        bd_reach_advance(&reach, t - before);
+        before = t;
+        bd_reach_bead(&reach, c->kind, c->lane[i], bd_chart_in_ribbon(c, i));
+        if (bd_reach_empty(&reach)) {
+            if (fail_step)
+                *fail_step = i;
+            return false;
+        }
+    }
+    return true;
+}
+
+/* Two passes. Forward: remember the lanes the player could be in right after each bead. Backward: from the
+ * last bead to the first, pick a remembered lane that is within reach of the lane chosen for the next bead.
+ */
+bool bd_chart_plan(const bd_Song *song, int chart, int8_t *plan) {
+    const bd_Chart *c = &song->charts[chart];
+    float step_sec = 60.0f / (float)song->bpm / (float)song->steps;
+    float lead = BD_LEAD_BEATS * 60.0f / (float)song->bpm;
+    bool after[BD_MAX_STEPS][BD_MAX_LANES]; /* 10 KB: fine on the stack */
+    bd_Reach reach;
+    bd_reach_start(&reach, c->lanes);
+    float before = 0.0f;
+    for (int i = 0; i < BD_MAX_STEPS; i++)
+        plan[i] = -1;
+    for (int i = 0; i < c->length; i++) {
+        if (c->lane[i] < 0)
+            continue;
+        float t = lead + (float)i * step_sec;
+        bd_reach_advance(&reach, t - before);
+        before = t;
+        bd_reach_bead(&reach, c->kind, c->lane[i], bd_chart_in_ribbon(c, i));
+        if (bd_reach_empty(&reach))
+            return false;
+        for (int l = 0; l < BD_MAX_LANES; l++)
+            after[i][l] = reach.lane[l];
+    }
+    int next = -1; /* step of the bead after the one being planned */
+    for (int i = c->length - 1; i >= 0; i--) {
+        if (c->lane[i] < 0)
+            continue;
+        int w = next < 0 ? c->lanes : bd_reach_steps((float)(next - i) * step_sec);
+        int best = -1, goal = next < 0 ? c->lanes / 2 : plan[next];
+        for (int l = 0; l < c->lanes; l++) {
+            if (!after[i][l] || abs(l - goal) > w)
+                continue;
+            if (best < 0 || abs(l - goal) < abs(best - goal))
+                best = l;
+        }
+        if (best < 0)
+            return false; /* cannot happen when the forward pass succeeded */
+        plan[i] = (int8_t)best;
+        next = i;
+    }
+    return true;
 }
 
 /* ------------------------------------------------------------------ the shared run (clock + lane) */
@@ -334,7 +513,7 @@ static void reset_rules(beat_dodge_State *s) { /* everything except the shared r
     s->lives = BD_START_LIVES;
     s->dodged = s->hits = s->combo = s->best_combo = s->points = 0;
     s->multiplier = bd_chart_multiplier(c->name);
-    int obstacles = bd_chart_obstacles(c);
+    int obstacles = bd_chart_beads(c);
     s->max_points = award_finish(BD_START_LIVES);
     for (int k = 1; k <= obstacles; k++) /* what a perfect run earns: every obstacle dodged, no hit */
         s->max_points += award_dodge(k);
