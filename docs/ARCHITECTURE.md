@@ -1,65 +1,65 @@
-# Architecture
+# Arsitektur
 
-## Layers
+## Layer
 
 ```
-app/ (hub: menu, leaderboard, smoke runner)  ->  games/<id>/<id>_game.c (raylib front-end)  ->  core/gfx (raylib helpers)  ->  raylib
+app/ (hub: menu, leaderboard, smoke runner)  ->  games/<id>/<id>_game.c (front-end raylib)  ->  core/gfx (helper raylib)  ->  raylib
                                                           |
                                                           v
-                                  games/<id>/<id>_logic.c (pure C)  ->  core/src (pure C: rng, input, leaderboard, sandbox, sortlib, fx)
+                                  games/<id>/<id>_logic.c (C murni)  ->  core/src (C murni: rng, input, leaderboard, sandbox, sortlib, fx)
 ```
 
-The arrow never goes the other way: **pure code never includes raylib**. CMake enforces it (`arcade_core` and `game_<id>_logic` libraries do not link raylib) and `tools/check_repo.sh` double-checks.
+Panahnya tidak pernah berbalik: **kode murni tidak pernah meng-include raylib**. CMake memaksakannya (library `arcade_core` dan `game_<id>_logic` tidak di-link ke raylib) dan `tools/check_repo.sh` mengeceknya sekali lagi.
 
-## The game contract (`core/include/arcade/game.h`)
+## Kontrak game (`core/include/arcade/game.h`)
 
-Every game exports one `const GameDef game_<id>_def` containing `play(const GameContext*)`. The hub calls `play`, which runs the whole game loop and returns a `GameResult {score, finished}`. `ranked` games with `finished == true` are written to `scores.txt`.
+Setiap game mengekspor satu `const GameDef game_<id>_def` yang berisi `play(const GameContext*)`. Hub memanggil `play`, yang menjalankan seluruh game loop dan mengembalikan `GameResult {score, finished}`. Game `ranked` dengan `finished == true` ditulis ke `scores.txt`.
 
-Inside `play`, every game follows the same loop:
+Di dalam `play`, setiap game mengikuti loop yang sama:
 
 ```c
 arcade_loop_begin(ctx);
-while (arcade_loop_running()) {          // false on ESC, window close, or max_frames (smoke)
-    ArcadeInput in; arcade_poll(&in);    // keyboard/mouse OR scripted "monkey" input in smoke runs
-    xxx_step(&s, &in, ARC_DT);           // pure logic, fixed 1/60 s step
-    BeginDrawing(); ...draw...; arcade_frame_end();   // EndDrawing + PNG snapshot in smoke runs
+while (arcade_loop_running()) {          // false saat ESC, window ditutup, atau max_frames (smoke)
+    ArcadeInput in; arcade_poll(&in);    // keyboard/mouse ATAU input "monkey" berskrip saat smoke run
+    xxx_step(&s, &in, ARC_DT);           // logic murni, step tetap 1/60 detik
+    BeginDrawing(); ...draw...; arcade_frame_end();   // EndDrawing + snapshot PNG saat smoke run
     if (xxx_is_over(&s)) break;
 }
 ```
 
-## Automatic game registry
+## Registry game otomatis
 
-`games/CMakeLists.txt` globs `games/<id>/CMakeLists.txt`; each calls `arcade_add_game(...)` (`cmake/ArcadeGame.cmake`), which builds `game_<id>_logic` (pure), `game_<id>` (raylib) and one test executable per test file, and records the id. `cmake/ArcadeRegistry.cmake` generates `build/<preset>/generated/game_registry.c` (an array of `&game_<id>_def`). The hub links every game and sorts the array by `GameDef.order`, then id. Nobody edits a shared file to add a game.
+`games/CMakeLists.txt` melakukan glob pada `games/<id>/CMakeLists.txt`; masing-masing memanggil `arcade_add_game(...)` (`cmake/ArcadeGame.cmake`), yang membangun `game_<id>_logic` (murni), `game_<id>` (raylib), dan satu executable test per file test, lalu mencatat id-nya. `cmake/ArcadeRegistry.cmake` membuat `build/<preset>/generated/game_registry.c` (sebuah array berisi `&game_<id>_def`). Hub me-link semua game dan mengurutkan array itu berdasarkan `GameDef.order`, lalu id. Tidak ada yang perlu mengedit file bersama untuk menambah game.
 
-## Testing pyramid
+## Piramida testing
 
-1. **Unit tests** (`ctest`, pure code, any OS, no raylib): rules, determinism, "every seed is solvable", file parsers, a monkey test per game (thousands of random inputs, invariants must hold).
-2. **Sanitizers**: the same tests under ASan + UBSan (clang, Linux).
-3. **Smoke runs** (`arCade --smoke all`): each game runs N frames with scripted input and exports PNGs; the run fails if a game crashes or draws a single flat colour. Two backends: raylib 6's CPU renderer (`headless` preset, no GPU/window) and a real window under `xvfb`.
-4. **Compile checks**: gcc (Linux), MinGW gcc (Windows), MSVC (non-blocking), `-Werror`.
-   What CI cannot check: whether a game is fun, or exact pixel output.
+1. **Unit test** (`ctest`, kode murni, OS apa pun, tanpa raylib): aturan, determinisme, "setiap seed bisa diselesaikan", parser file, dan satu monkey test per game (ribuan input acak, invariant harus tetap terjaga).
+2. **Sanitizer**: test yang sama dijalankan dengan ASan + UBSan (clang, Linux).
+3. **Smoke run** (`arCade --smoke all`): tiap game dijalankan N frame dengan input berskrip dan mengekspor PNG; run dinyatakan gagal kalau ada game yang crash atau menggambar satu warna polos. Ada dua backend: CPU renderer milik raylib 6 (preset `headless`, tanpa GPU/window) dan window sungguhan di bawah `xvfb`.
+4. **Cek kompilasi**: gcc (Linux), MinGW gcc (Windows), MSVC (tidak memblokir), `-Werror`.
+   Yang tidak bisa dicek CI: apakah game-nya seru, atau output piksel yang persis.
 
-## Headless rendering notes
+## Catatan headless rendering
 
-`PLATFORM=Memory` (raylib >= 6.0) renders into a memory framebuffer. Its read-back is BGRA and bottom-up, so `core/gfx/gfx.c:snapshot()` normalises it (only when `ARCADE_HEADLESS_BUILD` is defined). Audio is disabled in smoke runs.
+`PLATFORM=Memory` (raylib >= 6.0) merender ke framebuffer di memori. Hasil bacanya berformat BGRA dan terbalik secara vertikal (bottom-up), jadi `core/gfx/gfx.c:snapshot()` menormalkannya (hanya ketika `ARCADE_HEADLESS_BUILD` didefinisikan). Audio dinonaktifkan pada smoke run.
 
-## Data files
+## File data
 
-- `scores.txt` (next to the exe, or `--data-dir`): one line `game|player|score|unix_time`; corrupt lines are skipped.
-- `assets/beatmaps/*.txt`: beat maps for Beat Dodge (format documented in `beat_dodge_logic.h`).
+- `scores.txt` (di sebelah exe, atau `--data-dir`): satu baris `game|player|score|unix_time`; baris yang rusak dilewati.
+- `assets/beatmaps/*.txt`: file lagu (beat map) untuk Beat Dodge (formatnya didokumentasikan di `beat_dodge_logic.h`, lihat juga `docs/SONGS.md`).
 
 ## Versioning
 
-`ARCADE_VERSION` (CMake cache variable) is baked into `arcade/version.h`; CI passes the computed `X.Y.Z`; local builds use `git describe` or `0.0.0-dev`. Shown on the menu and by `--version`.
+`ARCADE_VERSION` (variabel cache CMake) ditanam ke `arcade/version.h`; CI meneruskan `X.Y.Z` hasil perhitungan; build lokal memakai `git describe` atau `0.0.0-dev`. Ditampilkan di menu dan oleh `--version`.
 
-## Key decisions
+## Keputusan utama
 
-| Decision                                                 | Rationale                                                                                              |
+| Keputusan                                                | Alasan                                                                                                 |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Plain C99, strict warnings (`-Werror`)                   | Academic requirement (procedural C); cross-platform parity between GCC, Clang, and MSVC.               |
-| Pinned raylib 6.2 via CMake `FetchContent`               | Automated single-command setup on all platforms without manual library installation.                   |
-| Logic / front-end decoupling                             | Enables fast headless CI, unit testing without GPU/display, and replaceable rendering backends.        |
-| Deterministic simulation (PCG32 RNG, fixed step `1/60s`) | Predictable tests, replay systems (e.g. Ghost Loop), and reproducible smoke runs.                      |
-| Automatic game discovery (`games/<id>/`)                 | Teammates work in isolated directories without merge conflicts in central registries.                  |
-| Git tags + Conventional Commits                          | Deterministic semantic versioning directly derived from git commit history without chore bump commits. |
-| Audio synthesized in code                                | Zero audio licensing constraints or missing external asset crashes.                                    |
+| C99 murni, warning ketat (`-Werror`)                     | Syarat akademik (C prosedural); perilaku yang sama di GCC, Clang, dan MSVC.                            |
+| raylib 6.2 yang di-pin lewat CMake `FetchContent`        | Setup otomatis dengan satu perintah di semua platform tanpa memasang library secara manual.            |
+| Logic / front-end dipisah                                | Memungkinkan CI headless yang cepat, unit test tanpa GPU/display, dan backend rendering yang bisa diganti. |
+| Simulasi deterministik (RNG PCG32, step tetap `1/60s`)   | Test yang bisa diprediksi, sistem replay (misalnya Ghost Loop), dan smoke run yang bisa direproduksi.  |
+| Penemuan game otomatis (`games/<id>/`)                   | Anggota tim bekerja di folder masing-masing tanpa konflik merge di registry pusat.                     |
+| Git tag + Conventional Commits                           | Semantic versioning yang deterministik langsung dari riwayat commit, tanpa commit bump yang tidak perlu. |
+| Audio disintesis lewat kode                              | Tidak ada masalah lisensi audio, dan tidak ada crash karena file aset yang hilang.                     |

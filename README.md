@@ -6,34 +6,34 @@
 [![Language: C99](https://img.shields.io/badge/Language-C99-blue.svg)](https://en.wikipedia.org/wiki/C99)
 [![Graphics: raylib 6.2](https://img.shields.io/badge/Graphics-raylib%206.2-red.svg)](https://www.raylib.com)
 
-arCade is an arcade hub of 8 small games written in procedural C99 using raylib 6.2, built for a university coursework project (Dasar Pemrograman). It includes an animated falling-sand menu background and a persistent local leaderboard.
+arCade adalah hub arcade berisi 8 game kecil yang ditulis dengan C99 prosedural dan raylib 6.2, dibuat untuk proyek tugas kuliah (Dasar Pemrograman). Di dalamnya ada background menu berupa simulasi pasir jatuh (falling-sand) yang beranimasi, serta leaderboard lokal yang tersimpan permanen.
 
-Each game is split into a pure C logic library and a raylib front-end. The logic runs with a fixed timestep and has no graphics dependencies, so the entire suite builds and tests in seconds without opening a window.
+Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. Logic berjalan dengan fixed timestep dan tidak bergantung pada grafis, sehingga seluruh proyek bisa di-build dan di-test dalam hitungan detik tanpa membuka window.
 
 ---
 
-## Games
+## Game
 
 <table>
   <tr>
     <td width="50%" align="center">
       <h3><a href="games/time_shooter/GAME.md">Time Shooter</a></h3>
       <a href="games/time_shooter/GAME.md">
-        <img src="docs/screenshots/time_shooter.png" width="380" alt="Time Shooter screenshot"/>
+        <img src="docs/screenshots/time_shooter.png" width="380" alt="Screenshot Time Shooter"/>
       </a>
       <p align="left">
-        Time moves only when you move or shoot. Standing still freezes enemies and bullets in place, giving you time to plan each step.<br/>
-        <b>Controls:</b> WASD or arrow keys to move, mouse to aim, left click to shoot.
+        Waktu hanya berjalan saat kamu bergerak atau menembak. Kalau diam, musuh dan peluru membeku di tempat, jadi kamu punya waktu untuk merencanakan setiap langkah.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak, mouse untuk membidik, klik kiri untuk menembak.
       </p>
     </td>
     <td width="50%" align="center">
       <h3><a href="games/echo_maze/GAME.md">Echo Maze</a></h3>
       <a href="games/echo_maze/GAME.md">
-        <img src="docs/screenshots/echo_maze.png" width="380" alt="Echo Maze screenshot"/>
+        <img src="docs/screenshots/echo_maze.png" width="380" alt="Screenshot Echo Maze"/>
       </a>
       <p align="left">
-        The maze is dark. Pressing Space sends a sonar pulse that briefly lights up walls in direct line of sight. Reach the exit using as few pulses as possible.<br/>
-        <b>Controls:</b> WASD or arrow keys to move, Space to pulse.
+        Maze-nya gelap. Tekan Space untuk mengirim pulse sonar yang menerangi sebentar dinding-dinding yang terlihat langsung dari posisimu. Capai pintu keluar dengan pulse sesedikit mungkin.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak, Space untuk pulse.
       </p>
     </td>
   </tr>
@@ -41,21 +41,21 @@ Each game is split into a pure C logic library and a raylib front-end. The logic
     <td width="50%" align="center">
       <h3><a href="games/laser_mirrors/GAME.md">Laser Mirrors</a></h3>
       <a href="games/laser_mirrors/GAME.md">
-        <img src="docs/screenshots/laser_mirrors.png" width="380" alt="Laser Mirrors screenshot"/>
+        <img src="docs/screenshots/laser_mirrors.png" width="380" alt="Screenshot Laser Mirrors"/>
       </a>
       <p align="left">
-        Click mirrors to rotate them and redirect laser beams. Splitter tiles branch the beam so you can hit every target on the grid.<br/>
-        <b>Controls:</b> Left click on yellow mirrors to rotate.
+        Klik cermin untuk memutarnya dan membelokkan sinar laser. Tile splitter membagi sinar menjadi dua cabang supaya kamu bisa mengenai semua target di grid.<br/>
+        <b>Kontrol:</b> Klik kiri pada cermin kuning untuk memutar.
       </p>
     </td>
     <td width="50%" align="center">
       <h3><a href="games/ghost_loop/GAME.md">Ghost Loop</a></h3>
       <a href="games/ghost_loop/GAME.md">
-        <img src="docs/screenshots/ghost_loop.png" width="380" alt="Ghost Loop screenshot"/>
+        <img src="docs/screenshots/ghost_loop.png" width="380" alt="Screenshot Ghost Loop"/>
       </a>
       <p align="left">
-        Each round lasts 8 seconds. When a round resets, your past attempts replay as ghosts. Stand on floor switches in early rounds so your ghosts hold gates open for you later.<br/>
-        <b>Controls:</b> WASD or arrow keys to move.
+        Setiap ronde berlangsung 8 detik. Saat ronde diulang, percobaan-percobaan sebelumnya diputar ulang sebagai ghost. Berdirilah di atas tombol lantai pada ronde awal supaya ghost-mu menahan pintu tetap terbuka untukmu di ronde berikutnya.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
       </p>
     </td>
   </tr>
@@ -63,21 +63,21 @@ Each game is split into a pure C logic library and a raylib front-end. The logic
     <td width="50%" align="center">
       <h3><a href="games/beat_dodge/GAME.md">Beat Dodge</a></h3>
       <a href="games/beat_dodge/GAME.md">
-        <img src="docs/screenshots/beat_dodge.png" width="380" alt="Beat Dodge screenshot"/>
+        <img src="docs/screenshots/beat_dodge.png" width="380" alt="Screenshot Beat Dodge"/>
       </a>
       <p align="left">
-        Rhythm game where obstacles drop down three lanes and reach the bottom on the beat. Song maps are stored in plain text files that you can edit or extend.<br/>
-        <b>Controls:</b> A and D or left and right arrow keys to switch lanes.
+        Game ritme: rintangan jatuh lewat tiga atau empat lane dan sampai di bagian bawah tepat pada beat. Peta lagu disimpan di file teks biasa yang bisa kamu edit atau tambah sendiri.<br/>
+        <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane.
       </p>
     </td>
     <td width="50%" align="center">
       <h3><a href="games/absorb_grow/GAME.md">Absorb & Grow</a></h3>
       <a href="games/absorb_grow/GAME.md">
-        <img src="docs/screenshots/absorb_grow.png" width="380" alt="Absorb & Grow screenshot"/>
+        <img src="docs/screenshots/absorb_grow.png" width="380" alt="Screenshot Absorb & Grow"/>
       </a>
       <p align="left">
-        Absorb smaller blobs to gain mass and avoid larger ones. New blobs scale with your current size, and your movement slows down as you grow.<br/>
-        <b>Controls:</b> WASD or arrow keys to move.
+        Serap blob yang lebih kecil untuk menambah massa, dan hindari yang lebih besar. Blob baru mengikuti ukuranmu saat ini, dan gerakanmu makin lambat seiring kamu membesar.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
       </p>
     </td>
   </tr>
@@ -85,21 +85,21 @@ Each game is split into a pure C logic library and a raylib front-end. The logic
     <td width="50%" align="center">
       <h3><a href="games/sort_it/GAME.md">Sort It</a></h3>
       <a href="games/sort_it/GAME.md">
-        <img src="docs/screenshots/sort_it.png" width="380" alt="Sort It screenshot"/>
+        <img src="docs/screenshots/sort_it.png" width="380" alt="Screenshot Sort It"/>
       </a>
       <p align="left">
-        Swap bars to sort them before running out of swaps. The screen shows how many moves you took compared to selection sort and bubble sort benchmarks.<br/>
-        <b>Controls:</b> Arrow keys to select, Space to swap.
+        Tukar posisi bar untuk mengurutkannya sebelum jatah swap habis. Layar menampilkan berapa langkah yang kamu pakai dibandingkan dengan patokan selection sort dan bubble sort.<br/>
+        <b>Kontrol:</b> Tombol panah untuk memilih, Space untuk menukar.
       </p>
     </td>
     <td width="50%" align="center">
       <h3><a href="games/sandbox/GAME.md">Sandbox</a></h3>
       <a href="games/sandbox/GAME.md">
-        <img src="docs/screenshots/sandbox.png" width="380" alt="Sandbox screenshot"/>
+        <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
       </a>
       <p align="left">
-        Falling-sand toy with sand, water, and stone interactions. The hub menu uses this exact simulation engine to animate its background.<br/>
-        <b>Controls:</b> Left click to draw, right click to erase, 0 to 3 to select material, Space to pause.
+        Mainan falling-sand dengan interaksi antara pasir, air, dan batu. Menu hub memakai engine simulasi yang sama persis untuk menganimasikan background-nya.<br/>
+        <b>Kontrol:</b> Klik kiri untuk menggambar, klik kanan untuk menghapus, 0 sampai 3 untuk memilih material, Space untuk pause.
       </p>
     </td>
   </tr>
@@ -107,96 +107,98 @@ Each game is split into a pure C logic library and a raylib front-end. The logic
 
 ---
 
-## Highlights
+## Sorotan
 
-- The hub background runs an active falling-sand simulation.
-- Scores save to a plain-text file (scores.txt) using insertion sort and binary search for lookups.
-- Sound effects and rhythm clicks are generated in code through audio tones, without needing external wav or ogg files.
-- Logic updates run at a fixed 60 Hz rate using a PCG32 random number generator, so runs and replays stay consistent.
-- Games register automatically from folders in games/; adding a new one does not require editing existing hub source files.
-- Builds and runs on both Linux and Windows.
+- Background hub menjalankan simulasi falling-sand yang aktif.
+- Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search.
+- Efek suara dan klik ritme dibuat langsung lewat kode (audio tone), tanpa perlu file wav atau ogg eksternal.
+- Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
+- Game terdaftar otomatis dari folder di games/; menambah game baru tidak perlu mengubah file source hub yang sudah ada.
+- Bisa di-build dan dijalankan di Linux maupun Windows.
 
 ---
 
-## Quick start
+## Mulai cepat
 
-### Prebuilt releases
+### Rilis siap pakai
 
-Packaged builds for Linux and Windows are available on the [releases page](https://github.com/zaxx-q/arCade/releases/latest).
+Build siap pakai untuk Linux dan Windows tersedia di [halaman releases](https://github.com/zaxx-q/arCade/releases/latest).
 
-- Windows: unzip `arCade-vX.Y.Z-windows-x86_64.zip` and run `arCade.exe`.
-- Linux: extract `arCade-vX.Y.Z-linux-x86_64.tar.gz` and run `./arCade`.
+- Windows: unzip `arCade-vX.Y.Z-windows-x86_64.zip` lalu jalankan `arCade.exe`.
+- Linux: ekstrak `arCade-vX.Y.Z-linux-x86_64.tar.gz` lalu jalankan `./arCade`.
 
-### Building from source
+### Build dari source
 
-Requirements: CMake 3.25 or newer, a C99 compiler (GCC, Clang, or MSVC), and Ninja. CMake downloads and compiles raylib 6.2 on the first build.
+Kebutuhan: CMake 3.25 atau lebih baru, compiler C99 (GCC, Clang, atau MSVC), dan Ninja. CMake mengunduh dan mengompilasi raylib 6.2 pada build pertama.
 
 ```bash
-# 1. Build and run unit tests without graphics
+# 1. Build dan jalankan unit test tanpa grafis
 cmake --preset logic && cmake --build --preset logic && ctest --preset logic
 
-# 2. Build the full game hub with raylib
+# 2. Build hub game lengkap dengan raylib
 cmake --preset dev && cmake --build --preset dev
 
-# 3. Launch arCade
+# 3. Jalankan arCade
 build/dev/bin/arCade        # Windows: build\dev\bin\arCade.exe
 ```
 
-For platform setup details (MSYS2 packages on Windows, dev libraries on Linux), see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ---
 
-## Hub controls
+## Kontrol hub
 
-| Key                | Action                    |
-| ------------------ | ------------------------- |
-| Up / Down or W / S | Select a game in the menu |
-| Enter or Space     | Start selected game       |
-| Tab                | Open the leaderboard      |
-| Esc                | Back to menu, or quit     |
-| F11                | Toggle fullscreen         |
+| Tombol                  | Aksi                                           |
+| ----------------------- | ---------------------------------------------- |
+| Up / Down atau W / S    | Memilih game di menu (mouse juga bisa)         |
+| Enter atau klik         | Memulai game yang dipilih                      |
+| L                       | Membuka leaderboard                            |
+| N                       | Mengganti nama pemain                          |
+| Esc                     | Keluar dari hub (di dalam game: kembali ke menu) |
 
-Command line flags:
+Di background menu, klik kiri menggambar pasir dan klik kanan menggambar air.
+
+Flag command line:
 
 ```bash
-arCade --list                # List all registered games
-arCade --version             # Show version information
-arCade --smoke all           # Run automated headless checks for every game
-arCade --smoke <id>          # Run headless checks for a single game
+arCade --list                # Menampilkan semua game yang terdaftar
+arCade --version             # Menampilkan informasi versi
+arCade --smoke all           # Menjalankan pengecekan headless otomatis untuk semua game
+arCade --smoke <id>          # Menjalankan pengecekan headless untuk satu game
 ```
 
 ---
 
-## Architecture
+## Arsitektur
 
-The project maintains a strict split between game rules and rendering:
+Proyek ini menjaga pemisahan yang tegas antara aturan game dan rendering:
 
 ```
 app/ (hub menu, leaderboard, smoke runner)
- └── games/<id>/<id>_game.c    (raylib drawing and input polling)
-      ├── core/gfx/            (window setup, frame timing, drawing helpers)
-      └── games/<id>/<id>_logic.c (pure C99: state, collision, scoring)
+ └── games/<id>/<id>_game.c    (menggambar dan membaca input dengan raylib)
+      ├── core/gfx/            (setup window, frame timing, helper menggambar)
+      └── games/<id>/<id>_logic.c (C99 murni: state, collision, scoring)
            └── core/src/       (RNG, input monkey, sandbox engine, leaderboard)
 ```
 
-The logic layer in `games/<id>/<id>_logic.c` never includes `raylib.h`. This separation allows headless testing in CI and ensures core rules can be evaluated independently from raylib.
+Layer logic di `games/<id>/<id>_logic.c` tidak pernah meng-include `raylib.h`. Pemisahan ini memungkinkan testing headless di CI, dan memastikan aturan inti bisa dievaluasi terpisah dari raylib.
 
-For details on the loop contract and memory layout, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## Documentation
-
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): toolchain setup, common build commands, and roadmap.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): system structure and design decisions.
-- [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md): how to create a new game using the scaffolding script.
-- [docs/SANDBOX.md](docs/SANDBOX.md): cellular automata rules and how to add new materials.
-- [docs/RELEASING.md](docs/RELEASING.md): tag conventions and release workflows.
-- [docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md): mapping course requirements to code locations.
-- [docs/raylib_subset.md](docs/raylib_subset.md): signatures for the raylib 6.2 API subset used across games.
+Untuk detail soal kontrak loop dan layout memori, lihat [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
-## License
+## Dokumentasi
 
-This project is released under the [MIT License](LICENSE). Third-party license notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): setup toolchain, perintah build yang sering dipakai, dan roadmap.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): struktur sistem dan keputusan desain.
+- [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md): cara membuat game baru dengan script scaffolding.
+- [docs/SANDBOX.md](docs/SANDBOX.md): aturan cellular automata dan cara menambah material baru.
+- [docs/RELEASING.md](docs/RELEASING.md): konvensi tag dan workflow rilis.
+- [docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md): pemetaan kebutuhan tugas kuliah ke lokasi kode.
+- [docs/raylib_subset.md](docs/raylib_subset.md): signature subset API raylib 6.2 yang dipakai di semua game.
+
+---
+
+## Lisensi
+
+Proyek ini dirilis di bawah [MIT License](LICENSE). Pemberitahuan lisensi pihak ketiga ada di [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
