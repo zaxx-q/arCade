@@ -221,3 +221,117 @@ bool bd_convert_midi(const MidiSong *midi, const char *title, const char *player
     }
     return true;
 }
+
+/* ------------------------------------------------------------------ measurements */
+static int cmp_int(const void *a, const void *b) {
+    int x = *(const int *)a, y = *(const int *)b;
+    return (x > y) - (x < y);
+}
+
+/* Distinct onset steps of the melody (both voices), sorted. */
+static int collect_onsets(const bd_Song *song, int *out) {
+    int n = 0;
+    for (int i = 0; i < song->note_count; i++)
+        out[n++] = bd_note_step(song->notes[i].start, song->steps);
+    qsort(out, (size_t)n, sizeof(int), cmp_int);
+    int m = 0;
+    for (int i = 0; i < n; i++)
+        if (m == 0 || out[i] != out[m - 1])
+            out[m++] = out[i];
+    return m;
+}
+
+/* Share of windows of `win` seconds (stride win/4, from t = 0 to the last bead) in which some lane has no
+ * bead. */
+static float empty_lane_windows(const bd_Chart *c, float step_sec, float win, int last_step) {
+    float last = (float)last_step * step_sec, eps = 0.0001f;
+    int windows = 0, bad = 0;
+    for (int k = 0;; k++) {
+        float from = (float)k * win / 4.0f;
+        if (from + win > last + eps)
+            break;
+        bool used[BD_MAX_LANES] = {false};
+        for (int i = 0; i <= last_step; i++) {
+            float t = (float)i * step_sec;
+            if (c->lane[i] >= 0 && t >= from - eps && t <= from + win + eps)
+                used[c->lane[i]] = true;
+        }
+        int n = 0;
+        for (int l = 0; l < c->lanes; l++)
+            n += used[l] ? 1 : 0;
+        windows++;
+        bad += n < c->lanes ? 1 : 0;
+    }
+    return windows > 0 ? (float)bad / (float)windows : 0.0f;
+}
+
+void bd_chart_metrics(const bd_Song *song, int chart, bd_ChartMetrics *out) {
+    memset(out, 0, sizeof(*out));
+    const bd_Chart *c = &song->charts[chart];
+    float step_sec = 60.0f / (float)song->bpm / (float)song->steps;
+    int beads = bd_chart_obstacles(c), last_step = -1, same = 0, prev_lane = -1, pairs = 0;
+    out->beads = beads;
+    if (beads == 0)
+        return;
+    int lazy_lane = c->lanes / 2, idle = 0;
+    for (int i = 0; i < c->length; i++) {
+        int l = c->lane[i];
+        if (l < 0)
+            continue;
+        last_step = i;
+        if (prev_lane >= 0) {
+            pairs++;
+            same += l == prev_lane ? 1 : 0;
+        }
+        prev_lane = l;
+        if (l ==
+            lazy_lane) { /* the lazy bot moves only when the bead is in its lane: to the nearest other lane */
+            int best = -1;
+            for (int k = 0; k < c->lanes; k++)
+                if (k != lazy_lane && (best < 0 || abs(k - lazy_lane) < abs(best - lazy_lane)))
+                    best = k; /* strict < keeps the lower lane on a tie */
+            lazy_lane = best;
+        } else {
+            idle++;
+        }
+    }
+    out->per_second = last_step > 0 ? (float)beads / ((float)last_step * step_sec) : 0.0f;
+    out->same_lane = pairs > 0 ? (float)same / (float)pairs : 0.0f;
+    out->lazy_idle = (float)idle / (float)beads;
+    out->empty5 = empty_lane_windows(c, step_sec, 5.0f, last_step);
+    out->empty10 = empty_lane_windows(c, step_sec, 10.0f, last_step);
+
+    /* onsets and bursts */
+    static int onset[BD_MAX_NOTES];
+    int n = collect_onsets(song, onset), covered = 0, run_start = 0;
+    for (int i = 0; i < n; i++) {
+        int step = onset[i];
+        covered += step < c->length && c->lane[step] >= 0 ? 1 : 0;
+        bool last_of_burst = i + 1 == n || (float)(onset[i + 1] - step) * step_sec > 0.25f + 0.0001f;
+        if (!last_of_burst)
+            continue;
+        if (i - run_start + 1 >= 3) { /* a burst of 3 or more onsets */
+            int shown = 0;
+            for (int k = run_start; k <= i; k++)
+                shown += onset[k] < c->length && c->lane[onset[k]] >= 0 ? 1 : 0;
+            out->bursts++;
+            out->bursts_mismatched += shown <= 1 ? 1 : 0;
+        }
+        run_start = i + 1;
+    }
+    out->covered = n > 0 ? (float)covered / (float)n : 0.0f;
+}
+
+float bd_song_voice_overlap(const bd_Song *song) {
+    static unsigned char seen[65536 / BD_CLOCKS_PER_BEAT + 2]; /* bit 0 = voice 0, bit 1 = voice 1 */
+    memset(seen, 0, sizeof(seen));
+    for (int i = 0; i < song->note_count; i++)
+        if (song->notes[i].voice <= 1)
+            seen[song->notes[i].start / BD_CLOCKS_PER_BEAT] |= (unsigned char)(1u << song->notes[i].voice);
+    int any = 0, both = 0;
+    for (size_t b = 0; b < sizeof(seen); b++) {
+        any += seen[b] != 0 ? 1 : 0;
+        both += seen[b] == 3 ? 1 : 0;
+    }
+    return any > 0 ? (float)both / (float)any : 0.0f;
+}

@@ -29,13 +29,13 @@ static ArcadeInput idle(void) {
 static void play_perfectly(beat_dodge_State *s, int max_steps) {
     for (int i = 0; i < max_steps && !beat_dodge_is_over(s); i++) {
         ArcadeInput in = idle();
-        const bd_Chart *c = &s->song.charts[s->chart];
-        int j = s->next_hit;
-        while (j < s->length && c->lane[j] < 0)
+        const bd_Chart *c = &s->run.song.charts[s->run.chart];
+        int j = s->run.next_hit;
+        while (j < s->run.length && c->lane[j] < 0)
             j++;
-        if (j < s->length && c->lane[j] == s->lane) {
-            in.left_pressed = s->lane > 0;
-            in.right_pressed = s->lane == 0;
+        if (j < s->run.length && c->lane[j] == s->run.lane) {
+            in.left_pressed = s->run.lane > 0;
+            in.right_pressed = s->run.lane == 0;
         }
         beat_dodge_step(s, &in, ARC_DT);
     }
@@ -154,11 +154,11 @@ static void test_obstacles_arrive_exactly_on_the_beat(void) {
     float arrive = BD_LEAD_BEATS * 0.5f + 10.0f * (0.5f / 4.0f); /* lead + 10 steps of 0.125 s */
     CHECK_NEAR(beat_dodge_arrival(&g_s, 10), arrive, 0.0001);
     ArcadeInput in = idle();
-    while (g_s.time < arrive - 0.02f)
+    while (g_s.run.time < arrive - 0.02f)
         beat_dodge_step(&g_s, &in, ARC_DT);
     CHECK_EQ_INT(g_s.lives, BD_START_LIVES);
     CHECK_NEAR(beat_dodge_obstacle_y(&g_s, 10), BD_PLAYER_Y, 12.0);
-    while (g_s.time < arrive + 0.03f)
+    while (g_s.run.time < arrive + 0.03f)
         beat_dodge_step(&g_s, &in, ARC_DT);
     CHECK_EQ_INT(g_s.lives, BD_START_LIVES - 1);
 }
@@ -166,7 +166,7 @@ static void test_obstacles_arrive_exactly_on_the_beat(void) {
 static void test_perfect_play_wins_and_scores_the_maximum(void) {
     beat_dodge_init(&g_s, 1);
     play_perfectly(&g_s, 60 * 90);
-    CHECK(g_s.won);
+    CHECK(g_s.run.won);
     CHECK_EQ_INT(g_s.lives, BD_START_LIVES);
     CHECK_EQ_INT(g_s.points, g_s.max_points);
     CHECK_EQ_INT(beat_dodge_score(&g_s), (int)(1000.0f * 1.5f)); /* "normal" chart multiplier */
@@ -179,7 +179,7 @@ static void test_standing_still_loses_all_lives(void) {
     for (int i = 0; i < 60 * 90 && !beat_dodge_is_over(&g_s); i++)
         beat_dodge_step(&g_s, &in, ARC_DT);
     CHECK(beat_dodge_is_over(&g_s));
-    CHECK(!g_s.won);
+    CHECK(!g_s.run.won);
     CHECK_EQ_INT(g_s.lives, 0);
     CHECK(beat_dodge_score(&g_s) < 600);
 }
@@ -189,26 +189,26 @@ static void test_lanes_keys_and_clamping(void) {
     g_song.chart_count = 1;
     g_song.charts[0].lanes = 4;
     beat_dodge_use_song(&g_s, &g_song, 0);
-    CHECK_EQ_INT(g_s.lanes, 4);
+    CHECK_EQ_INT(g_s.run.lanes, 4);
     ArcadeInput in = idle();
     in.typed = '4'; /* direct lane key */
     beat_dodge_step(&g_s, &in, ARC_DT);
-    CHECK_EQ_INT(g_s.lane, 3);
+    CHECK_EQ_INT(g_s.run.lane, 3);
     in = idle();
     in.typed = '5'; /* no such lane: ignored */
     beat_dodge_step(&g_s, &in, ARC_DT);
-    CHECK_EQ_INT(g_s.lane, 3);
+    CHECK_EQ_INT(g_s.run.lane, 3);
     in = idle();
     in.right_pressed = true;
     beat_dodge_step(&g_s, &in, ARC_DT);
-    CHECK_EQ_INT(g_s.lane, 3); /* clamped at the right edge */
+    CHECK_EQ_INT(g_s.run.lane, 3); /* clamped at the right edge */
     in = idle();
     in.typed = '1';
     beat_dodge_step(&g_s, &in, ARC_DT);
     in = idle();
     in.left_pressed = true;
     beat_dodge_step(&g_s, &in, ARC_DT);
-    CHECK_EQ_INT(g_s.lane, 0);
+    CHECK_EQ_INT(g_s.run.lane, 0);
 }
 
 static void test_sync_only_fixes_large_drift(void) {
@@ -216,11 +216,11 @@ static void test_sync_only_fixes_large_drift(void) {
     ArcadeInput in = idle();
     for (int i = 0; i < 60; i++)
         beat_dodge_step(&g_s, &in, ARC_DT);
-    float t = g_s.time;
+    float t = g_s.run.time;
     beat_dodge_sync(&g_s, t + 0.05f); /* small drift: ignored */
-    CHECK_NEAR(g_s.time, t, 0.0001);
+    CHECK_NEAR(g_s.run.time, t, 0.0001);
     beat_dodge_sync(&g_s, t + 0.5f); /* big drift: follow the clock */
-    CHECK_NEAR(g_s.time, t + 0.5f, 0.0001);
+    CHECK_NEAR(g_s.run.time, t + 0.5f, 0.0001);
 }
 
 static void test_beat_event_fires_once_per_beat(void) {
@@ -229,7 +229,7 @@ static void test_beat_event_fires_once_per_beat(void) {
     int events = 0;
     for (int i = 0; i < 120; i++) { /* 2 seconds at 120 bpm = 4 beats (plus the very first one at t=0) */
         beat_dodge_step(&g_s, &in, ARC_DT);
-        if (g_s.beat_event)
+        if (g_s.run.beat_event)
             events++;
     }
     CHECK(events >= 4 && events <= 5);
@@ -307,7 +307,7 @@ static void test_every_shipped_song_is_playable(void) {
             CHECK(bd_song_seconds(song, c) < 300.0f);
             beat_dodge_use_song(&g_s, song, c);
             play_perfectly(&g_s, 60 * 400);
-            CHECK(g_s.won);
+            CHECK(g_s.run.won);
             CHECK_EQ_INT(g_s.hits, 0);
             CHECK_EQ_INT(g_s.dodged, obstacles);
             CHECK_EQ_INT(beat_dodge_score(&g_s), (int)(1000.0f * bd_chart_multiplier(ch->name)));
@@ -323,7 +323,7 @@ static void test_monkey_is_safe(void) {
         ArcadeInput in;
         arcade_monkey_next(&m, &in);
         beat_dodge_step(&g_s, &in, ARC_DT);
-        CHECK(g_s.lane >= 0 && g_s.lane < g_s.lanes);
+        CHECK(g_s.run.lane >= 0 && g_s.run.lane < g_s.run.lanes);
         CHECK(g_s.lives >= 0 && g_s.lives <= BD_START_LIVES);
         CHECK(beat_dodge_score(&g_s) >= 0);
     }

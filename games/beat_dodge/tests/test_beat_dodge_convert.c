@@ -166,16 +166,16 @@ static void test_converted_song_is_playable(void) {
         for (int i = 0; i < 60 * 200 && !beat_dodge_is_over(&s); i++) {
             ArcadeInput in;
             arcade_input_clear(&in);
-            int j = s.next_hit;
-            while (j < s.length && g_song.charts[c].lane[j] < 0)
+            int j = s.run.next_hit;
+            while (j < s.run.length && g_song.charts[c].lane[j] < 0)
                 j++;
-            if (j < s.length && g_song.charts[c].lane[j] == s.lane) {
-                in.left_pressed = s.lane > 0;
-                in.right_pressed = s.lane == 0;
+            if (j < s.run.length && g_song.charts[c].lane[j] == s.run.lane) {
+                in.left_pressed = s.run.lane > 0;
+                in.right_pressed = s.run.lane == 0;
             }
             beat_dodge_step(&s, &in, ARC_DT);
         }
-        CHECK(s.won);
+        CHECK(s.run.won);
         CHECK_EQ_INT(s.hits, 0);
     }
 }

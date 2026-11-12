@@ -24,4 +24,21 @@ typedef struct bd_ConvertStats {
 bool bd_convert_midi(const MidiSong *midi, const char *title, const char *player_track, bd_Song *out,
                      bd_ConvertStats *stats, char *err, size_t err_size);
 
+/* ---- measurements (Appendix A of the Beat Dodge plan): how a chart compares with the melody it was made
+ * from. Used by `midi2beatmap --report/--metrics` and by tests, never by the game itself. */
+typedef struct bd_ChartMetrics {
+    int beads;
+    float per_second;      /* beads divided by the time of the last bead */
+    float covered;         /* share of heard onsets whose 16th step holds a bead */
+    int bursts;            /* bursts of 3 or more onsets, each at most 0.25 s after the previous one */
+    int bursts_mismatched; /* of those, bursts in which at most one step holds a bead */
+    float same_lane;       /* share of consecutive beads in the same lane */
+    float lazy_idle;       /* share of beads a lazy bot dodges without moving */
+    float empty5, empty10; /* share of 5 s / 10 s windows in which some lane stays empty */
+} bd_ChartMetrics;
+
+void bd_chart_metrics(const bd_Song *song, int chart, bd_ChartMetrics *out);
+/* Share of beats that hold notes of both voices (0 when the melody is empty). */
+float bd_song_voice_overlap(const bd_Song *song);
+
 #endif
