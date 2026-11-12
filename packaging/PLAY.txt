@@ -1,20 +1,20 @@
-arCade - how to play
+arCade - cara bermain
 ========================
 
-Windows: unzip the folder anywhere (not inside a protected folder), double-click arCade.exe.
+Windows: ekstrak (unzip) foldernya di mana saja (jangan di dalam folder yang dilindungi), lalu klik dua kali arCade.exe.
 Linux:   tar xzf arCade-*.tar.gz && cd arCade-* && ./arCade
-         (needs the usual desktop libraries: OpenGL and X11, present on any normal desktop install)
+         (butuh library desktop yang umum: OpenGL dan X11, yang ada di instalasi desktop biasa)
 
-Controls are shown on the menu for the selected game.
-  Menu:   Up/Down or mouse: choose   Enter or click: play   L: leaderboard   N: change name   Esc: quit
-  In a game: Esc returns to the menu.
-  Menu background: left mouse paints sand, right mouse paints water (on the right half of the screen).
+Kontrol ditampilkan di menu untuk game yang sedang dipilih.
+  Menu:   Up/Down atau mouse: memilih   Enter atau klik: main   L: leaderboard   N: ganti nama   Esc: keluar
+  Di dalam game: Esc kembali ke menu.
+  Background menu: klik kiri mouse menggambar pasir, klik kanan menggambar air (di separuh kanan layar).
 
-Scores are saved in scores.txt next to the program. Delete the file to reset the leaderboard.
+Skor disimpan di scores.txt di sebelah programnya. Hapus file itu untuk mereset leaderboard.
 
-Command line (optional):
-  arCade --version        print the version
-  arCade --list           list the games
-  arCade --help           all options
+Command line (opsional):
+  arCade --version        tampilkan versi
+  arCade --list           tampilkan daftar game
+  arCade --help           semua opsi
 
-Windows may show a SmartScreen warning for an unsigned program: choose "More info" -> "Run anyway".
+Windows mungkin menampilkan peringatan SmartScreen untuk program yang tidak ditandatangani: pilih "More info" -> "Run anyway".

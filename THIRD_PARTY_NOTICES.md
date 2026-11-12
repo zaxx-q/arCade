@@ -1,8 +1,10 @@
-# Third-party notices
+# Pemberitahuan pihak ketiga (Third-party notices)
 
-## raylib (version in `ARCADE_RAYLIB_TAG`, currently 6.2)
+## raylib (versi ada di `ARCADE_RAYLIB_TAG`, saat ini 6.2)
 
-Fetched and statically linked at build time. https://www.raylib.com / https://github.com/raysan5/raylib
+Diunduh dan di-link secara statis saat build. https://www.raylib.com / https://github.com/raysan5/raylib
+
+Teks lisensi di bawah ini sengaja dibiarkan dalam bahasa Inggris asli, karena itulah teks yang mengikat secara hukum.
 
 ```
 Copyright (c) 2013-2026 Ramon Santamaria (@raysan5)
@@ -23,13 +25,13 @@ applications, and to alter it and redistribute it freely, subject to the followi
   3. This notice may not be removed or altered from any source distribution.
 ```
 
-## Fonts, audio, art
+## Font, audio, art
 
-None shipped: all graphics are drawn with raylib shapes and its built-in font; sounds are synthesised in code. If you add assets (for example CC0 packs from kenney.nl), list them here with author, license and URL, and cite them in the report's Daftar Pustaka.
+Tidak ada yang disertakan: semua grafis digambar dengan bentuk-bentuk raylib dan font bawaannya; suara disintesis lewat kode. Kalau kamu menambahkan aset (misalnya paket CC0 dari kenney.nl), tuliskan di sini lengkap dengan pembuat, lisensi, dan URL-nya, lalu kutip di Daftar Pustaka laporan.
 
 
 ## Poiret One (font): `assets/fonts/PoiretOne-Regular.ttf`
-Copyright (c) 2011, Denis Masharov. SIL Open Font License 1.1: the full text is in `assets/fonts/OFL.txt` and must accompany the font in every distribution (the release packages include `assets/`).
+Copyright (c) 2011, Denis Masharov. SIL Open Font License 1.1: teks lengkapnya ada di `assets/fonts/OFL.txt` dan harus menyertai font ini di setiap distribusi (paket rilis sudah menyertakan `assets/`).
 
-## Song data derived from Friday Night Funkin' MIDI transcriptions
-`tools/songs/fnf/*.mid` and `assets/beatmaps/fnf/*.txt`. Source of the MIDI files: "MIDI-FNF-Full-And-Most-Accurate" by FujiwaraZachWatterson (GitHub; see `tools/songs/fnf/SOURCE_README.md`). Compositions: Kawai Sprite / Funkin' Crew (Friday Night Funkin').
+## Data lagu yang diturunkan dari transkripsi MIDI Friday Night Funkin'
+`tools/songs/fnf/*.mid` dan `assets/beatmaps/fnf/*.txt`. Sumber file MIDI: "MIDI-FNF-Full-And-Most-Accurate" oleh FujiwaraZachWatterson (GitHub; lihat `tools/songs/fnf/SOURCE_README.md`). Komposisi: Kawai Sprite / Funkin' Crew (Friday Night Funkin').

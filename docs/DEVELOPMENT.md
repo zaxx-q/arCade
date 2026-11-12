@@ -1,33 +1,42 @@
-# Development setup
+# Setup development
 
-Everything builds with **CMake + a C compiler**. raylib is downloaded and built automatically on the first configure (needs Internet once).
+Semuanya di-build dengan **CMake + compiler C**. raylib diunduh dan dibangun otomatis saat configure pertama (butuh Internet sekali).
 
-## Repository layout
+## Struktur repository
 
 ```
-app/         Hub executable: main loop, menu, leaderboard screen, smoke runner
-assets/      Beatmaps and game data
-cmake/       Build configuration, raylib FetchContent, warnings, toolchains
-core/        Pure C libraries (rng, input, leaderboard, sandbox, sortlib, fx, cli) and core/gfx (raylib helpers)
-docs/        Documentation, guides, architecture notes, and screenshots
-games/       Game packages: <id>_logic.[ch], <id>_game.c, tests, GAME.md
-packaging/   Release packaging notes and runtime instructions
-tests/       Harness (arcade_test.h) and unit tests for core libraries
-tools/       Scripts for formatting, rule checking, game scaffolding, and versioning
+app/         Executable hub: main loop, menu, layar leaderboard, smoke runner
+assets/      Beatmap (lagu) dan data game
+cmake/       Konfigurasi build, raylib FetchContent, warning, toolchain
+core/        Library C murni (rng, input, leaderboard, sandbox, sortlib, fx, cli) dan core/gfx (helper raylib)
+docs/        Dokumentasi, panduan, catatan arsitektur, dan screenshot
+games/       Paket game: <id>_logic.[ch], <id>_game.c, test, GAME.md
+packaging/   Catatan packaging rilis dan petunjuk saat dijalankan
+tests/       Harness (arcade_test.h) dan unit test untuk library core
+tools/       Script untuk format, pengecekan aturan, scaffolding game, dan versioning
 ```
 
-## 1. Install the tools
+### Bahasa dokumen
+
+Dokumen untuk manusia (`README.md`, `docs/`, `GAME.md`) ditulis dalam bahasa Indonesia, dengan istilah teknis tetap dalam bahasa Inggris. Pengecualiannya:
+
+- Semua `AGENTS.md` sengaja tetap berbahasa Inggris karena dibaca oleh AI agent.
+- `docs/raylib_subset.md` dibuat otomatis (`tools/gen_raylib_subset.sh`), jangan diedit manual.
+- Komentar di dalam kode (`*.c`, `*.h`) masih berbahasa Inggris.
+- Teks lisensi di `LICENSE` dan `THIRD_PARTY_NOTICES.md` tetap dalam bahasa aslinya.
+
+## 1. Pasang tool
 
 ### Windows (VS Code)
 
-Use **MSYS2 UCRT64** (gcc, same behaviour as Linux). In an _MSYS2 UCRT64_ shell:
+Pakai **MSYS2 UCRT64** (gcc, perilakunya sama dengan Linux). Di shell _MSYS2 UCRT64_:
 
 ```bash
 pacman -S --needed git mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gdb
 ```
 
-Then add `C:\msys64\ucrt64\bin` (and `C:\msys64\usr\bin` for `bash`) to your Windows PATH, or open VS Code from the MSYS2 UCRT64 shell (`code .`). Install Git for Windows if you do not have it (provides Git Bash, which runs the `tools/*.sh` scripts).
-`gcc`, **`g++`** (raylib's CMake project enables C++; our code is plain C) and CMake >= 3.25 are required.
+Lalu tambahkan `C:\msys64\ucrt64\bin` (dan `C:\msys64\usr\bin` untuk `bash`) ke PATH Windows, atau buka VS Code dari shell MSYS2 UCRT64 (`code .`). Pasang Git for Windows kalau belum ada (menyediakan Git Bash, yang menjalankan script `tools/*.sh`).
+`gcc`, **`g++`** (project CMake milik raylib mengaktifkan C++; kode kita sendiri C murni), dan CMake >= 3.25 wajib ada.
 
 ### Linux (Debian/Ubuntu)
 
@@ -36,120 +45,121 @@ sudo apt install build-essential cmake ninja-build git \
   libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
 ```
 
-CMake must be **3.25 or newer** (presets). Ubuntu 22.04's apt cmake is older: `pip install --user cmake` or use Kitware's apt repo.
+CMake harus **versi 3.25 atau lebih baru** (untuk preset). cmake dari apt di Ubuntu 22.04 lebih lama: pakai `pip install --user cmake` atau repo apt Kitware.
 
-### Both
+### Keduanya
 
 ```bash
-pip install clang-format==18.1.8     # the exact version CI uses (tools/format.sh)
+pip install clang-format==18.1.8     # versi persis yang dipakai CI (tools/format.sh)
 ```
 
 ## 2. VS Code
 
-Install the recommended extensions (the editor prompts you; list in `.vscode/extensions.json`): _CMake Tools_, _C/C++_, _GitHub Actions_, _EditorConfig_, _Markdown Preview Mermaid Support_.
+Pasang extension yang direkomendasikan (editor akan menawarkannya; daftarnya di `.vscode/extensions.json`): _CMake Tools_, _C/C++_, _GitHub Actions_, _EditorConfig_, _Markdown Preview Mermaid Support_.
 
-- Command Palette -> **CMake: Select Configure Preset** -> `dev`, then **CMake: Build** and **CMake: Debug** (launches `arCade`).
-- **Terminal -> Run Task...** has `logic: test`, `dev: build`, `format`, `check repo`, `new game`.
-- Do not turn on "format on save" with the C/C++ extension: its bundled clang-format differs from CI's. Run `bash tools/format.sh` instead.
+- Command Palette -> **CMake: Select Configure Preset** -> `dev`, lalu **CMake: Build** dan **CMake: Debug** (menjalankan `arCade`).
+- **Terminal -> Run Task...** punya `logic: test`, `dev: build`, `format`, `check repo`, `new game`.
+- Jangan aktifkan "format on save" dengan extension C/C++: clang-format bawaannya berbeda dengan yang dipakai CI. Jalankan `bash tools/format.sh` saja.
 
-## 3. Everyday commands
+## 3. Perintah sehari-hari
 
-| Goal                     | Command                                                                                                                            |
+| Tujuan                   | Perintah                                                                                                                           |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Fast loop (no raylib)    | `cmake --preset logic && cmake --build --preset logic && ctest --preset logic`                                                     |
-| One game's tests         | `ctest --preset logic -R "^echo_maze\."`                                                                                           |
-| Play                     | `cmake --preset dev && cmake --build --preset dev` then `build/dev/bin/arCade` (`.exe` on Windows)                                 |
-| Headless screenshots     | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` |
-| Sanitizers (Linux/macOS) | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan`                                                        |
-| Windows build from Linux | see `cmake/toolchains/mingw-w64-x86_64.cmake`                                                                                      |
-| Offline / local raylib   | add `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=/path/to/raylib` to the configure command                                                    |
+| Loop cepat (tanpa raylib) | `cmake --preset logic && cmake --build --preset logic && ctest --preset logic`                                                    |
+| Test satu game           | `ctest --preset logic -R "^echo_maze\."`                                                                                           |
+| Main                     | `cmake --preset dev && cmake --build --preset dev` lalu `build/dev/bin/arCade` (`.exe` di Windows)                                 |
+| Screenshot headless      | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` |
+| Sanitizer (Linux/macOS)  | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan`                                                        |
+| Build Windows dari Linux | lihat `cmake/toolchains/mingw-w64-x86_64.cmake`                                                                                    |
+| Offline / raylib lokal   | tambahkan `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=/path/to/raylib` ke perintah configure                                                 |
 
-## 4. Git workflow
+## 4. Alur kerja Git
 
-- Work on a branch, open a PR into `main`, **squash merge**. The PR title must be a Conventional Commit (`feat(echo_maze): add pings`): it decides the next version (`docs/RELEASING.md`).
-- Optional local guard for commit messages: `git config core.hooksPath .githooks`.
-- Line endings are LF everywhere (`.gitattributes`). Do not commit `build/`, `scores.txt`.
+- Kerjakan di branch, buka PR ke `main`, lalu **squash merge**. Judul PR harus berupa Conventional Commit (`feat(echo_maze): add pings`): judul itulah yang menentukan versi berikutnya (`docs/RELEASING.md`).
+- Penjaga opsional untuk pesan commit di lokal: `git config core.hooksPath .githooks`.
+- Line ending adalah LF di semua tempat (`.gitattributes`). Jangan commit `build/` dan `scores.txt`.
 
 ## 5. Troubleshooting
 
-| Symptom                                            | Fix                                                                                      |
+| Gejala                                             | Solusi                                                                                   |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `CMake Presets ... version 6 not supported`        | CMake too old: install 3.25+                                                             |
-| `The C++ compiler ... is not able to compile`      | install `g++` (MSYS2: the gcc package includes it; Linux: `build-essential`)             |
-| `X11/Xlib.h: No such file`                         | install the Linux packages above                                                         |
-| First configure hangs/fails offline                | clone raylib (tag from `ARCADE_RAYLIB_TAG`) and pass `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=` |
-| Window does not open on a server / WSL without GUI | use the `headless` preset and `--smoke`                                                  |
-| ALSA / audio warnings in the console               | harmless: games run silently without a sound device                                      |
+| `CMake Presets ... version 6 not supported`        | CMake terlalu lama: pasang 3.25+                                                         |
+| `The C++ compiler ... is not able to compile`      | pasang `g++` (MSYS2: paket gcc sudah termasuk; Linux: `build-essential`)                 |
+| `X11/Xlib.h: No such file`                         | pasang paket Linux di atas                                                               |
+| Configure pertama menggantung/gagal saat offline   | clone raylib (tag dari `ARCADE_RAYLIB_TAG`) dan berikan `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=` |
+| Window tidak terbuka di server / WSL tanpa GUI     | pakai preset `headless` dan `--smoke`                                                    |
+| Peringatan ALSA / audio di console                 | tidak berbahaya: game berjalan tanpa suara kalau tidak ada perangkat suara               |
 
-## 6. Verification and test matrix
+## 6. Verifikasi dan matriks test
 
-Run these checks to verify every layer of the project locally:
+Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
-| Check                        | Command                                                              | Expected                              |
-| ---------------------------- | -------------------------------------------------------------------- | ------------------------------------- |
-| Pure logic unit tests        | `ctest --preset logic`                                               | 12 tests passed                       |
-| Contract & portability rules | `bash tools/check_repo.sh`                                           | `check_repo: OK (8 games)`            |
-| Formatting check             | `bash tools/format.sh --check`                                       | `format: OK`                          |
-| Version calculation          | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                 |
-| Game scaffolding tool        | `bash tools/tests/test_new_game.sh`                                  | `new_game test: OK`                   |
-| Hub game registry            | `build/dev/bin/arCade --list`                                        | 8 games registered                    |
-| Headless smoke run           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 8 lines ending `-> OK`, PNGs exported |
+| Pengecekan                   | Perintah                                                             | Hasil yang diharapkan                          |
+| ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
+| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 15 test)            |
+| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (8 games)`                     |
+| Cek format                   | `bash tools/format.sh --check`                                       | `format: OK`                                   |
+| Perhitungan versi            | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                          |
+| Tool scaffolding game        | `bash tools/tests/test_new_game.sh`                                  | `new_game test: OK`                            |
+| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 8 game terdaftar                               |
+| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 8 baris berakhir `-> OK`, PNG ter-ekspor       |
 
-### Continuous integration lanes
+### Jalur Continuous Integration (CI)
 
-| Lane | Trigger                                              | Checks                                                                                                                                                                                                                                     |
-| ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Fast | Every pull request                                   | Clang-format check, repo rules, Linux GCC build and unit tests with `-Werror`, Windows MinGW GCC build, PR title conventional commit format                                                                                                |
-| Full | Push to `main`, PR labelled `full-ci`, or manual run | Fast lane checks plus AddressSanitizer and UBSan with Clang, cppcheck static analysis, version calculation and scaffolding test scripts, Windows MSVC compile, and headless smoke runs on Linux and Windows exporting screenshot artifacts |
+| Jalur | Pemicu                                                | Pengecekan                                                                                                                                                                                                                                                  |
+| ----- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fast  | Setiap pull request                                   | Cek clang-format, aturan repo, build Linux GCC dan unit test dengan `-Werror`, build Windows MinGW GCC, format judul PR sebagai conventional commit                                                                                                         |
+| Full  | Push ke `main`, PR berlabel `full-ci`, atau run manual | Semua pengecekan jalur Fast ditambah AddressSanitizer dan UBSan dengan Clang, analisis statis cppcheck, script test perhitungan versi dan scaffolding, kompilasi Windows MSVC, dan smoke run headless di Linux dan Windows yang mengekspor artifact screenshot |
 
-### Platform verification status
+### Status verifikasi platform
 
-- Linux (x86_64): Verified with GCC 13, Clang 18 (ASan and UBSan), headless software rendering, and X11 OpenGL.
-- Windows (x86_64): Verified with MinGW GCC (MSYS2 UCRT64) and MSVC on CI runners. Native execution on local hardware and physical audio output should be tested on clean Windows machines.
-- macOS and Wayland: Not officially targeted.
+- Linux (x86_64): Terverifikasi dengan GCC 13, Clang 18 (ASan dan UBSan), software rendering headless, dan X11 OpenGL.
+- Windows (x86_64): Terverifikasi dengan MinGW GCC (MSYS2 UCRT64) dan MSVC di runner CI. Eksekusi native di hardware lokal dan output audio fisik masih perlu diuji di mesin Windows yang bersih.
+- macOS dan Wayland: Tidak ditargetkan secara resmi.
 
-## 7. Roadmap and remaining work
+## 7. Roadmap dan pekerjaan yang tersisa
 
-### Phase 1: Foundation & Infrastructure (Completed)
+### Fase 1: Fondasi & Infrastruktur (Selesai)
 
-- [x] Pure-C logic engine & deterministic fixed timestep (`ARC_DT = 1/60`).
-- [x] Hub screen state machine and falling-sand menu backdrop.
-- [x] Persistent leaderboard with insertion sort and search.
-- [x] Initial scaffold for all 8 team games with unit tests and raylib front-ends.
-- [x] Automated CI matrix (Linux gcc/clang, Windows MinGW, Windows MSVC, AddressSanitizer, cppcheck, headless smoke runs).
-- [x] Automated release pipeline with cross-platform packaging and screenshot artifacts (`v0.1.1`).
+- [x] Engine logic C murni & fixed timestep yang deterministik (`ARC_DT = 1/60`).
+- [x] State machine layar hub dan backdrop menu falling-sand.
+- [x] Leaderboard permanen dengan insertion sort dan pencarian.
+- [x] Scaffold awal untuk ke-8 game tim, lengkap dengan unit test dan front-end raylib.
+- [x] Matriks CI otomatis (Linux gcc/clang, Windows MinGW, Windows MSVC, AddressSanitizer, cppcheck, smoke run headless).
+- [x] Pipeline rilis otomatis dengan packaging lintas platform dan artifact screenshot (`v0.1.1`).
 
-### Phase 2: Game Polish & Mechanics (In Progress)
+### Fase 2: Polish Game & Mekanik (Sedang Berjalan)
 
-### Team assignments
+### Pembagian tugas tim
 
-| Game (`id`)   | Folder                 | Owner                      | Status                                                                  |
-| ------------- | ---------------------- | -------------------------- | ----------------------------------------------------------------------- |
-| Time Shooter  | `games/time_shooter/`  | Member 1                   | Core mechanic working (slow-motion, waves, shake)                       |
-| Echo Maze     | `games/echo_maze/`     | Member 2                   | Core mechanic working (recursive generator, sonar pulse, line of sight) |
-| Laser Mirrors | `games/laser_mirrors/` | Member 3                   | Core mechanic working (sample level, recursive beam tracing)            |
-| Ghost Loop    | `games/ghost_loop/`    | Member 4                   | Core mechanic working (record/replay, floor switches, door logic)       |
-| Beat Dodge    | `games/beat_dodge/`    | Member 5                   | Core mechanic working (beat clock, text beatmap loader, audio click)    |
-| Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ report editor) | Core mechanic working (growth rules, predator respawn scaling)          |
-| Sort It       | `games/sort_it/`       | Leader                     | Working (3 rounds, par and algorithm benchmarks)                        |
-| Sandbox       | `games/sandbox/`       | Leader                     | Working (falling-sand toy; engine powers menu background)               |
+| Game (`id`)   | Folder                 | Pemilik                    | Status                                                                     |
+| ------------- | ---------------------- | -------------------------- | -------------------------------------------------------------------------- |
+| Time Shooter  | `games/time_shooter/`  | Member 1                   | Mekanik inti jalan (slow-motion, wave, shake)                              |
+| Echo Maze     | `games/echo_maze/`     | Member 2                   | Mekanik inti jalan (generator rekursif, pulse sonar, line of sight)        |
+| Laser Mirrors | `games/laser_mirrors/` | Member 3                   | Mekanik inti jalan (level contoh, pelacakan sinar rekursif)                |
+| Ghost Loop    | `games/ghost_loop/`    | Member 4                   | Mekanik inti jalan (record/replay, saklar lantai, logic pintu)             |
+| Beat Dodge    | `games/beat_dodge/`    | Member 5                   | Mekanik inti jalan (beat clock, loader beatmap teks, audio click)          |
+| Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
+| Sort It       | `games/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
+| Sandbox       | `games/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
 
-Each game owner turns their placeholder into a full game:
+Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:
 
-1. Consult `games/<id>/GAME.md` -> "Implementation steps".
-2. Search for `TODO(<owner>)`: `grep -rn "TODO(" games core app`.
-3. Follow the test-driven rule: write the unit test in `games/<id>/tests/` first, implement the pure logic in `games/<id>/<id>_logic.c`, then update drawing in `games/<id>/<id>_game.c`.
-4. Keep `GAME.md` (pseudocode, flowchart, concept table) in sync with the implementation.
+1. Baca `games/<id>/GAME.md` -> "Langkah implementasi (Implementation steps)". Bagian "Prioritas dari diskusi tim" di dalamnya berisi daftar pekerjaan yang sudah dibahas.
+2. Cari `TODO(<owner>)`: `grep -rn "TODO(" games core app`.
+3. Ikuti aturan test-driven: tulis dulu unit test di `games/<id>/tests/`, implementasikan logic murninya di `games/<id>/<id>_logic.c`, baru perbarui tampilannya di `games/<id>/<id>_game.c`.
+4. Jaga `GAME.md` (pseudocode, flowchart, tabel konsep kuliah) tetap sinkron dengan implementasinya.
 
-### Phase 3: Hub Enhancements & Backlog
+### Fase 3: Peningkatan Hub & Backlog
 
-- [ ] Additional beatmaps for Beat Dodge (`assets/beatmaps/`).
-- [ ] Additional puzzle levels for Laser Mirrors and Ghost Loop.
-- [ ] Extended sand elements (fire, oil, lava, acid - see `docs/SANDBOX.md`).
-- [ ] Optional extra games using `cmake -DID=... -DTITLE=... -DOWNER=... -P tools/new_game.cmake`.
+- [ ] Beatmap tambahan untuk Beat Dodge (`assets/beatmaps/`).
+- [ ] Level puzzle tambahan untuk Laser Mirrors dan Ghost Loop.
+- [ ] Elemen pasir tambahan (api, minyak, lava, asam - lihat `docs/SANDBOX.md`).
+- [ ] Game tambahan (opsional) dengan `cmake -DID=... -DTITLE=... -DOWNER=... -P tools/new_game.cmake`.
+- [ ] Rincian per game (mis. membuat Beat Dodge lebih sulit, memperbaiki level tutorial) ada di bagian "Prioritas dari diskusi tim" di tiap `GAME.md`.
 
-### Phase 4: Final Report & Presentation
+### Fase 4: Laporan Akhir & Presentasi
 
-- [ ] Use `docs/REPORT_GUIDE.md` to map course concepts to code.
-- [ ] Export screenshots using `build/headless/bin/arCade --smoke all --frames 400 --out report-shots`.
-- [ ] Export flowcharts from Mermaid definitions in each `GAME.md`.
+- [ ] Pakai `docs/REPORT_GUIDE.md` untuk memetakan konsep kuliah ke kode.
+- [ ] Ekspor screenshot dengan `build/headless/bin/arCade --smoke all --frames 400 --out report-shots`.
+- [ ] Ekspor flowchart dari definisi Mermaid di tiap `GAME.md`.

@@ -1,24 +1,24 @@
-# Songs for Beat Dodge (MIDI -> playable charts)
+# Lagu untuk Beat Dodge (MIDI -> chart yang bisa dimainkan)
 
-## Do you need 4 lanes like FNF? No.
-The Friday Night Funkin' MIDI files contain each character's **melody** (note times and pitches), not the arrow lanes (the lane information lives in FL Studio colour groups, which `.mid` does not store). So lanes are always *derived*: `tools/midi2beatmap` puts low pitches on the left and high pitches on the right and balances the lanes. The lane count is a gameplay choice: easy/normal use 3 lanes, hard uses 4 (`k_preset` in `games/beat_dodge/beat_dodge_convert.c`). Songs support 2-5 lanes; you can press `1`-`4` to jump to a lane.
+## Apakah perlu 4 lane seperti FNF? Tidak.
+File MIDI Friday Night Funkin' berisi **melodi** tiap karakter (waktu dan pitch not), bukan lane panahnya (informasi lane ada di color group FL Studio, yang tidak disimpan oleh `.mid`). Jadi lane selalu *diturunkan*: `tools/midi2beatmap` menaruh pitch rendah di kiri dan pitch tinggi di kanan, lalu menyeimbangkan lane-nya. Jumlah lane adalah keputusan gameplay: easy/normal memakai 3 lane, hard memakai 4 (`k_preset` di `games/beat_dodge/beat_dodge_convert.c`). Lagu mendukung 2 sampai 5 lane; kamu bisa menekan `1`-`4` untuk loncat ke sebuah lane.
 
-## What the pipeline does
-1. `core/src/midi.c` reads the MIDI (notes per track, first tempo). All FNF files are format 1 at 96 ticks/beat with a constant tempo; ~95-100% of notes sit on the 16th-note grid.
-2. `beat_dodge_convert.c` merges the opponent and player ("Boyfriend") tracks, keeps one note per 16th-note step (player wins ties), thins them per difficulty (grid + minimum gap in seconds), maps pitch to lane (optimal contiguous partition, so lanes are used about equally), and keeps the full melody for the music.
-3. The song text file (`assets/beatmaps/fnf/<slug>.txt`) holds 3 charts + the melody. The game renders the melody (voices + simple drums) with `core/src/synth.c` into an in-memory WAV and plays it; the notes sound exactly when their obstacles reach the line.
+## Yang dilakukan pipeline
+1. `core/src/midi.c` membaca MIDI (not per track, tempo pertama). Semua file FNF berformat 1 dengan 96 tick/beat dan tempo konstan; sekitar 95-100% not berada di grid not 16th.
+2. `beat_dodge_convert.c` menggabungkan track lawan dan track pemain ("Boyfriend"), menyisakan satu not per step 16th (not pemain menang kalau bentrok), menipiskannya per kesulitan (grid + jeda minimum dalam detik), memetakan pitch ke lane (partisi berurutan yang optimal, sehingga lane terpakai kira-kira sama banyak), dan menyimpan seluruh melodi untuk musik.
+3. File teks lagu (`assets/beatmaps/fnf/<slug>.txt`) berisi 3 chart + melodi. Game me-render melodi itu (voice + drum sederhana) dengan `core/src/synth.c` menjadi WAV di memori lalu memainkannya; not berbunyi tepat saat rintangannya sampai di garis.
 
-## Add or rebuild songs
+## Menambah atau membangun ulang lagu
 ```bash
-cmake --preset logic && cmake --build --preset logic          # builds build/logic/bin/midi2beatmap
-build/logic/bin/midi2beatmap my.mid --report                  # tracks, notes per second per difficulty
+cmake --preset logic && cmake --build --preset logic          # membangun build/logic/bin/midi2beatmap
+build/logic/bin/midi2beatmap my.mid --report                  # track, not per detik untuk tiap kesulitan
 build/logic/bin/midi2beatmap my.mid -o assets/beatmaps/my_song.txt --title "My Song"
-echo my_song.txt >> assets/beatmaps/songs.txt                 # shown in the menu in this order
-bash tools/songs/build_songs.sh                               # rebuild all FNF songs from tools/songs/fnf/*.mid
+echo my_song.txt >> assets/beatmaps/songs.txt                 # tampil di menu sesuai urutan ini
+bash tools/songs/build_songs.sh                               # bangun ulang semua lagu FNF dari tools/songs/fnf/*.mid
 ```
-`--player TEXT` selects the player track by part of its name (default: "boyfriend"/"bf", else the last track). Only the first tempo is used (the tool warns about tempo changes). Songs may hold up to 2048 steps and 1536 melody notes (`BD_MAX_*`). `ctest` loads and perfect-plays every song in `songs.txt`.
+`--player TEKS` memilih track pemain lewat sebagian namanya (default: "boyfriend"/"bf", kalau tidak ada maka track terakhir). Hanya tempo pertama yang dipakai (tool memberi peringatan kalau ada perubahan tempo). Satu lagu boleh berisi sampai 2048 step dan 1536 not melodi (`BD_MAX_*`). `ctest` memuat dan memainkan sempurna setiap lagu di `songs.txt`.
 
-## Status and next steps
-- Verified: parsing, conversion, charts are perfect-playable (unit tests), synth pitch/timing (unit tests), rendering of the select screen and game (headless screenshots).
-- NOT verified (no sound device in the build sandbox): actual audio playback and music/obstacle sync. If the music sounds early or late, adjust `BD_AUDIO_OFFSET_S` in `beat_dodge_game.c`.
-- Ideas: per-song leaderboard keys, preview of the melody in the select screen, sustained "hold" obstacles from long notes, a song with real audio (`LoadMusicStream` of an .ogg) using the same charts.
+## Status dan langkah berikutnya
+- Sudah diverifikasi: parsing, konversi, chart bisa dimainkan sempurna (unit test), pitch/timing synth (unit test), tampilan layar pilih lagu dan game (screenshot headless).
+- BELUM diverifikasi (tidak ada perangkat suara di sandbox build): pemutaran audio yang sebenarnya dan sinkronisasi musik dengan rintangan. Kalau musik terdengar terlalu cepat atau terlambat, atur `BD_AUDIO_OFFSET_S` di `beat_dodge_game.c`.
+- Ide: key leaderboard per lagu, preview melodi di layar pilih lagu, rintangan "hold" panjang dari not yang panjang, lagu dengan audio asli (`LoadMusicStream` dari file .ogg) memakai chart yang sama. Ide-ide soal tingkat kesulitan ada di `games/beat_dodge/GAME.md` (bagian "Langkah implementasi").
