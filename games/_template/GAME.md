@@ -2,47 +2,111 @@
 
 **Owner:** @OWNER@  **Folder:** `games/@ID@/`  **Created:** @DATE@
 
+> Cara pakai template ini: ganti semua `TODO(@OWNER@)` dengan isi yang sebenarnya, lalu hapus petunjuk berbentuk kutipan (baris yang diawali `>`). Tulis untuk teman satu tim yang belum pernah membuka kode game ini: kalimat pendek, istilah dijelaskan, dan angka diambil dari kode, bukan dari ingatan. Contoh isi yang sudah lengkap: `games/time_shooter/GAME.md`.
+
 ## Hook
-TODO(@OWNER@): one or two sentences. What is the single clever idea?
+TODO(@OWNER@): satu atau dua kalimat. Apa satu ide cerdas dari game ini?
 
-## Controls
-WASD / arrows: move. TODO: list the real controls (they appear on the menu card via `GameDef.controls`).
+## Penjelasan sederhana
+> 2-4 paragraf pendek. Mulai dari apa yang dialami pemain, lalu apa yang dikerjakan komputer di baliknya, lalu kenapa kode dipisah jadi logic dan front-end. Pakai satu perumpamaan sehari-hari kalau membantu. Tutup dengan satu baris "Kalau cuma punya 1 menit: ...".
 
-## Rules and scoring
-TODO(@OWNER@): how do you win, lose, and score?
+TODO(@OWNER@): jelaskan game ini tanpa jargon dulu.
 
-## Implementation steps
-1. TODO(@OWNER@): extend `@ID@_State` and `@ID@_step()` with the real mechanic (logic only).
-2. TODO(@OWNER@): write a unit test for each rule in `tests/test_@ID@.c`.
-3. TODO(@OWNER@): draw it in `@ID@_game.c` (use `gfx_*` helpers, neon palette from `arcade/gfx.h`).
-4. TODO(@OWNER@): fill in the pseudocode, flowchart and concept table below.
+## Kontrol
+WASD / panah: bergerak. TODO: tulis kontrol yang sebenarnya (kontrol ini juga tampil di kartu menu lewat `GameDef.controls`).
 
-## Pseudocode (for the report)
+## Aturan dan skor
+TODO(@OWNER@): bagaimana cara menang, kalah, dan mendapat skor? Tulis rumus skor persis seperti di kode.
+
+## Cara kerja per frame
+> Daftar bernomor yang mengikuti SATU frame sesuai urutan di kode: baca input, `@ID@_step()`, menggambar. Sebut nama fungsi dan field yang sebenarnya.
+
+TODO(@OWNER@): urutan langkah dalam satu frame.
+
+## Peta file
+| File | Isinya | Edit di sini kalau ... |
+|------|--------|------------------------|
+| `@ID@_logic.h` | struct `@ID@_State` dan fungsi publik (`init`, `step`, `is_over`, `score`) | menambah field state atau fungsi publik |
+| `@ID@_logic.c` | semua aturan game (tanpa raylib) | mengubah aturan atau angka keseimbangan |
+| `@ID@_game.c` | loop raylib, menggambar, `GameDef` (judul, kontrol di menu, urutan, ranked) | mengubah tampilan atau teks di menu |
+| `tests/test_@ID@.c` | unit test (hanya logic) | menambah atau mengubah aturan |
+| `CMakeLists.txt` | mendaftarkan game ke build lewat `arcade_add_game(...)` | menambah file `.c` atau test baru |
+| `GAME.md` | dokumen ini | aturan atau kode berubah |
+| `AGENTS.md` | instruksi untuk AI agent (tidak diterjemahkan) | jarang; ikuti aturan di file itu |
+
+## Data penting (struct)
+> Satu tabel per struct. Cantumkan SEMUA field struct state utama: nama, tipe, artinya (satuan, rentang nilai, siapa yang mengisi).
+
+| Field | Tipe | Artinya |
+|-------|------|---------|
+| TODO | TODO | TODO |
+
+## Fungsi-fungsi penting
+| Fungsi | Tugas | Dipanggil dari |
+|--------|-------|----------------|
+| `@ID@_init` | TODO | TODO |
+| `@ID@_step` | TODO | TODO |
+
+## Angka yang bisa diutak-atik
+> Hanya konstanta yang benar-benar ada di kode, termasuk angka langsung di dalam fungsi (tulis "angka langsung di dalam fungsi X").
+
+| Konstanta | Nilai sekarang | File | Efek kalau diubah |
+|-----------|----------------|------|-------------------|
+| TODO | TODO | TODO | TODO |
+
+## Cara menjalankan dan menguji
+```bash
+# test logic saja (tanpa raylib, ~1 detik)
+cmake --preset logic && cmake --build --preset logic && ctest --preset logic -R "^@ID@\."
+
+# main game-nya
+cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade
+
+# smoke run headless: jalankan game 300 frame dan simpan screenshot PNG
+cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke @ID@ --frames 300 --out smoke-out
 ```
-PROCEDURE step(state, input, dt)
-    IF game is over THEN RETURN
-    update the world using input and dt
-    check collisions and update the score
-END PROCEDURE
+
+| Test | Menjaga aturan apa |
+|------|--------------------|
+| TODO | TODO |
+
+## Jebakan dan hal yang perlu diingat
+> 4-8 poin: aturan yang tidak boleh dilanggar, hal yang kelihatan seperti bug tapi memang disengaja, dan "kalau kamu mengubah X, ingat Y".
+
+- TODO(@OWNER@): tulis invarian game ini (batas nilai, batas array, aturan menang/kalah, apa pun yang harus tetap benar).
+
+## Langkah implementasi (Implementation steps)
+1. TODO(@OWNER@): kembangkan `@ID@_State` dan `@ID@_step()` dengan mekanik yang sebenarnya (hanya di logic).
+2. TODO(@OWNER@): tulis unit test untuk setiap aturan di `tests/test_@ID@.c`.
+3. TODO(@OWNER@): gambar di `@ID@_game.c` (pakai helper `gfx_*` dan palet neon dari `arcade/gfx.h`).
+4. TODO(@OWNER@): isi pseudocode, flowchart, dan tabel konsep di bawah.
+
+## Pseudocode (untuk laporan)
+```
+PROSEDUR step(state, input, dt)
+    JIKA game sudah selesai MAKA KEMBALI
+    perbarui dunia game memakai input dan dt
+    cek tabrakan dan perbarui skor
+AKHIR PROSEDUR
 ```
 
-## Flowchart (for the report)
+## Flowchart (untuk laporan)
 ```mermaid
 flowchart TD
-    A([Start]) --> B[init state with seed]
-    B --> C{loop running?}
-    C -- no --> Z([Return score])
-    C -- yes --> D[poll input]
-    D --> E[step logic]
-    E --> F[draw frame]
-    F --> G{game over?}
-    G -- no --> C
-    G -- yes --> Z
+    A([Mulai]) --> B["init state dengan seed"]
+    B --> C{"loop masih jalan?"}
+    C -- tidak --> Z([Kembalikan skor])
+    C -- ya --> D[baca input]
+    D --> E[jalankan step logic]
+    E --> F[gambar frame]
+    F --> G{"game over?"}
+    G -- tidak --> C
+    G -- ya --> Z
 ```
 
-## Course concepts used (feeds Bab I of the report)
-| Concept (Pertemuan) | Where (file : function) |
-|---------------------|-------------------------|
+## Konsep kuliah yang dipakai (untuk Bab I laporan)
+| Konsep (Pertemuan) | Di mana (file : fungsi) |
+|--------------------|-------------------------|
 | Struct (13) | `@ID@_logic.h` : `@ID@_State` |
 | Percabangan (5) | `@ID@_logic.c` : `@ID@_step` |
 | Fungsi (11) | `@ID@_logic.c` : `respawn_pellet` |

@@ -1,22 +1,24 @@
-# Extending the sandbox
+# Mengembangkan sandbox
 
-The falling-sand engine is `core/include/arcade/sandbox.h` + `core/src/sandbox.c`. It is used by the hub background and by `games/sandbox`.
+Engine falling-sand ada di `core/include/arcade/sandbox.h` + `core/src/sandbox.c`. Engine ini dipakai oleh background hub dan oleh `games/sandbox`.
 
-## Adding an element (4 edits)
-1. `ElementId` in `sandbox.h`: add a value before `EL_COUNT`.
-2. `k_elements[]` in `sandbox.c`: name, RGB colour, density, `MoveKind`.
-3. If the behaviour is new, add a `MoveKind` and a branch in `sandbox_step()`.
-4. A test in `tests/test_sandbox.c` (e.g. "oil floats on water"). The palette and the number key (`handle_keys` in `games/sandbox/sandbox_logic.c`) pick it up automatically up to key 9.
+## Menambah elemen (4 edit)
+1. `ElementId` di `sandbox.h`: tambahkan satu nilai sebelum `EL_COUNT`.
+2. `k_elements[]` di `sandbox.c`: nama, warna RGB, density, dan `MoveKind`.
+3. Kalau perilakunya baru, tambahkan satu `MoveKind` dan satu cabang di `sandbox_step()`.
+4. Satu test di `tests/test_sandbox.c` (misalnya "minyak mengapung di atas air"). Palet dan tombol angka (`handle_keys` di `games/sandbox/sandbox_logic.c`) akan otomatis mengenalinya sampai tombol 9.
 
-## Ready-made ideas
-| Element | Rule sketch |
-|---------|-------------|
-| Oil | liquid, density 1 (floats on water), flammable |
-| Fire | short-lived: each tick moves up randomly, ignites oil/plant neighbours, dies after N ticks (add a per-cell age array) |
-| Lava | slow liquid (moves only every 3rd tick); turns water neighbours into stone |
-| Plant | static; grows into adjacent empty cells above it when water is nearby |
-| Acid | liquid that deletes one stone/sand neighbour and itself with some probability |
-| Gas / steam | rises instead of falls (`MOVE_GAS`: the mirror image of liquid), condenses back to water |
-| Emitter | a fixed cell that spawns an element every k ticks (`struct` array in `sbx_State`) |
+> **Catatan (ditambahkan saat dokumen ini diterjemahkan, sesuai isi kode):** tombol angka memang mencakup elemen sampai tombol 9, tetapi palet di layar (`draw_palette` di `games/sandbox/sandbox_game.c`) menggambar tiap elemen dengan jarak 170 px mulai dari x = 16, sehingga hanya sekitar 7 elemen yang muat di lebar 1280 px. Kalau elemen yang ditambahkan lebih dari itu, perlu mengubah tata letak palet. Detailnya ada di `games/sandbox/GAME.md`.
 
-Keep the engine pure and deterministic (use `sb->rng`), and keep `sandbox_step` fast: it runs for every cell every frame.
+## Ide yang sudah siap pakai
+| Elemen | Sketsa aturan |
+|--------|---------------|
+| Oil (minyak) | cair, density 1 (mengapung di atas air), mudah terbakar |
+| Fire (api) | berumur pendek: tiap tick bergerak ke atas secara acak, menyulut tetangga berupa minyak/tanaman, mati setelah N tick (tambahkan array umur per sel) |
+| Lava | cairan lambat (bergerak hanya tiap tick ke-3); mengubah tetangga berupa air menjadi batu |
+| Plant (tanaman) | statis; tumbuh ke sel kosong di atasnya kalau ada air di dekatnya |
+| Acid (asam) | cairan yang menghapus satu tetangga batu/pasir dan dirinya sendiri dengan probabilitas tertentu |
+| Gas / uap | naik, bukan jatuh (`MOVE_GAS`: bayangan cermin dari cairan), mengembun kembali menjadi air |
+| Emitter | sel tetap yang memunculkan sebuah elemen tiap k tick (array `struct` di `sbx_State`) |
+
+Jaga engine tetap murni dan deterministik (pakai `sb->rng`), dan jaga `sandbox_step` tetap cepat: fungsi ini berjalan untuk setiap sel di setiap frame.
