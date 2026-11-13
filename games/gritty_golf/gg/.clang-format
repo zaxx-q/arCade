@@ -1,0 +1,2 @@
+# Vendored upstream code: keep its own formatting so a re-sync stays a small diff (see VENDORED.md).
+DisableFormat: true

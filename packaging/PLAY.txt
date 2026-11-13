@@ -11,6 +11,7 @@ Kontrol ditampilkan di menu untuk game yang sedang dipilih.
   Background menu: klik kiri mouse menggambar pasir, klik kanan menggambar air (di separuh kanan layar).
 
 Skor disimpan di scores.txt di sebelah programnya. Hapus file itu untuk mereset leaderboard.
+Progres Gritty Golf disimpan di gritty_save_<nama>.dat di folder yang sama (satu file per pemain). Hapus file itu untuk mengulang dari level pertama.
 
 Command line (opsional):
   arCade --version        tampilkan versi

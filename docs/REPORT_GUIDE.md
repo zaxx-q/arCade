@@ -3,7 +3,7 @@
 Tugasnya membutuhkan: source code, video demo, dan laporan (satu PDF). Repository ini sudah berisi sebagian besar bahannya.
 
 ## Bab I - Pendahuluan
-**Deskripsi Program**: tujuan (arcade berisi 8 game kecil yang tidak biasa), manfaat, dan konsep kuliah yang dipakai. Pakai tabel di bawah, lalu satu paragraf per game dari `GAME.md`-nya (bagian "Hook" + "Aturan dan skor").
+**Deskripsi Program**: tujuan (arcade berisi kumpulan game kecil yang tidak biasa), manfaat, dan konsep kuliah yang dipakai. Pakai tabel di bawah, lalu satu paragraf per game dari `GAME.md`-nya (bagian "Hook" + "Aturan dan skor").
 **Peran**: isi dengan nama asli:
 
 | Modul | Pemilik | Yang dikerjakan |
@@ -15,6 +15,7 @@ Tugasnya membutuhkan: source code, video demo, dan laporan (satu PDF). Repositor
 | ghost_loop | Member 4 | |
 | beat_dodge | Member 5 | |
 | absorb_grow + laporan | Member 6 | |
+| gritty_golf (integrasi engine upstream karya zaxx-q; sebutkan sumbernya di Daftar Pustaka) | isi nama | |
 
 ## Bab II - Hasil Implementasi
 - **Source code**: screenshot fungsi-fungsi kunci (setiap `GAME.md` mencantumkan nama fungsinya, lihat bagian "Fungsi-fungsi penting" dan tabel konsep kuliah) + link repository / rilis (**pastikan link bisa dibuka tanpa login**: repo public, atau tambahkan dosen).

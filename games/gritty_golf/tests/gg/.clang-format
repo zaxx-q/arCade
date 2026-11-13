@@ -1,0 +1,2 @@
+# Vendored upstream tests: keep their own formatting so a re-sync stays a small diff (see ../../gg/VENDORED.md).
+DisableFormat: true
