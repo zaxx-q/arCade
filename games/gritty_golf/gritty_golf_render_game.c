@@ -611,7 +611,8 @@ static void draw_left_panel(void) {
         gfx_text(keys[i][0], x, y + 34 + i * 25, 18, ARC_COL_YELLOW);
         gfx_text(keys[i][1], x + 64, y + 34 + i * 25, 18, ARC_COL_TEXT);
     }
-    gfx_text("Original game by Escada Games", x, PANEL_TOP + PANEL_H - 28, 15, ARC_COL_DIM);
+    gfx_text("Original game by Escada Games,", x, PANEL_TOP + PANEL_H - 42, 15, ARC_COL_DIM);
+    gfx_text("C port by zaxx-q", x, PANEL_TOP + PANEL_H - 24, 15, ARC_COL_DIM);
 }
 
 static void draw_button(gritty_golf_Rect r, const char *label, Color tint, bool hover, float fill) {
