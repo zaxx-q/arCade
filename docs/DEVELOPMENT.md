@@ -108,8 +108,8 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
 | Jalur | Pemicu                                                | Pengecekan                                                                                                                                                                                                                                                  |
 | ----- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fast  | Bagian dasar dari setiap pull request yang mengubah kode dan push ke `main` | Cek clang-format, aturan repo, build Linux GCC dan unit test dengan `-Werror`, build Windows MinGW GCC, format judul PR sebagai conventional commit                                                                                                  |
-| Full  | Setiap pull request yang mengubah kode, push ke `main`, atau run manual | Semua pengecekan jalur Fast ditambah AddressSanitizer dan UBSan dengan Clang, analisis statis cppcheck, script test perhitungan versi dan scaffolding, kompilasi Windows MSVC, dan smoke run headless di Linux dan Windows yang mengekspor artifact screenshot |
+| Fast  | Setiap pull request                                   | Cek clang-format, aturan repo, build Linux GCC dan unit test dengan `-Werror`, build Windows MinGW GCC, format judul PR sebagai conventional commit                                                                                                         |
+| Full  | Push ke `main`, PR berlabel `full-ci`, atau run manual | Semua pengecekan jalur Fast ditambah AddressSanitizer dan UBSan dengan Clang, analisis statis cppcheck, script test perhitungan versi dan scaffolding, kompilasi Windows MSVC, dan smoke run headless di Linux dan Windows yang mengekspor artifact screenshot |
 
 ### Status verifikasi platform
 
