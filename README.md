@@ -6,7 +6,7 @@
 [![Language: C99](https://img.shields.io/badge/Language-C99-blue.svg)](https://en.wikipedia.org/wiki/C99)
 [![Graphics: raylib 6.2](https://img.shields.io/badge/Graphics-raylib%206.2-red.svg)](https://www.raylib.com)
 
-arCade adalah hub arcade berisi 8 game kecil yang ditulis dengan C99 prosedural dan raylib 6.2, dibuat untuk proyek tugas kuliah (Dasar Pemrograman). Di dalamnya ada background menu berupa simulasi pasir jatuh (falling-sand) yang beranimasi, serta leaderboard lokal yang tersimpan permanen.
+arCade adalah hub arcade berisi kumpulan game kecil yang ditulis dengan C99 prosedural dan raylib 6.2, dibuat untuk proyek tugas kuliah (Dasar Pemrograman). Di dalamnya ada background menu berupa simulasi pasir jatuh (falling-sand) yang beranimasi, serta leaderboard lokal yang tersimpan permanen.
 
 Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. Logic berjalan dengan fixed timestep dan tidak bergantung pada grafis, sehingga seluruh proyek bisa di-build dan di-test dalam hitungan detik tanpa membuka window.
 
@@ -103,6 +103,18 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       </p>
     </td>
   </tr>
+  <tr>
+    <td width="100%" colspan="2" align="center">
+      <h3><a href="games/gritty_golf/GAME.md">Gritty Golf</a></h3>
+      <a href="games/gritty_golf/GAME.md">
+        <img src="docs/screenshots/gritty_golf.png" width="380" alt="Screenshot Gritty Golf"/>
+      </a>
+      <p align="left">
+        Mini-golf pixel dengan 25 level buatan tangan. Bekukan bola di udara, bidik, atur tenaga, lalu tembak. Kamu hanya punya tiga strike per percobaan, jadi setiap pukulan harus dipikirkan. Progres tersimpan per pemain. Engine dan level berasal dari proyek <i>Gritty Golf: C Edition</i> dan disertakan apa adanya (lihat <a href="games/gritty_golf/gg/VENDORED.md">VENDORED.md</a>).<br/>
+        <b>Kontrol:</b> Space, Enter, atau klik untuk membekukan bola dan membidik, mengunci sudut, lalu mengunci tenaga dan menembak. R mengulang level, L membuka pilih level, F (dua kali) mengakhiri dan mengirim skor.
+      </p>
+    </td>
+  </tr>
 </table>
 
 ---
@@ -111,7 +123,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 
 - Background hub menjalankan simulasi falling-sand yang aktif.
 - Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search.
-- Efek suara dan klik ritme dibuat langsung lewat kode (audio tone), tanpa perlu file wav atau ogg eksternal.
+- Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
 - Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
 - Game terdaftar otomatis dari folder di games/; menambah game baru tidak perlu mengubah file source hub yang sudah ada.
 - Bisa di-build dan dijalankan di Linux maupun Windows.

@@ -96,13 +96,13 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
 | Pengecekan                   | Perintah                                                             | Hasil yang diharapkan                          |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
-| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 15 test)            |
-| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (8 games)`                     |
+| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 17 test)            |
+| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (9 games)`                     |
 | Cek format                   | `bash tools/format.sh --check`                                       | `format: OK`                                   |
 | Perhitungan versi            | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                          |
 | Tool scaffolding game        | `bash tools/tests/test_new_game.sh`                                  | `new_game test: OK`                            |
-| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 8 game terdaftar                               |
-| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 8 baris berakhir `-> OK`, PNG ter-ekspor       |
+| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 9 game terdaftar                               |
+| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 9 baris berakhir `-> OK`, PNG ter-ekspor       |
 
 ### Jalur Continuous Integration (CI)
 
@@ -142,6 +142,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
 | Sort It       | `games/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
 | Sandbox       | `games/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
+| Gritty Golf   | `games/gritty_golf/`   | zaxx-q (upstream), integrasi ke arCade | Jalan (25 level, progres tersimpan; engine disalin ke `gg/`, lihat `gg/VENDORED.md`) |
 
 Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:
 

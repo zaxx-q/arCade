@@ -6,7 +6,7 @@
 
 **Precedence:** the **closest `AGENTS.md`** to the files you're changing wins. Root holds global defaults only.
 
-arCade: a hub plus 8 small games in **plain C99** drawn with **raylib 6.2** (pinned). University project (Dasar Pemrograman): keep code simple and procedural.
+arCade: a hub plus a collection of small games in **plain C99** drawn with **raylib 6.2** (pinned). University project (Dasar Pemrograman): keep code simple and procedural.
 
 ## Commands
 > Source: `CMakePresets.json`, `.github/workflows/*.yml`, `tools/`. Windows: use Git Bash or MSYS2 for `bash`; the exe is `arCade.exe`.
@@ -49,7 +49,7 @@ cmake/                helpers: arcade_add_game(), registry generator, raylib fet
 tools/                new_game.cmake, next_version.sh, check_repo.sh, format.sh, gen_raylib_subset.sh, tests/
 tests/                arcade_test.h (tiny test framework) + core unit tests
 docs/                 DEVELOPMENT, ARCHITECTURE, RELEASING, REPORT_GUIDE, ADDING_A_GAME, SANDBOX, raylib_subset (generated)
-assets/               shipped with releases (beatmaps/)          .github/  CI + release workflows
+assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   .github/  CI + release workflows
 ```
 
 ## Golden Samples (follow these patterns)
@@ -61,6 +61,7 @@ assets/               shipped with releases (beatmaps/)          .github/  CI + 
 | Turn-based + algorithms | `games/sort_it/` | `core/sortlib`, optimal-play test |
 | Big static state + engine reuse | `games/sandbox/` | `static` state, `core/sandbox` |
 | File parsing with validation | `games/beat_dodge/beat_dodge_logic.c` | `bd_beatmap_load` rejects bad input |
+| Wrapping a third-party engine | `games/gritty_golf/` | vendored `gg/` + pure adapter, `gg/VENDORED.md` patch list |
 
 ## Utilities (check before creating new)
 | Need | Use | Location |
@@ -111,7 +112,7 @@ assets/               shipped with releases (beatmaps/)          .github/  CI + 
 - Commit `build/`, `scores.txt`, secrets; push directly to `main`; edit generated files (`build/**/generated`, `docs/raylib_subset.md`)
 
 ## Codebase State
-- 8 games run and are unit-tested; each is a **placeholder** with its core mechanic working. Remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games core app`.
+- 9 games run and are unit-tested. Eight are **placeholders** with their core mechanic working (remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games core app`); `gritty_golf` is a complete vendored game (25 levels) wrapped by an adapter.
 - Not verified locally: Windows MSVC build and native Windows runs (CI job `windows-msvc` is non-blocking until green once).
 
 ## Terminology
@@ -128,7 +129,7 @@ assets/               shipped with releases (beatmaps/)          .github/  CI + 
 |-----------|------|
 | `core/` | [core/AGENTS.md](./core/AGENTS.md) |
 | `games/` | [games/AGENTS.md](./games/AGENTS.md) (the game contract) |
-| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md) |
+| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md) |
 | `.github/` | [.github/AGENTS.md](./.github/AGENTS.md) |
 
 > **Agents**: when you read or edit files in a listed directory, load its AGENTS.md first.
