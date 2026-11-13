@@ -1,11 +1,11 @@
-<!-- JUDUL PR harus berupa Conventional Commit: judul inilah yang menentukan versi berikutnya saat di-squash-merge.
+<!-- The PR title must be a Conventional Commit: it determines the next version when squash-merged.
      feat(echo_maze): add sonar ping   -> minor      fix(sandbox): water leak   -> patch
      feat(core)!: change GameContext   -> major      docs/chore/test/ci/refactor -> patch -->
 
-## Apa dan kenapa
+## What and why
 
 ## Checklist
-- [ ] `cmake --preset logic && cmake --build --preset logic && ctest --preset logic` lolos
-- [ ] `bash tools/format.sh` dan `bash tools/check_repo.sh` bersih
-- [ ] Perubahan pada game: `GAME.md` (pseudocode / flowchart / tabel konsep kuliah) sudah diperbarui
-- [ ] Tidak ada `TODO(owner)` tersisa untuk pekerjaan yang diklaim selesai oleh PR ini
+- [ ] `cmake --preset logic && cmake --build --preset logic && ctest --preset logic` passes
+- [ ] `bash tools/format.sh` and `bash tools/check_repo.sh` pass
+- [ ] Game changes: `GAME.md` (pseudocode / flowchart / course-concept table) is up to date
+- [ ] No `TODO(owner)` remains for work claimed as complete by this PR
