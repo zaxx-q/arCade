@@ -33,7 +33,6 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
-          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
           FULL_INPUT: ${{ inputs.full }}
         run: |
           code=true
@@ -42,7 +41,8 @@ jobs:
             files="$(git diff --name-only "$BASE"...HEAD)"
             # documentation-only changes skip the build lanes
             if ! printf '%s\n' "$files" | grep -Eqv '^(docs/|LICENSE|THIRD_PARTY|\.vscode/|\.editorconfig$|.*\.md$)'; then code=false; fi
-            if printf '%s' "$LABELS" | grep -q 'full-ci'; then full=true; fi
+            # Run the same full checks used by Release before every code PR can merge.
+            full=true
           else
             full="$FULL_INPUT"
           fi
