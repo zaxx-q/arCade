@@ -28,7 +28,7 @@ the `gritty_golf_` prefix. The same exception already exists for `sandbox` (`sbx
 | `data/level_data.json`, `tools/`, `docs/`, `Makefile`, `CMakeLists.txt` | build-time/authoring material, not needed to run |
 The assets (`assets/audio`, `assets/font`, `assets/textures`) live in the arCade tree under `assets/gritty_golf/`.
 
-## Patches against upstream (7 in total)
+## Patches against upstream (8 in total)
 
 Anything not listed here must be byte-identical to upstream. Patches 5 to 7 only add comments; the CI cppcheck version can differ from the one used here (2.13), so a future run may need more of them: add each one to this table. Check with `diff -r` (see "Re-sync" below).
 
@@ -41,6 +41,7 @@ Anything not listed here must be byte-identical to upstream. Patches 5 to 7 only
 | 5 | `mathx.c` | one comment line `cppcheck-suppress arrayIndexOutOfBoundsCond` above `if (memo[n] != 0)` in `Math_Fibonacci` | CI runs cppcheck over every `games/**` file and fails on a finding. It is a false positive: `n` is clamped to 0..90 two lines earlier. Comment only, no code change. |
 | 6 | `save.c` | one comment line `cppcheck-suppress arrayIndexThenCheck` above the `for` loop in `Save_PathFor` | same reason: `name` is a C string, so it ends before `name[i]` can pass the bound. Comment only. |
 | 7 | `../tests/gg/test_algo.c` | two comment lines `cppcheck-suppress uninitvar` above the two `qsort(ref, ...)` calls | same reason: `ref[0..n-1]` is filled by the loop right above. Comment only. |
+| 8 | `save.c` | replace the C11 `_Static_assert` with a C99 typedef-based compile-time size check | arCade compiles all C sources as strict C99, and MinGW rejects `_Static_assert` with `-Wpedantic -Werror`. |
 
 ## Build notes
 

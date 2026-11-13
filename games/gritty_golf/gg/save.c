@@ -10,7 +10,7 @@
 
 /* Compile-time check: if someone adds a field and the struct gets padding or
  * a different size, the build FAILS instead of silently breaking old saves. */
-_Static_assert(sizeof(SaveData) == 244, "SaveData layout changed - bump SAVE_VERSION");
+typedef char SaveData_size_must_be_244[(sizeof(SaveData) == 244) ? 1 : -1];
 
 void Save_Init(SaveData *s, const char *name)
 {
