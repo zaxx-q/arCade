@@ -36,7 +36,6 @@ Pixel mini-golf: 25 hand-made courses, three strikes per attempt, freeze the bal
 
 ## Security & safety
 - Only write under `ctx->data_dir`; read assets from `ctx->assets_dir`. Save files are validated by the engine (`Save_Load`: size, magic, version, checksum); a damaged file is renamed to `*.bad`, never trusted.
-- Licensing: the level data and the 6 WAVs are **not MIT** (Escada Games, per the upstream README). See `gg/VENDORED.md` and `THIRD_PARTY_NOTICES.md` before shipping them.
 
 ## PR/commit checklist
 - [ ] New rule has a unit test; `GAME.md` pseudocode, flowchart and concept table still match the code
