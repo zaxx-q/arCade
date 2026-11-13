@@ -20,7 +20,8 @@
 2. Push `main`. Settings -> General -> Pull Requests: izinkan **hanya squash merging**, dan default ke judul PR.
 3. Settings -> Actions -> General: izinkan actions dan reusable workflows; Workflow permissions: **read repository contents** (job rilis meminta izin write sendiri).
 4. Settings -> Branches (atau Rulesets): lindungi `main`: wajibkan pull request, wajibkan status check **`CI OK`**, blokir force push. (Repo private butuh plan yang mendukung branch protection: GitHub Pro lewat Education mendukungnya.)
-5. Jalankan Actions -> Release dengan `dry_run = true` sekali untuk melihat semua job lolos sebelum rilis sungguhan pertama.
+5. Label: buat `full-ci` (PR dengan label ini juga menjalankan jalur lengkap).
+6. Jalankan Actions -> Release dengan `dry_run = true` sekali untuk melihat semua job lolos sebelum rilis sungguhan pertama.
 
 ## Menaikkan job yang tidak memblokir
 `windows-msvc` dan `smoke` memakai `continue-on-error: true`. Setelah keduanya hijau beberapa kali berturut-turut, hapus baris itu di `.github/workflows/checks.yml` supaya mereka ikut memblokir.
