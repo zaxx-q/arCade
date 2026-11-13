@@ -303,6 +303,28 @@ Catatan pengukuran: pembagi "rintangan per detik" adalah waktu rintangan terakhi
 
 **Hasil Fase 1: cek lane yang terjangkau (oracle).** Manusia model: `BD_HUMAN_STEP_SEC` = 0,12 detik per langkah lane. Dijalankan pada 27 chart yang dikirim sebelum ribbon (`midi2beatmap --metrics`): **27 dari 27 lolos** (9 per kesulitan), jadi 0,12 detik tidak perlu dirundingkan dengan pemilik. Baseline anti-camping: waktu terlama satu lane tanpa rintangan rata-rata 23,7 detik (easy), 19,1 (normal), 24,0 (hard); terlama 41,0 / 26,4 / 40,4 detik.
 
+**Hasil Fase 2: converter dengan ribbon, chart catch, dan perbaikan.** Setiap lagu sekarang punya enam chart (3 dodge dari kedua voice, 3 catch dari voice pemain). Rata-rata sembilan lagu setelah dikonversi ulang (`midi2beatmap --metrics assets/beatmaps/fnf/*.txt`), dibandingkan dengan baseline Fase 0 (`easy / normal / hard`, chart dodge):
+
+| Ukuran | Baseline | Sekarang |
+|--------|----------|----------|
+| Burst yang tak punya ribbon | 60% / 41% / 17% | **0% / 0% / 0%** (dijamin oleh konstruksi) |
+| Bunyi yang punya objek (covered) | 29% / 40% / 56% | 89% / 90% / 98% |
+| Jendela 5 detik dengan lane kosong | 64% / 44% / 64% | **23% / 28% / 38%** |
+| Jendela 10 detik dengan lane kosong | 29% / 18% / 30% | 7% / 10% / 14% |
+| Waktu terlama satu lane kosong (rata-rata) | 23,7 / 19,1 / 24,0 detik | 11,1 / 16,1 / 19,0 detik |
+| Waktu terlama satu lane kosong (terlama) | 41,0 / 26,4 / 40,4 detik | 26,4 / 26,4 / 26,1 detik |
+| Chart lolos cek lane terjangkau | 27 dari 27 | 54 dari 54 (27 dodge + 27 catch) |
+
+Catatan:
+1. Jumlah bead per detik naik (1,10 / 1,62 / 2,29 menjadi 3,9 / 4,0 / 4,3) karena setiap bunyi cepat sekarang punya bead. Jumlah OBJEK, yang menentukan kesulitan, jauh lebih kecil karena satu ribbon adalah satu objek.
+2. Rantai nada dengan selisih paling besar 0,25 detik dipotong menjadi ribbon sepanjang paling lama 1,2 detik pada celah terbesar, dengan minimal dua bead di tiap sisi. Karena itu tidak ada ribbon yang berisi satu bead dan tidak ada ribbon yang dibuang.
+3. Perbaikan (repair) hampir tidak pernah bekerja: dari 2610 ribbon di 54 chart hanya 1 yang harus dipindah ke jendela lane lain dan 0 nada tunggal yang dibuang, karena jarak antar objek sudah lebih dari 0,25 detik. Lipatan karena batas lebar (span cap) terjadi pada 1361 ribbon.
+4. Lipatan juga melawan camping: jendela lane yang membiarkan lane yang lama menunggu tidak tersentuh diberi penalti (`FOLD_STARVE_SEC`, `FOLD_STARVE_WEIGHT`). Tanpa itu jendela 5 detik easy kosong 73%, jadi lebih buruk daripada baseline.
+5. **Drum bead tidak dipakai.** Rencana memintanya hanya bila hard tetap di atas 40%; hasilnya 38%. Dalam percobaan, bead tunggal di ketukan pada lane yang kosong lebih dari 4 detik menurunkan angka menjadi 11% / 20% / 29%, tetapi menambah bead yang tidak punya nada melodi, jadi tidak dikirim.
+6. Hard dengan 3 lane dicoba juga: jendela 5 detik kosong 27% (4 lane: 38%), tetapi same-lane 54% (4 lane: 39%). Tetap 4 lane sesuai rencana.
+7. Pembagian lane lewat DP sekarang meminimalkan jumlah kuadrat ukuran kelompok, bukan hanya kelompok tersibuk. Pada Eggnog hard satu lane sebelumnya hampir tidak dipakai (2 bead dalam 90 detik) karena satu nada mengisi satu lane penuh.
+8. Pada chart catch, "lane kosong" tidak berarti apa-apa (pemain justru harus pergi ke bead), jadi ukuran itu tidak dipakai sebagai syarat untuk catch.
+
 ### Langkah dari design awal
 1. Audio asli: muat file `.ogg`/`.wav` dari `assets/` (raylib `LoadMusicStream`) dan gerakkan `beat_dodge_step` dari jam musik supaya beat tetap terkunci ke audio (sisakan fallback ke step tetap untuk run headless). *(Sebagian sudah ada: musik disintesis di memori dan `beat_dodge_sync` mengikuti jam audio. Yang belum: memuat file audio sungguhan.)*
 2. Editor beat map di dalam game (rekam ketukan saat lagu berjalan, simpan ke `ctx->data_dir` dengan format teks yang sama).
