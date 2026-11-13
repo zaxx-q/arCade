@@ -101,6 +101,9 @@ static void test_save_detects_corruption(void)
     /* 1. flip ONE byte in the middle of the data */
     Save_Write(&a, path);
     FILE *fp = fopen(path, "r+b");
+    CHECK(fp != NULL);
+    if (fp == NULL)
+        return;
     fseek(fp, 60, SEEK_SET);
     int c = fgetc(fp);
     fseek(fp, 60, SEEK_SET);
@@ -110,7 +113,12 @@ static void test_save_detects_corruption(void)
 
     /* 2. file too long / too short */
     Save_Write(&a, path);
-    fp = fopen(path, "ab"); fputc('x', fp); fclose(fp);
+    fp = fopen(path, "ab");
+    CHECK(fp != NULL);
+    if (fp == NULL)
+        return;
+    fputc('x', fp);
+    fclose(fp);
     CHECK_INT(Save_Load(&b, path), SAVE_CORRUPT);
     Save_Write(&a, path);
     write_raw(path, &a, 100);
@@ -465,6 +473,9 @@ static void test_records_tolerates_damage(void)
 
     /* a big file forces the array to grow several times (realloc path) */
     FILE *fp = fopen(path, "w");
+    CHECK(fp != NULL);
+    if (fp == NULL)
+        return;
     fprintf(fp, "name,levels,strokes,time,date\n");
     for (int i = 0; i < 100; i++)
         fprintf(fp, "P%d,%d,%d,%d.0,2026-01-01\n", i, i % 26, i, i);

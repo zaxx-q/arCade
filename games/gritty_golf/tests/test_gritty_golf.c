@@ -458,6 +458,8 @@ static void test_profile_roundtrip(void) {
     /* a damaged file is kept as *.bad and the player starts fresh instead of crashing */
     FILE *f = fopen(file, "wb");
     CHECK(f != NULL);
+    if (f == NULL)
+        return;
     fputs("this is not a save file", f);
     fclose(f);
     gritty_golf_State broken;

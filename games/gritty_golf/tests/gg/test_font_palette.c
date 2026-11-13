@@ -192,6 +192,9 @@ static void test_parser_rejects_bad_files(void)
     CHECK_INT(f.count, 0);                                       /* a failed load leaves a clean struct */
 
     FILE *fp = fopen(p, "w");                                    /* more glyphs than the table holds */
+    CHECK(fp != NULL);
+    if (fp == NULL)
+        return;
     fprintf(fp, "FONT 8 7 5 100 a.png\n");
     for (int i = 0; i < BMFONT_MAX_GLYPHS + 5; i++) fprintf(fp, "%d 0 0 1 1 0 0 2\n", 40 + i);
     fclose(fp);
