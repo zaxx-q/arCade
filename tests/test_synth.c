@@ -55,13 +55,37 @@ static void test_octave_up_doubles_the_frequency(void) {
     CHECK(b >= 2 * a - 2 && b <= 2 * a + 2);
 }
 
+static int peak_of_voice(uint8_t voice) {
+    SynthNote n = {0.0f, 0.5f, 69, voice};
+    SynthOptions o = no_drums();
+    size_t frames = synth_frames(1.0f, SYNTH_RATE);
+    synth_render(&n, 1, &o, g_pcm, frames);
+    int peak = 0;
+    for (size_t i = 0; i < frames; i++)
+        peak = abs(g_pcm[i]) > peak ? abs(g_pcm[i]) : peak;
+    return peak;
+}
+
+static void test_backing_voice_is_much_quieter_than_the_lead(void) {
+    int lead = peak_of_voice(0), organ = peak_of_voice(1), backing = peak_of_voice(3);
+    CHECK(backing > 500);       /* still audible */
+    CHECK(backing * 2 < lead);  /* less than half the lead ... */
+    CHECK(backing * 2 < organ); /* ... and than the organ, which used to be voice 3's fallback */
+    SynthNote n = {0.0f, 0.5f, 69, 3};
+    SynthOptions o = no_drums();
+    size_t frames = synth_frames(1.0f, SYNTH_RATE);
+    synth_render(&n, 1, &o, g_pcm, frames);
+    int crossings = rising_zero_crossings(g_pcm, (size_t)(0.1f * SYNTH_RATE), (size_t)(0.4f * SYNTH_RATE));
+    CHECK(crossings >= 128 && crossings <= 136); /* still 440 Hz: 0.3 s * 440 = 132 */
+}
+
 static void test_many_notes_never_clip_and_are_deterministic(void) {
     static SynthNote notes[200];
     for (int i = 0; i < 200; i++) {
         notes[i].start = (float)(i % 40) * 0.05f; /* heavy overlap */
         notes[i].dur = 0.5f;
         notes[i].pitch = (uint8_t)(50 + i % 30);
-        notes[i].voice = (uint8_t)(i % 3);
+        notes[i].voice = (uint8_t)(i % 4);
     }
     SynthOptions o = no_drums();
     o.drums = true;
@@ -114,6 +138,7 @@ int main(void) {
     RUN(test_pitch_to_frequency);
     RUN(test_rendered_note_has_the_right_pitch_and_timing);
     RUN(test_octave_up_doubles_the_frequency);
+    RUN(test_backing_voice_is_much_quieter_than_the_lead);
     RUN(test_many_notes_never_clip_and_are_deterministic);
     RUN(test_drums_stay_inside_their_window);
     RUN(test_wav_container);
