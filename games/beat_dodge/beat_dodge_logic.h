@@ -1,9 +1,10 @@
 /* Beat Dodge - PURE game logic (no raylib). Owner: Member 5
  * Hook: rhythm bullet-dodger. Obstacles come from a song chart and arrive at your line exactly on the beat.
  *
- * A SONG (bd_Song) has one to three CHARTS (easy / normal / hard) and an optional MELODY that the built-in
- * synthesizer plays. Songs live in assets/beatmaps/ as text files (format below) and are listed in
- * assets/beatmaps/songs.txt. tools/midi2beatmap converts MIDI files into this format. */
+ * A SONG (bd_Song) has up to six CHARTS (easy / normal / hard for Beat Dodge and for Beat Catch, which shares
+ * this module) and an optional MELODY that the built-in synthesizer plays. Songs live in assets/beatmaps/ as
+ * text files (format below) and are listed in assets/beatmaps/songs.txt. tools/midi2beatmap converts MIDI
+ * files into this format. */
 #ifndef BEAT_DODGE_LOGIC_H
 #define BEAT_DODGE_LOGIC_H
 
@@ -24,6 +25,8 @@
 #define BD_PLAYER_Y 580.0f
 #define BD_HUMAN_STEP_SEC                                                                                    \
     0.12f /* time a human needs per lane step (arrow-key taps) in the reachable-lane check */
+#define BD_CLOSE_WINDOW_SEC                                                                                  \
+    0.30f /* standing in an object's lane this recently before it arrives = close call */
 
 /* Vocabulary: a BEAD is one note on the chart (one step that has a lane). A RIBBON is a run of linked beads
  * that is treated as one OBJECT (a lone note is a ribbon of one bead). Damage limits, spacing and scoring
@@ -39,9 +42,9 @@
  *                        object, 'a'..'e' = a bead in lane 0..4 that CONTINUES the object of the previous
  * bead (rests may sit in between: fast songs have a rest step inside a run). Lines are joined. melody
  * optional music, one note per line:  start length pitch voice 0 12 63 0            start/length in 1/24
- * beats, MIDI pitch, voice 0..3 A file with only "bpm" and pattern lines (the first version of the format) is
- * still valid: it becomes one 3-lane dodge chart named "normal" with 1 step per beat. Version 2 files (no
- * letters, no "catch") are valid too. */
+ * beats, MIDI pitch, voice 0..3 (3 = quiet backing) A file with only "bpm" and pattern lines (the first
+ * version of the format) is still valid: it becomes one 3-lane dodge chart named "normal" with 1 step per
+ * beat. Version 2 files (no letters, no "catch") are valid too. */
 typedef enum bd_ChartKind { BD_CHART_DODGE, BD_CHART_CATCH } bd_ChartKind;
 
 typedef struct bd_Chart {
@@ -85,8 +88,14 @@ int bd_note_step(int start, int steps_per_beat);
 float bd_chart_multiplier(const char *name);           /* score multiplier: easy 1.0, normal 1.5, hard 2.0 */
 float bd_song_seconds(const bd_Song *song, int chart); /* time at which the chart is finished */
 /* Converts the melody to synth notes shifted by `delay` seconds; returns how many were written (<=
- * BD_MAX_NOTES). */
-int bd_song_to_synth(const bd_Song *song, float delay, SynthNote *out);
+ * BD_MAX_NOTES). A note whose 16th step holds a bead in `chart` is LEAD (voice 0, the bright lead: the player
+ * sees what it hears); every other note is BACKING on the quiet voice 3. If two notes share a step, both are
+ * lead. */
+int bd_song_to_synth(const bd_Song *song, int chart, float delay, SynthNote *out);
+
+/* Charts of one kind: how many a song has, and the index of the nth one (-1 when there is none). */
+int bd_song_kind_count(const bd_Song *song, bd_ChartKind kind);
+int bd_song_kind_chart(const bd_Song *song, bd_ChartKind kind, int nth);
 
 /* ---- Reachable-lane check: the playability oracle. Model a human who needs BD_HUMAN_STEP_SEC per lane step
  * (arrow-key taps; the number keys are a bonus we do not rely on). reach[] = the lanes the player could be
@@ -120,13 +129,21 @@ typedef struct bd_SongList {
 } bd_SongList;
 int bd_songlist_load(const char *dir, bd_SongList *out);
 
-/* Song selection screen logic: Up/Down = song, Left/Right = difficulty, action = start. */
+/* Song selection screen logic: Up/Down = song, Left/Right = difficulty, action = start. The menu of a game
+ * mode only offers the songs and charts of its kind (Beat Dodge: dodge charts, Beat Catch: catch charts).
+ * m->chart is an index into song->charts. */
 typedef struct bd_Menu {
     int song, chart;
     bool chosen;
+    bd_ChartKind kind;
 } bd_Menu;
-void bd_menu_init(bd_Menu *m);
+void bd_menu_init(bd_Menu *m, bd_ChartKind kind);
 void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list);
+/* Moves to the previous (dir = -1) or next (dir = +1) song that has a chart of the menu's kind and picks its
+ * default chart (the second one, "normal", when there is more than one). Used by keys, wheel and mouse. */
+void bd_menu_move_song(bd_Menu *m, const bd_SongList *list, int dir);
+/* Selects the chart `chart` of the current song when it is of the menu's kind. */
+void bd_menu_pick_chart(bd_Menu *m, const bd_SongList *list, int chart);
 
 /* The part of a run that does not depend on the rules of a game mode: the clock, the beat, the lane the
  * player stands in and the chart being played. Beat Dodge embeds it in beat_dodge_State and Beat Catch embeds
@@ -161,11 +178,19 @@ float bd_run_arrival(const bd_Run *r, int step); /* when the bead of `step` reac
 /* Vertical pixel position of the bead of `step` (for drawing); < BD_TOP_Y means "not spawned yet". */
 float bd_run_obstacle_y(const bd_Run *r, int step);
 
+/* Beat Dodge rules. Every bead is judged when it reaches the player line (same lane = hit). An object (a
+ * ribbon or a lone bead) costs at most ONE life: after the first hit inside it the rest of its beads are
+ * ignored. An object that ends without a hit scores 10 points, or 20 when it was a CLOSE CALL: the player
+ * stood in one of the lanes the object touches within BD_CLOSE_WINDOW_SEC before its first bead arrived.
+ * Surviving the song adds 50 per life left. There is no combo. */
 typedef struct beat_dodge_State {
     bd_Run run;
-    int lives, dodged, hits, combo, best_combo;
+    int lives, dodged, hits, close_calls; /* dodged = objects survived, hits = lives lost */
     int points, max_points;
     float multiplier;
+    bool obj_hit;      /* the object being judged has already cost a life */
+    bool obj_close;    /* the object being judged is a close call */
+    float close_flash; /* seconds left of the "CLOSE!" message */
 } beat_dodge_State;
 
 void beat_dodge_init(beat_dodge_State *s, unsigned seed); /* the built-in practice song */

@@ -27,17 +27,67 @@ static ArcadeInput idle(void) {
     return in;
 }
 
-/* Perfect play: whenever the player stands in the lane of the next obstacle, step aside. */
+/* The next bead that has not been judged yet (chart->length when there is none). */
+static int next_bead(const beat_dodge_State *s) {
+    const bd_Chart *c = &s->run.song.charts[s->run.chart];
+    int j = s->run.next_hit;
+    while (j < s->run.length && c->lane[j] < 0)
+        j++;
+    return j;
+}
+
+/* Teleporting bot: stands in a lane nobody is about to hit (direct lane keys), so it never loses a life.
+ * close_in > 0 makes it a CLOSE-CALL bot: it waits in the lane of the next object until close_in seconds
+ * before the object arrives, then leaves. */
+static void teleport_bot(const beat_dodge_State *s, float close_in, ArcadeInput *in) {
+    const bd_Run *r = &s->run;
+    const bd_Chart *c = &r->song.charts[r->chart];
+    bool danger[BD_MAX_LANES] = {false};
+    float horizon = r->time + (close_in > 0.0f ? close_in : 1.5f * ARC_DT);
+    for (int j = r->next_hit; j < r->length && bd_run_arrival(r, j) <= horizon; j++)
+        if (c->lane[j] >= 0)
+            danger[c->lane[j]] = true;
+    int want = r->lane;
+    int j = next_bead(s);
+    if (close_in > 0.0f && j < r->length && !c->link[j] && !danger[c->lane[j]])
+        want = c->lane[j]; /* wait right where the object will come down */
+    if (danger[want])
+        for (int l = r->lanes - 1; l >= 0; l--) /* any lane that is not about to be hit */
+            if (!danger[l])
+                want = l;
+    if (want != r->lane)
+        in->typed = (char)('1' + want);
+}
+
+/* Perfect play: never loses a life (but is not close on purpose). */
 static void play_perfectly(beat_dodge_State *s, int max_steps) {
     for (int i = 0; i < max_steps && !beat_dodge_is_over(s); i++) {
         ArcadeInput in = idle();
-        const bd_Chart *c = &s->run.song.charts[s->run.chart];
-        int j = s->run.next_hit;
-        while (j < s->run.length && c->lane[j] < 0)
-            j++;
-        if (j < s->run.length && c->lane[j] == s->run.lane) {
-            in.left_pressed = s->run.lane > 0;
-            in.right_pressed = s->run.lane == 0;
+        teleport_bot(s, 0.0f, &in);
+        beat_dodge_step(s, &in, ARC_DT);
+    }
+}
+
+/* Close-call play: every object is entered as late as possible. */
+static void play_close_calls(beat_dodge_State *s, int max_steps) {
+    for (int i = 0; i < max_steps && !beat_dodge_is_over(s); i++) {
+        ArcadeInput in = idle();
+        teleport_bot(s, 0.1f, &in);
+        beat_dodge_step(s, &in, ARC_DT);
+    }
+}
+
+/* Human-speed bot: follows the path of bd_chart_plan with one arrow tap per 0.1 s (the model allows 0.12 s;
+ * the 0.02 s pay for rounding to the 1/60 s steps of the game). */
+static void play_the_plan(beat_dodge_State *s, const int8_t *plan, int max_steps) {
+    float last_tap = -10.0f;
+    for (int i = 0; i < max_steps && !beat_dodge_is_over(s); i++) {
+        ArcadeInput in = idle();
+        int j = next_bead(s);
+        if (j < s->run.length && plan[j] != s->run.lane && s->run.time - last_tap >= 0.1f) {
+            in.left_pressed = plan[j] < s->run.lane;
+            in.right_pressed = plan[j] > s->run.lane;
+            last_tap = s->run.time;
         }
         beat_dodge_step(s, &in, ARC_DT);
     }
@@ -346,14 +396,139 @@ static void test_obstacles_arrive_exactly_on_the_beat(void) {
     CHECK_EQ_INT(g_s.lives, BD_START_LIVES - 1);
 }
 
-static void test_perfect_play_wins_and_scores_the_maximum(void) {
+/* A song made from a pattern, started on its chart 0; `bpm` 120 gives 16th steps of 0.125 s. */
+static void start_chart(int lanes, const char *pattern) {
+    make_chart(&g_song, 120, BD_CHART_DODGE, lanes, pattern);
+    beat_dodge_use_song(&g_s, &g_song, 0);
+}
+
+/* Steps the game without any input until `seconds` after the arrival of step `step`. */
+static void run_past(int step, float seconds) {
+    ArcadeInput in = idle();
+    float until = bd_run_arrival(&g_s.run, step) + seconds;
+    while (g_s.run.time < until && !beat_dodge_is_over(&g_s))
+        beat_dodge_step(&g_s, &in, ARC_DT);
+}
+
+static void test_perfect_play_never_loses_a_life(void) {
     beat_dodge_init(&g_s, 1);
     play_perfectly(&g_s, 60 * 90);
     CHECK(g_s.run.won);
     CHECK_EQ_INT(g_s.lives, BD_START_LIVES);
+    CHECK_EQ_INT(g_s.hits, 0);
+    CHECK_EQ_INT(g_s.dodged, bd_chart_objects(&g_s.run.song.charts[0]));
+    CHECK(g_s.points > 0 && g_s.points <= g_s.max_points);
+}
+
+static void test_a_ribbon_costs_exactly_one_life(void) {
+    start_chart(3, "........1bbb"); /* a bar of four beads in the middle lane, where the player stands */
+    run_past(11, 0.1f);
+    CHECK_EQ_INT(g_s.lives, BD_START_LIVES - 1); /* not four lives */
+    CHECK_EQ_INT(g_s.hits, 1);
+    CHECK_EQ_INT(g_s.dodged, 0);
+    start_chart(3, "........0b.b"); /* lane 0, then two beads in lane 1: the player dodges only the first */
+    run_past(11, 0.1f);
+    CHECK_EQ_INT(g_s.lives, BD_START_LIVES - 1);
+    CHECK_EQ_INT(g_s.dodged, 0); /* a hit object does not count as dodged and pays nothing */
+    CHECK_EQ_INT(g_s.points, 0);
+    start_chart(3, "........1b.....1b"); /* two ribbons: two lives */
+    run_past(17, 0.1f);
+    CHECK_EQ_INT(g_s.lives, BD_START_LIVES - 2);
+}
+
+static void test_the_next_object_is_judged_again_after_a_hit(void) {
+    start_chart(3, "........1b.1"); /* ribbon, then a lone bead 0.25 s later in the same lane */
+    run_past(11, 0.1f);
+    CHECK_EQ_INT(g_s.lives, BD_START_LIVES - 2); /* the lone bead is a new object: a second life */
+}
+
+static void test_the_close_call_window(void) {
+    /* a lone bead in lane 0; the player waits there and leaves `before` seconds before it arrives */
+    const float before[2] = {0.20f, 0.50f}; /* inside / outside BD_CLOSE_WINDOW_SEC (0.30 s) */
+    for (int k = 0; k < 2; k++) {
+        start_chart(3, "..............0");
+        float arrival = bd_run_arrival(&g_s.run, 14);
+        while (!beat_dodge_is_over(&g_s) && g_s.run.time < arrival + 0.1f) {
+            ArcadeInput in = idle();
+            in.typed = g_s.run.time < arrival - before[k] ? '1' : '3'; /* lane 0 until then, lane 2 after */
+            beat_dodge_step(&g_s, &in, ARC_DT);
+        }
+        CHECK_EQ_INT(g_s.hits, 0);
+        CHECK_EQ_INT(g_s.dodged, 1);
+        CHECK_EQ_INT(g_s.close_calls, k == 0 ? 1 : 0);
+        CHECK_EQ_INT(g_s.points, k == 0 ? 20 : 10);
+    }
+}
+
+static void test_close_call_bot_scores_the_maximum(void) {
+    /* lone beads and ribbons, always at least half a second apart, in 4 lanes */
+    start_chart(4, "........0.......1.......2b.c....3.......0a.......1.......3...2");
+    play_close_calls(&g_s, 60 * 30);
+    CHECK(g_s.run.won);
+    CHECK_EQ_INT(g_s.hits, 0);
+    CHECK_EQ_INT(g_s.close_calls, g_s.dodged);
+    CHECK_EQ_INT(g_s.dodged, bd_chart_objects(&g_song.charts[0]));
     CHECK_EQ_INT(g_s.points, g_s.max_points);
-    CHECK_EQ_INT(beat_dodge_score(&g_s), (int)(1000.0f * 1.5f)); /* "normal" chart multiplier */
-    CHECK(g_s.best_combo > 5);
+    CHECK_EQ_INT(beat_dodge_score(&g_s), 1500); /* 1000 x the "normal" multiplier 1.5: the ceiling */
+}
+
+static void test_a_camper_scores_about_half(void) {
+    char pattern[260];
+    int n = 0;
+    for (int i = 0; i < 60; i++) { /* 60 lone beads, 0.5 s apart, only in lanes 0..2 */
+        pattern[n++] = (char)('0' + i % 3);
+        pattern[n++] = '.';
+        pattern[n++] = '.';
+        pattern[n++] = '.';
+    }
+    pattern[n] = '\0';
+    start_chart(4, pattern);
+    for (int i = 0; i < 60 * 60 && !beat_dodge_is_over(&g_s); i++) {
+        ArcadeInput in = idle();
+        in.typed = '4'; /* lane 3 is never used by the chart: stand there and never be close */
+        beat_dodge_step(&g_s, &in, ARC_DT);
+    }
+    CHECK(g_s.run.won);
+    CHECK_EQ_INT(g_s.hits, 0);
+    CHECK_EQ_INT(g_s.close_calls, 0);
+    float ratio = (float)g_s.points / (float)g_s.max_points;
+    CHECK(ratio > 0.5f &&
+          ratio < 0.62f); /* clean objects pay half of close calls, the life bonus is the rest */
+    CHECK(beat_dodge_score(&g_s) < 1500 * 62 / 100);
+}
+
+static void test_the_human_speed_bot_clears_every_shipped_dodge_chart(void) {
+    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    static int8_t plan[BD_MAX_STEPS];
+    int played = 0;
+    for (int i = 0; i < n; i++)
+        for (int c = 0; c < g_list.songs[i].chart_count; c++) {
+            if (g_list.songs[i].charts[c].kind != BD_CHART_DODGE)
+                continue;
+            CHECK(bd_chart_plan(&g_list.songs[i], c, plan));
+            beat_dodge_use_song(&g_s, &g_list.songs[i], c);
+            play_the_plan(&g_s, plan, 60 * 400);
+            CHECK(g_s.run.won);
+            CHECK_EQ_INT(g_s.hits, 0);
+            CHECK_EQ_INT(g_s.lives, BD_START_LIVES);
+            played++;
+        }
+    CHECK(played >= 3);
+}
+
+static void test_the_teleport_bot_is_never_hit_on_shipped_charts(void) {
+    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    for (int i = 0; i < n; i++)
+        for (int c = 0; c < g_list.songs[i].chart_count; c++) {
+            if (g_list.songs[i].charts[c].kind != BD_CHART_DODGE)
+                continue;
+            beat_dodge_use_song(&g_s, &g_list.songs[i], c);
+            play_close_calls(&g_s, 60 * 400);
+            CHECK(g_s.run.won);
+            CHECK_EQ_INT(g_s.hits, 0);
+            CHECK(g_s.points <= g_s.max_points);
+            CHECK(g_s.close_calls > g_s.dodged / 2); /* waiting in the lane of the next object is close */
+        }
 }
 
 static void test_standing_still_loses_all_lives(void) {
@@ -419,18 +594,56 @@ static void test_beat_event_fires_once_per_beat(void) {
 }
 
 static void test_song_to_synth_uses_beats_not_seconds(void) {
-    bd_song_default(&g_song, 1);
-    g_song.bpm = 120; /* 0.5 s per beat */
-    g_song.note_count = 2;
-    g_song.notes[0] = (bd_Note){0, 24, 60, 0};  /* beat 0, one beat long */
-    g_song.notes[1] = (bd_Note){48, 12, 72, 1}; /* beat 2, half a beat */
+    make_chart(&g_song, 120, BD_CHART_DODGE, 3, "0...1");
+    g_song.note_count = 2;                      /* 0.5 s per beat */
+    g_song.notes[0] = (bd_Note){0, 24, 60, 0};  /* beat 0, one beat long: step 0 holds a bead */
+    g_song.notes[1] = (bd_Note){96, 12, 72, 1}; /* beat 4 (step 16): no bead there */
     static SynthNote out[BD_MAX_NOTES];
-    CHECK_EQ_INT(bd_song_to_synth(&g_song, 1.5f, out), 2);
+    CHECK_EQ_INT(bd_song_to_synth(&g_song, 0, 1.5f, out), 2);
     CHECK_NEAR(out[0].start, 1.5, 0.0001); /* shifted by the lead-in */
     CHECK_NEAR(out[0].dur, 0.5, 0.0001);
-    CHECK_NEAR(out[1].start, 2.5, 0.0001);
+    CHECK_NEAR(out[1].start, 3.5, 0.0001);
     CHECK_NEAR(out[1].dur, 0.25, 0.0001);
     CHECK_EQ_INT(out[1].pitch, 72);
+}
+
+static void test_notes_with_a_bead_are_lead_and_the_rest_is_backing(void) {
+    make_chart(&g_song, 120, BD_CHART_DODGE, 3, "0..1.2"); /* beads on steps 0, 3 and 5 */
+    g_song.note_count = 5;
+    g_song.notes[0] = (bd_Note){0, 6, 60, 1};  /* step 0: bead */
+    g_song.notes[1] = (bd_Note){6, 6, 62, 0};  /* step 1: no bead (opponent voice) */
+    g_song.notes[2] = (bd_Note){18, 6, 64, 0}; /* step 3: bead (opponent voice is lead too) */
+    g_song.notes[3] = (bd_Note){18, 6, 67, 1}; /* step 3 again: two notes on one step are both lead */
+    g_song.notes[4] = (bd_Note){60, 6, 65, 1}; /* step 10: beyond the chart's beads */
+    static SynthNote out[BD_MAX_NOTES];
+    CHECK_EQ_INT(bd_song_to_synth(&g_song, 0, 0.0f, out), 5);
+    CHECK_EQ_INT(out[0].voice, 0);
+    CHECK_EQ_INT(out[1].voice, 3);
+    CHECK_EQ_INT(out[2].voice, 0);
+    CHECK_EQ_INT(out[3].voice, 0);
+    CHECK_EQ_INT(out[4].voice, 3);
+}
+
+static void test_every_lead_note_has_a_bead_in_every_shipped_chart(void) {
+    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    static SynthNote out[BD_MAX_NOTES];
+    for (int i = 0; i < n; i++) {
+        const bd_Song *song = &g_list.songs[i];
+        for (int c = 0; c < song->chart_count; c++) {
+            const bd_Chart *ch = &song->charts[c];
+            int count = bd_song_to_synth(song, c, 0.0f, out), lead = 0;
+            CHECK_EQ_INT(count, song->note_count);
+            for (int k = 0; k < count; k++) {
+                int step = bd_note_step(song->notes[k].start, song->steps);
+                bool bead = step < ch->length && ch->lane[step] >= 0;
+                CHECK_EQ_INT(out[k].voice == 0, bead);         /* lead exactly when there is a bead ... */
+                CHECK(out[k].voice == 0 || out[k].voice == 3); /* ... and backing otherwise */
+                lead += bead ? 1 : 0;
+            }
+            if (ch->kind == BD_CHART_DODGE && song->note_count > 0)
+                CHECK(lead * 2 > count); /* dodge charts show most of what is heard */
+        }
+    }
 }
 
 static void test_menu(void) {
@@ -442,7 +655,7 @@ static void test_menu(void) {
     for (int c = 1; c < 3; c++)
         g_list.songs[1].charts[c] = g_list.songs[1].charts[0];
     bd_Menu m;
-    bd_menu_init(&m);
+    bd_menu_init(&m, BD_CHART_DODGE);
     ArcadeInput in = idle();
     in.down_pressed = true;
     bd_menu_step(&m, &in, &g_list);
@@ -463,6 +676,53 @@ static void test_menu(void) {
     in.action_pressed = true;
     bd_menu_step(&m, &in, &g_list);
     CHECK(m.chosen);
+}
+
+static void test_menu_only_offers_charts_of_its_own_kind(void) {
+    memset(&g_list, 0, sizeof(g_list));
+    g_list.count = 3;
+    bd_song_default(&g_list.songs[0], 1); /* dodge only: a catch menu skips it */
+    for (int k = 1; k < 3; k++) {
+        bd_Song *song = &g_list.songs[k];
+        bd_song_default(song, (unsigned)k);
+        song->chart_count = 6; /* easy, normal, hard of each kind */
+        for (int c = 1; c < 6; c++)
+            song->charts[c] = song->charts[0];
+        for (int c = 0; c < 6; c++)
+            song->charts[c].kind = c < 3 ? BD_CHART_DODGE : BD_CHART_CATCH;
+    }
+    bd_Menu m;
+    ArcadeInput none = idle();
+    bd_menu_init(&m, BD_CHART_CATCH);
+    bd_menu_step(&m, &none, &g_list); /* starts on song 0, which has no catch chart: moves on */
+    CHECK_EQ_INT(m.song, 1);
+    CHECK_EQ_INT(m.chart, 4); /* the second catch chart */
+    ArcadeInput in = idle();
+    in.left_pressed = true;
+    bd_menu_step(&m, &in, &g_list);
+    bd_menu_step(&m, &in, &g_list);
+    CHECK_EQ_INT(m.chart, 3); /* never into the dodge charts 0..2 */
+    in = idle();
+    in.right_pressed = true;
+    for (int i = 0; i < 4; i++)
+        bd_menu_step(&m, &in, &g_list);
+    CHECK_EQ_INT(m.chart, 5);
+    in = idle();
+    in.down_pressed = true;
+    bd_menu_step(&m, &in, &g_list);
+    CHECK_EQ_INT(m.song, 2);
+    bd_menu_step(&m, &in, &g_list);
+    CHECK_EQ_INT(m.song, 1); /* song 0 is skipped on the way round */
+    bd_menu_init(&m, BD_CHART_DODGE);
+    bd_menu_step(&m, &none, &g_list);
+    CHECK_EQ_INT(m.song, 0);
+    CHECK_EQ_INT(m.chart, 0);
+    bd_menu_move_song(&m, &g_list, 1);
+    CHECK_EQ_INT(m.chart, 1);           /* the second dodge chart */
+    bd_menu_pick_chart(&m, &g_list, 4); /* a catch chart: refused */
+    CHECK_EQ_INT(m.chart, 1);
+    bd_menu_pick_chart(&m, &g_list, 2);
+    CHECK_EQ_INT(m.chart, 2);
 }
 
 /* Every shipped song must load and be playable: lanes in range, sensible density, and a perfect run wins. */
@@ -512,6 +772,25 @@ static void test_monkey_is_safe(void) {
         CHECK(g_s.lives >= 0 && g_s.lives <= BD_START_LIVES);
         CHECK(beat_dodge_score(&g_s) >= 0);
     }
+    /* a real song full of ribbons: the invariants of the scoring hold for any input */
+    CHECK(bd_song_load(ARCADE_ASSETS_DIR "/beatmaps/fnf/thorns.txt", &g_song));
+    for (int c = 0; c < g_song.chart_count; c++) {
+        if (g_song.charts[c].kind != BD_CHART_DODGE)
+            continue;
+        beat_dodge_use_song(&g_s, &g_song, c);
+        arcade_monkey_init(&m, (uint64_t)(11 + c));
+        for (int i = 0; i < 60 * 200 && !beat_dodge_is_over(&g_s); i++) {
+            ArcadeInput in;
+            arcade_monkey_next(&m, &in);
+            beat_dodge_step(&g_s, &in, ARC_DT);
+            CHECK(g_s.run.lane >= 0 && g_s.run.lane < g_s.run.lanes);
+            CHECK(g_s.lives >= 0 && g_s.lives <= BD_START_LIVES);
+            CHECK(g_s.points >= 0 && g_s.points <= g_s.max_points);
+            CHECK(g_s.close_calls <= g_s.dodged);
+            CHECK_EQ_INT(g_s.hits, BD_START_LIVES - g_s.lives);
+        }
+        CHECK(beat_dodge_score(&g_s) <= (int)(1000.0f * g_s.multiplier));
+    }
 }
 
 int main(void) {
@@ -529,13 +808,23 @@ int main(void) {
     RUN(test_reach_catch_unplayable_by_distance);
     RUN(test_plan_is_a_path_a_human_can_follow);
     RUN(test_obstacles_arrive_exactly_on_the_beat);
-    RUN(test_perfect_play_wins_and_scores_the_maximum);
+    RUN(test_perfect_play_never_loses_a_life);
+    RUN(test_a_ribbon_costs_exactly_one_life);
+    RUN(test_the_next_object_is_judged_again_after_a_hit);
+    RUN(test_the_close_call_window);
+    RUN(test_close_call_bot_scores_the_maximum);
+    RUN(test_a_camper_scores_about_half);
+    RUN(test_the_human_speed_bot_clears_every_shipped_dodge_chart);
+    RUN(test_the_teleport_bot_is_never_hit_on_shipped_charts);
     RUN(test_standing_still_loses_all_lives);
     RUN(test_lanes_keys_and_clamping);
     RUN(test_sync_only_fixes_large_drift);
     RUN(test_beat_event_fires_once_per_beat);
     RUN(test_song_to_synth_uses_beats_not_seconds);
+    RUN(test_notes_with_a_bead_are_lead_and_the_rest_is_backing);
+    RUN(test_every_lead_note_has_a_bead_in_every_shipped_chart);
     RUN(test_menu);
+    RUN(test_menu_only_offers_charts_of_its_own_kind);
     RUN(test_every_shipped_song_is_playable);
     RUN(test_monkey_is_safe);
     return TEST_SUMMARY();
