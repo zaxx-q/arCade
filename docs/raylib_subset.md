@@ -6,6 +6,8 @@ Use these exact signatures. raylib 6.x changed some APIs compared with 5.x: if a
 ## Functions
 ```c
 void BeginDrawing(void);  // Begin canvas (framebuffer) drawing
+void BeginMode2D(Camera2D camera);  // Begin 2D mode with custom camera (2D)
+void BeginTextureMode(RenderTexture2D target);  // Begin drawing to render texture
 bool CheckCollisionCircleRec(Vector2 center, float radius, Rectangle rec);  // Check collision between circle and rectangle
 bool CheckCollisionCircles(Vector2 center1, float radius1, Vector2 center2, float radius2);  // Check collision between two circles
 bool CheckCollisionPointCircle(Vector2 point, Vector2 center, float radius);  // Check if point is inside circle
@@ -32,6 +34,7 @@ void DrawRectangle(int posX, int posY, int width, int height, Color color);  // 
 void DrawRectangleGradientV(int posX, int posY, int width, int height, Color top, Color bottom);  // Draw a vertical-gradient-filled rectangle
 void DrawRectangleLines(int posX, int posY, int width, int height, Color color);  // Draw rectangle outline
 void DrawRectangleLinesEx(Rectangle rec, float thick, Color color);  // Draw rectangle outline with line thickness
+void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color);  // Draw a color-filled rectangle with pro parameters
 void DrawRectangleRec(Rectangle rec, Color color);  // Draw a color-filled rectangle
 void DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color color);  // Draw rectangle with rounded edges
 void DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, float thick, Color color); // Draw rectangle lines with rounded edges outline and line thic
@@ -40,10 +43,15 @@ void DrawRing(Vector2 center, float innerRadius, float outerRadius, float startA
 void DrawText(const char *text, int posX, int posY, int fontSize, Color color);  // Draw text (using default font)
 void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
 void DrawTexture(Texture2D texture, int posX, int posY, Color tint);  // Draw a Texture2D
+void DrawTextureEx(Texture2D texture, Vector2 position, float rotation, float scale, Color tint);  // Draw a Texture2D with rotation and scale
+void DrawTextureNPatch(Texture2D texture, NPatchInfo nPatchInfo, Rectangle dstrec, Vector2 origin, float rotation, Color tint); // Draw a texture (or part of it) that str
 void DrawTexturePro(Texture2D texture, Rectangle srcrec, Rectangle dstrec, Vector2 origin, float rotation, Color tint); // Draw a part of a texture defined by a source re
+void DrawTextureRec(Texture2D texture, Rectangle rec, Vector2 position, Color tint);  // Draw a part of a texture defined by a rectangle
 void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);  // Draw a color-filled triangle, counter-clockwise vertex order
 void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);  // Draw triangle outline, counter-clockwise vertex order
 void EnableEventWaiting(void);  // Enable waiting for events on EndDrawing(), no automatic event polling
+void EndMode2D(void);  // End 2D mode with custom camera
+void EndTextureMode(void);  // End drawing to render texture
 bool ExportImage(Image image, const char *fileName);  // Export image data to file, returns true on success
 Color Fade(Color color, float alpha);  // Get color with alpha applied, alpha goes from 0.0f to 1.0f
 bool FileExists(const char *fileName);  // Check if file exists
@@ -51,46 +59,68 @@ Image GenImageColor(int width, int height, Color color);  // Generate image: pla
 const char *GetApplicationDirectory(void);  // Get the directory of the running application (uses static string)
 int GetCharPressed(void);  // Get char pressed (unicode), call it multiple times for chars queued, returns 0 when the queue is empty
 Color GetColor(unsigned int hexValue);  // Get Color structure from hexadecimal value
+Font GetFontDefault(void);  // Get the default Font
 int GetKeyPressed(void);  // Get key pressed (keycode), call it multiple times for keys queued, returns 0 when the queue is empty
 Vector2 GetMouseDelta(void);  // Get mouse delta between frames
 Vector2 GetMousePosition(void);  // Get mouse position XY
 float GetMouseWheelMove(void);  // Get mouse wheel movement for X or Y, whichever is larger
+float GetMusicTimePlayed(Music music);  // Get current music time played (in seconds)
 int GetRandomValue(int min, int max);  // Get a random value between min and max (both included)
+void ImageDrawPixel(Image *dst, int posX, int posY, Color color);  // Draw pixel within an image
 void ImageFlipVertical(Image *image);  // Flip image vertically
+void ImageFormat(Image *image, int newFormat);  // Convert image data to desired format
 void InitAudioDevice(void);  // Initialize audio device and context
 void InitWindow(int width, int height, const char *title);  // Initialize window and OpenGL context
 bool IsAudioDeviceReady(void);  // Check if audio device has been initialized successfully
+bool IsFontValid(Font font);  // Check if font is valid (font data loaded, WARNING: GPU texture not checked)
 bool IsKeyDown(int key);  // Check if key is being pressed
 bool IsKeyPressed(int key);  // Check if key has been pressed once
 bool IsKeyReleased(int key);  // Check if key has been released once
 bool IsMouseButtonDown(int button);  // Check if mouse button is being pressed
 bool IsMouseButtonPressed(int button);  // Check if mouse button has been pressed once
+bool IsMusicValid(Music music);  // Check if music stream is valid (context and buffers initialized)
 bool IsWindowReady(void);  // Check if window has been initialized successfully
 char *LoadFileText(const char *fileName);  // Load text data from file (read), returns a '\0' terminated string
+Font LoadFontEx(const char *fileName, int fontSize, const int *codepoints, int codepointCount); // Load font from file with defined codepoints and generation size, use NU
+Image LoadImage(const char *fileName);  // Load image from file into CPU memory (RAM)
 Color *LoadImageColors(Image image);  // Load color data from image as a Color array (RGBA - 32bit)
 Image LoadImageFromScreen(void);  // Load image from screen buffer (screenshot)
 Music LoadMusicStream(const char *fileName);  // Load music stream from file
+Music LoadMusicStreamFromMemory(const char *fileType, const unsigned char *data, int dataSize); // Load music stream from data
+RenderTexture2D LoadRenderTexture(int width, int height);  // Load texture for rendering (framebuffer)
 Sound LoadSound(const char *fileName);  // Load sound from file
+Sound LoadSoundAlias(Sound source);  // Load sound alias, new sound that shares the same sample data as the source sound, does not own the sound data
 Sound LoadSoundFromWave(Wave wave);  // Load sound from wave data
 Texture2D LoadTexture(const char *fileName);  // Load texture from file into GPU memory (VRAM)
 Texture2D LoadTextureFromImage(Image image);  // Load texture from image data
 int MakeDirectory(const char *dirPath);  // Create directories (including full path requested), returns 0 on success
 int MeasureText(const char *text, int fontSize);  // Measure string width for default font
+Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing);  // Measure string size for Font
 void *MemAlloc(unsigned int size);  // Internal memory allocator
+void MemFree(void *ptr);  // Internal memory free
 void PlayMusicStream(Music music);  // Start music playing
 void PlaySound(Sound sound);  // Play a sound
 bool SaveFileText(const char *fileName, const char *text);  // Save text data to file (write), string must be '\0' terminated, returns true on success
 void SetConfigFlags(unsigned int flags);  // Set init configuration flags (view FLAGS)
 void SetExitKey(int key);  // Set a custom key to exit program (default is ESC)
+void SetMusicVolume(Music music, float volume);  // Set volume for music (1.0 is max level)
+void SetSoundPitch(Sound sound, float pitch);  // Set pitch for a sound (1.0 is base level)
 void SetSoundVolume(Sound sound, float volume);  // Set volume for a sound (1.0 is max level)
 void SetTargetFPS(int fps);  // Set target FPS (maximum)
 void SetTextureFilter(Texture2D texture, int filter);  // Set texture scaling filter mode
+void SetTextureWrap(Texture2D texture, int wrap);  // Set texture wrapping mode
 void SetTraceLogLevel(int logLevel);  // Set the current threshold (minimum) log level
+void StopMusicStream(Music music);  // Stop music playing
 void StopSound(Sound sound);  // Stop playing a sound
 const char *TextFormat(const char *text, ...);  // Text formatting with variables (sprintf() style)
+void TraceLog(int logLevel, const char *text, ...);  // Show trace log messages (LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR...)
+void UnloadFont(Font font);  // Unload font from GPU memory (VRAM)
 void UnloadImage(Image image);  // Unload image from CPU memory (RAM)
 void UnloadImageColors(Color *colors);  // Unload color data loaded with LoadImageColors()
+void UnloadMusicStream(Music music);  // Unload music stream
+void UnloadRenderTexture(RenderTexture2D target);  // Unload render texture from GPU memory (VRAM)
 void UnloadSound(Sound sound);  // Unload sound
+void UnloadSoundAlias(Sound alias);  // Unload sound alias (does not deallocate sample data)
 void UnloadTexture(Texture2D texture);  // Unload texture from GPU memory (VRAM)
 void UnloadWave(Wave wave);  // Unload wave data
 void UpdateMusicStream(Music music);  // Update buffers for music streaming

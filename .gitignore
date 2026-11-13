@@ -11,6 +11,8 @@ compile_commands.json
 CMakeUserPresets.json
 # runtime data written next to the executable
 scores.txt
+gritty_save_*.dat
+gritty_save_*.bad
 # keep VS Code shared config, ignore the rest
 .vscode/*
 !.vscode/settings.json
