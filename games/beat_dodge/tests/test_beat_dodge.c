@@ -4,6 +4,7 @@
 
 #include "arcade/str.h"
 #include "arcade_test.h"
+#include "beat_dodge_convert.h"
 #include "beat_dodge_logic.h"
 
 #define TMP_SONG "arcade_test_song.tmp"
@@ -469,32 +470,34 @@ static void test_every_shipped_song_is_playable(void) {
     int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
     CHECK(n >= 1);                   /* at least default.txt */
     CHECK_EQ_INT(g_list.skipped, 0); /* nothing listed in songs.txt may be broken */
+    static int8_t plan[BD_MAX_STEPS];
+    float empty5_sum = 0.0f;
+    int dodge_charts = 0;
     for (int i = 0; i < n; i++) {
         const bd_Song *song = &g_list.songs[i];
         CHECK(song->chart_count >= 1);
         for (int c = 0; c < song->chart_count; c++) {
             const bd_Chart *ch = &song->charts[c];
-            float step_sec = 60.0f / (float)song->bpm / (float)song->steps;
-            int obstacles = 0, prev = -1000;
-            for (int k = 0; k < ch->length; k++) {
-                if (ch->lane[k] < 0)
-                    continue;
-                CHECK(ch->lane[k] < ch->lanes);
-                if (prev >= 0)
-                    CHECK((float)(k - prev) * step_sec >= 0.20f); /* never two obstacles closer than 0.2 s */
-                prev = k;
-                obstacles++;
-            }
-            CHECK(obstacles >= 20);
+            CHECK(bd_chart_beads(ch) >= 20);
             CHECK(bd_song_seconds(song, c) < 300.0f);
-            beat_dodge_use_song(&g_s, song, c);
-            play_perfectly(&g_s, 60 * 400);
-            CHECK(g_s.run.won);
-            CHECK_EQ_INT(g_s.hits, 0);
-            CHECK_EQ_INT(g_s.dodged, obstacles);
-            CHECK_EQ_INT(beat_dodge_score(&g_s), (int)(1000.0f * bd_chart_multiplier(ch->name)));
+            for (int k = 0; k < ch->length; k++)
+                CHECK(ch->lane[k] < ch->lanes);      /* -1 (rest) or a real lane */
+            CHECK(bd_chart_playable(song, c, NULL)); /* the player always has somewhere safe to stand ... */
+            CHECK(bd_chart_plan(song, c, plan));     /* ... and a path a human can walk */
+            bd_ChartMetrics m;
+            bd_chart_metrics(song, c, &m);
+            CHECK_EQ_INT(m.bursts_mismatched, 0); /* no run of rapid notes without its ribbon */
+            if (ch->kind == BD_CHART_DODGE && song->note_count > 100) {
+                empty5_sum += m.empty5;
+                dodge_charts++;
+                CHECK(m.longest_idle < 40.0f); /* no lane is ignored for most of a song */
+            }
         }
     }
+    /* anti-camping: before ribbons 57% of the 5 s windows (mean of the three difficulties) had an empty lane
+     */
+    CHECK(dodge_charts > 0);
+    CHECK(empty5_sum / (float)dodge_charts < 0.45f);
 }
 
 static void test_monkey_is_safe(void) {

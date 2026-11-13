@@ -18,14 +18,14 @@ Rhythm dodger. Songs (`bd_Song`) have 1-3 charts (easy/normal/hard, 3-5 lanes) a
 
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^beat_dodge\."`
-- Every song in `songs.txt` is loaded and perfect-played by `test_every_shipped_song_is_playable`: regenerate songs with `bash tools/songs/build_songs.sh` after changing the converter.
+- Every song in `songs.txt` is loaded and checked (playable, a path a human can walk, no burst without a ribbon, anti-camping mean) by `test_every_shipped_song_is_playable`: regenerate songs with `bash tools/songs/build_songs.sh` after changing the converter.
 - Smoke: `build/headless/bin/arCade --smoke beat_dodge --frames 420 --out smoke-out` (also writes `beat_dodge_select.png`)
 
 ## Code style & conventions
 - Time comes from `time`/`step_sec`/`lead`, never from frame counts. Obstacle `i` arrives at `lead + i * step_sec`; `beat_dodge_obstacle_y` and the hit test must keep using `beat_dodge_arrival()`.
 - Music timeline == game clock: a melody note sounds when its obstacle reaches the line (`bd_song_to_synth(song, lead, ...)`). `beat_dodge_sync` only corrects drifts > 0.15 s.
 - Audio is optional: guard with `arcade_audio_ready()`; smoke runs never load audio.
-- `bd_song_load` must keep rejecting bad files without touching its output. Charts never place two obstacles closer than 0.2 s.
+- `bd_song_load` must keep rejecting bad files without touching its output. Every chart must pass the reachable-lane check (`bd_chart_playable`); lone beads keep the preset's minimum gap, beads of one ribbon are at most 0.25 s apart.
 - Lanes in converted songs come from pitch (low = left); do not shuffle them.
 
 ## Security & safety
