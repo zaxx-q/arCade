@@ -68,6 +68,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 |------|-----|----------|
 | Random numbers (never `rand()`) | `Rng`, `rng_range`, `rng_float` | `core/include/arcade/rng.h` |
 | 2D math, collisions | `Vec2`, `vec2_*`, `arc_circles_overlap`, `ARC_PI` (no `M_PI`) | `mathx.h`, `common.h` |
+| Portrait 480 x 684 playfield, pointer mapping | `ARC_PF_*`, `arc_pf_from_screen`, `arc_pf_contains` | `playfield.h` |
 | Safe strings | `arc_strlcpy`, `arc_stricmp` | `str.h` |
 | Input in logic + tests | `ArcadeInput`, `ArcadeMonkey` | `input.h` |
 | Particles, screen shake | `fx_burst`, `shake_start` | `fx.h` |
@@ -112,7 +113,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 - Commit `build/`, `scores.txt`, secrets; push directly to `main`; edit generated files (`build/**/generated`, `docs/raylib_subset.md`)
 
 ## Codebase State
-- 9 games run and are unit-tested. Eight are **placeholders** with their core mechanic working (remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games core app`); `gritty_golf` is a complete vendored game (25 levels) wrapped by an adapter.
+- 17 games run and are unit-tested. Eight are **placeholders** with their core mechanic working (remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games core app`); `gritty_golf` is a complete vendored game (25 levels) wrapped by an adapter; eight more (`post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`) are complete ports of rules from the sibling project `simple-games` (menu order 100..170, portrait playfield, see `THIRD_PARTY_NOTICES.md`).
 - Not verified locally: Windows MSVC build and native Windows runs (CI job `windows-msvc` is non-blocking until green once).
 
 ## Terminology
@@ -129,7 +130,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 |-----------|------|
 | `core/` | [core/AGENTS.md](./core/AGENTS.md) |
 | `games/` | [games/AGENTS.md](./games/AGENTS.md) (the game contract) |
-| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md) |
+| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md), [post_it](./games/post_it/AGENTS.md), [master_juggler](./games/master_juggler/AGENTS.md), [bw_reflex](./games/bw_reflex/AGENTS.md), [different_color](./games/different_color/AGENTS.md), [spike_dart](./games/spike_dart/AGENTS.md), [loop_lap](./games/loop_lap/AGENTS.md), [tower_stacker](./games/tower_stacker/AGENTS.md), [new_star](./games/new_star/AGENTS.md) |
 | `.github/` | [.github/AGENTS.md](./.github/AGENTS.md) |
 
 > **Agents**: when you read or edit files in a listed directory, load its AGENTS.md first.

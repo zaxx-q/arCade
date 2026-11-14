@@ -7,6 +7,7 @@ Use these exact signatures. raylib 6.x changed some APIs compared with 5.x: if a
 ```c
 void BeginDrawing(void);  // Begin canvas (framebuffer) drawing
 void BeginMode2D(Camera2D camera);  // Begin 2D mode with custom camera (2D)
+void BeginScissorMode(int x, int y, int width, int height); // Begin scissor mode (define screen area for following drawing)
 void BeginTextureMode(RenderTexture2D target);  // Begin drawing to render texture
 bool CheckCollisionCircleRec(Vector2 center, float radius, Rectangle rec);  // Check collision between circle and rectangle
 bool CheckCollisionCircles(Vector2 center1, float radius1, Vector2 center2, float radius2);  // Check collision between two circles
@@ -17,6 +18,7 @@ void ClearBackground(Color color);  // Clear background (framebuffer) to color
 void CloseAudioDevice(void);  // Close the audio device and context
 void CloseWindow(void);  // Close window and unload OpenGL context
 Color ColorAlpha(Color color, float alpha);  // Get color with alpha applied, alpha goes from 0.0f to 1.0f
+Color ColorBrightness(Color color, float factor);  // Get color with brightness correction, brightness factor goes from -1.0f to 1.0f
 Color ColorLerp(Color color1, Color color2, float factor);  // Get color lerp interpolation between two colors, factor [0.0f..1.0f]
 bool DirectoryExists(const char *dirPath);  // Check if directory path exists
 void DrawCircle(int centerX, int centerY, float radius, Color color);  // Draw a color-filled circle
@@ -51,6 +53,7 @@ void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);  // Draw a c
 void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);  // Draw triangle outline, counter-clockwise vertex order
 void EnableEventWaiting(void);  // Enable waiting for events on EndDrawing(), no automatic event polling
 void EndMode2D(void);  // End 2D mode with custom camera
+void EndScissorMode(void);  // End scissor mode
 void EndTextureMode(void);  // End drawing to render texture
 bool ExportImage(Image image, const char *fileName);  // Export image data to file, returns true on success
 Color Fade(Color color, float alpha);  // Get color with alpha applied, alpha goes from 0.0f to 1.0f
