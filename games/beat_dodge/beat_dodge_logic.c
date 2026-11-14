@@ -408,12 +408,34 @@ void bd_reach_advance(bd_Reach *r, float seconds) {
         r->lane[l] = grown[l];
 }
 
-void bd_reach_bead(bd_Reach *r, bd_ChartKind kind, int bead_lane, bool in_ribbon) {
+int bd_chart_object_span(const bd_Chart *chart, int step) {
+    if (chart->lane[step] < 0)
+        return 0;
+    int first = step;
+    while (chart->link[first] && first > 0) { /* back to the bead that starts the object */
+        int i = first - 1;
+        while (i > 0 && chart->lane[i] < 0)
+            i--;
+        first = i;
+    }
+    int lo = chart->lane[first], hi = lo;
+    for (int i = bd_chart_next_bead(chart, first); i < chart->length && chart->link[i];
+         i = bd_chart_next_bead(chart, i)) {
+        lo = arc_mini(lo, chart->lane[i]);
+        hi = arc_maxi(hi, chart->lane[i]);
+    }
+    return hi - lo;
+}
+
+int bd_catch_tolerance(int span) {
+    return span > 0 ? 1 : 0;
+}
+
+void bd_reach_bead(bd_Reach *r, bd_ChartKind kind, int bead_lane, int tolerance) {
     if (kind == BD_CHART_DODGE) {
         r->lane[bead_lane] = false; /* standing there now would be a hit */
         return;
     }
-    int tolerance = in_ribbon ? 1 : 0; /* catch: a ribbon is caught from its middle lane */
     for (int l = 0; l < r->lanes; l++)
         if (abs(l - bead_lane) > tolerance)
             r->lane[l] = false;
@@ -439,7 +461,7 @@ bool bd_chart_playable(const bd_Song *song, int chart, int *fail_step) {
         float t = lead + (float)i * step_sec;
         bd_reach_advance(&reach, t - before);
         before = t;
-        bd_reach_bead(&reach, c->kind, c->lane[i], bd_chart_in_ribbon(c, i));
+        bd_reach_bead(&reach, c->kind, c->lane[i], bd_catch_tolerance(bd_chart_object_span(c, i)));
         if (bd_reach_empty(&reach)) {
             if (fail_step)
                 *fail_step = i;
@@ -468,7 +490,7 @@ bool bd_chart_plan(const bd_Song *song, int chart, int8_t *plan) {
         float t = lead + (float)i * step_sec;
         bd_reach_advance(&reach, t - before);
         before = t;
-        bd_reach_bead(&reach, c->kind, c->lane[i], bd_chart_in_ribbon(c, i));
+        bd_reach_bead(&reach, c->kind, c->lane[i], bd_catch_tolerance(bd_chart_object_span(c, i)));
         if (bd_reach_empty(&reach))
             return false;
         for (int l = 0; l < BD_MAX_LANES; l++)
@@ -671,5 +693,7 @@ bool beat_dodge_is_over(const beat_dodge_State *s) {
 int beat_dodge_score(const beat_dodge_State *s) {
     if (s->max_points <= 0)
         return 0;
-    return (int)(1000.0f * s->multiplier * (float)s->points / (float)s->max_points);
+    long long ceiling = (long long)(1000.0f * s->multiplier + 0.5f); /* 1000, 1500 or 2000 */
+    return (int)(ceiling * s->points /
+                 s->max_points); /* integer maths: a perfect run is exactly the ceiling */
 }

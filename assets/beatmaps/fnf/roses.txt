@@ -46,10 +46,10 @@ chart easy 3 catch
 ................................0.aaa.a.2.cc.cc.1.bbb.b.2.cc.cc.
 ................................0aaaaaa.1.bbbbb.2.ccccc.2.cc.cc.
 ................................0aaaaa1bbbbbb...2ccccc1bbbbbb...
-................................2ccccccc0aaaaaaa1bbbbbbb2ccccccc
-....................................0.a.a......1.b.bbbb.b..2.c.c
-................................0.a.aaaa..1.b.bb..2.c.cc..1.b.b.
-................................2ccccccc0aaaaaaa1bbbbbbb2ccccccc
+................................2ccccccc1bbbbbbb0aaaaaaa1bbbbbbb
+....................................2.c.c......0.a.aaaa.a..1.b.b
+................................2.c.cccc..1.b.bb..0.a.aa..1.b.b.
+................................2ccccccc1bbbbbbb0aaaaaaa1bbbbbbb
 chart normal 4 catch
 ....................................1.b.a......2.c.cccc.c..0.a.a
 ................................2.c.cdcc..1.b.cb..1.a.bb..1.a.b.

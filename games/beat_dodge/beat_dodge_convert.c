@@ -190,11 +190,16 @@ static float bead_time(const Build *b, int step) {
 static bool try_object(Build *b, int first, int count, const int *lanes, bool commit) {
     bd_Reach r = b->reach;
     float before = b->before;
+    int lo = lanes[0], hi = lanes[0];
+    for (int j = 1; j < count; j++) { /* the span of the object decides the catch tolerance */
+        lo = arc_mini(lo, lanes[j]);
+        hi = arc_maxi(hi, lanes[j]);
+    }
     for (int j = 0; j < count; j++) {
         float t = bead_time(b, b->ev[first + j].step);
         bd_reach_advance(&r, t - before);
         before = t;
-        bd_reach_bead(&r, b->p->kind, lanes[j], count >= 2);
+        bd_reach_bead(&r, b->p->kind, lanes[j], bd_catch_tolerance(hi - lo));
         if (bd_reach_empty(&r))
             return false;
     }

@@ -100,17 +100,26 @@ int bd_song_kind_chart(const bd_Song *song, bd_ChartKind kind, int nth);
 /* ---- Reachable-lane check: the playability oracle. Model a human who needs BD_HUMAN_STEP_SEC per lane step
  * (arrow-key taps; the number keys are a bonus we do not rely on). reach[] = the lanes the player could be
  * standing in. Between two beads it grows by floor(dt / BD_HUMAN_STEP_SEC) lanes each way. At a bead: dodge
- * removes the bead's lane; catch keeps only the lanes within the tolerance (0 for a lone bead, 1 for a bead
- * inside a ribbon). A chart is playable if and only if reach never becomes empty. */
+ * removes the bead's lane; catch keeps only the lanes within the tolerance of the bead's object
+ * (bd_catch_tolerance: 0 for an object that stays in one lane, 1 for one that changes lane). A chart is
+ * playable if and only if reach never becomes empty. */
 typedef struct bd_Reach {
     bool lane[BD_MAX_LANES];
     int lanes;
 } bd_Reach;
 
+/* The lanes between the first and the last lane the object that holds the bead of `step` touches: 0 for a
+ * lone bead or a ribbon that stays in one lane, 2 for a ribbon that visits lanes 0, 1 and 2. */
+int bd_chart_object_span(const bd_Chart *chart, int step);
+/* Beat Catch: how many lanes away from a bead the player may stand and still catch it, for an object of the
+ * given span. An object that stays in one lane needs exactly that lane (0). An object that changes lane is
+ * caught from its middle (1): nobody can follow lane changes 80 ms apart. The reach check and the rules of
+ * Beat Catch both use this ONE function. */
+int bd_catch_tolerance(int span);
 void bd_reach_start(bd_Reach *r, int lanes); /* the player starts in the middle lane */
 int bd_reach_steps(float seconds);           /* lane steps a human manages in `seconds` */
 void bd_reach_advance(bd_Reach *r, float seconds);
-void bd_reach_bead(bd_Reach *r, bd_ChartKind kind, int bead_lane, bool in_ribbon);
+void bd_reach_bead(bd_Reach *r, bd_ChartKind kind, int bead_lane, int tolerance);
 bool bd_reach_empty(const bd_Reach *r);
 /* Walks the chart in arrival order. false = unplayable; *fail_step (may be NULL) is the step of the bead that
  * empties reach. */
