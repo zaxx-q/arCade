@@ -136,10 +136,10 @@ static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
         else if (in_rect(mouse.x, mouse.y, r.x, r.y, r.width, r.height))
             DrawRectangleRoundedLinesEx(r, 0.15f, 8, 1.0f, Fade(ARC_COL_YELLOW, 0.5f));
         float secs = bd_song_seconds(song, c);
-        float per_sec = (float)bd_chart_obstacles(ch) / (secs > 5.0f ? secs - 5.0f : 1.0f);
+        float per_sec = (float)bd_chart_beads(ch) / (secs > 5.0f ? secs - 5.0f : 1.0f);
         gfx_text(ch->name, 698, 262 + c * 100, 26, sel ? ARC_COL_YELLOW : ARC_COL_TEXT);
         gfx_text(TextFormat("%d lanes   |   %d obstacles   |   %.1f per second   |   %s", ch->lanes,
-                            bd_chart_obstacles(ch), per_sec, clock_text(secs)),
+                            bd_chart_beads(ch), per_sec, clock_text(secs)),
                  698, 298 + c * 100, 17, ARC_COL_DIM);
         gfx_text_right(TextFormat("score x%.1f", bd_chart_multiplier(ch->name)), 1188, 266 + c * 100, 17,
                        ARC_COL_DIM);
@@ -249,7 +249,7 @@ static void draw_game(const beat_dodge_State *s, float t) {
 }
 
 /* ------------------------------------------------------------------ play */
-static bd_SongList g_list; /* ~260 KB */
+static bd_SongList g_list; /* ~544 KB */
 static beat_dodge_State g_state;
 static bd_Menu g_menu;
 static bool g_menu_ready;

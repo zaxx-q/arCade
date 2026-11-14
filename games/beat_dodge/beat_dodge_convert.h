@@ -35,6 +35,9 @@ typedef struct bd_ChartMetrics {
     float same_lane;       /* share of consecutive beads in the same lane */
     float lazy_idle;       /* share of beads a lazy bot dodges without moving */
     float empty5, empty10; /* share of 5 s / 10 s windows in which some lane stays empty */
+    float longest_idle;    /* anti-camping: the longest time (s) any one lane goes without a bead */
+    bool playable;         /* passes the reachable-lane check (bd_chart_playable) */
+    int fail_step;         /* where it fails, -1 when playable */
 } bd_ChartMetrics;
 
 void bd_chart_metrics(const bd_Song *song, int chart, bd_ChartMetrics *out);
