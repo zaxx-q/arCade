@@ -165,20 +165,20 @@ typedef struct SongAudio {
  * game clock exactly: a melody note sounds at the moment its obstacle reaches the player line. */
 static bool audio_start(SongAudio *a, const beat_dodge_State *s) {
     memset(a, 0, sizeof(*a));
-    if (!arcade_audio_ready() || s->song.note_count == 0)
+    if (!arcade_audio_ready() || s->run.song.note_count == 0)
         return false;
     static SynthNote notes[BD_MAX_NOTES];
-    int n = bd_song_to_synth(&s->song, s->lead, notes);
-    size_t frames = synth_frames(s->end_time + 1.0f, SYNTH_RATE), bytes = synth_wav_bytes(frames);
+    int n = bd_song_to_synth(&s->run.song, s->run.lead, notes);
+    size_t frames = synth_frames(s->run.end_time + 1.0f, SYNTH_RATE), bytes = synth_wav_bytes(frames);
     a->wav = (unsigned char *)MemAlloc((unsigned int)bytes);
     if (a->wav == NULL)
         return false;
     SynthOptions o;
     o.rate = SYNTH_RATE;
-    o.bpm = (float)s->song.bpm;
+    o.bpm = (float)s->run.song.bpm;
     o.drums = true;
-    o.drums_from = s->lead;
-    o.drums_to = s->end_time - s->spb;
+    o.drums_from = s->run.lead;
+    o.drums_to = s->run.end_time - s->run.spb;
     synth_render(notes, (size_t)n, &o, (int16_t *)(a->wav + 44),
                  frames); /* samples go right after the header */
     synth_wav_header(frames, SYNTH_RATE, a->wav);
@@ -208,9 +208,10 @@ static void audio_stop(SongAudio *a) {
 /* ------------------------------------------------------------------ drawing the game */
 static void draw_game(const beat_dodge_State *s, float t) {
     gfx_backdrop(t);
-    int lanes = s->lanes;
+    int lanes = s->run.lanes;
     float spacing = lane_spacing(lanes), w = spacing - 36.0f;
-    float phase = s->spb > 0.0f ? (s->time / s->spb) - (float)s->last_beat : 0.0f; /* 0..1 within the beat */
+    float phase = s->run.spb > 0.0f ? (s->run.time / s->run.spb) - (float)s->run.last_beat
+                                    : 0.0f; /* 0..1 within the beat */
     for (int l = 0; l < lanes; l++) {
         float x = lane_x(lanes, l);
         Color c = lane_color(l);
@@ -221,30 +222,30 @@ static void draw_game(const beat_dodge_State *s, float t) {
         DrawCircleLines((int)x, (int)BD_PLAYER_Y, 32.0f, Fade(c, 0.35f));
         gfx_text_center(TextFormat("%d", l + 1), (int)x, (int)BD_PLAYER_Y + 48, 16, Fade(ARC_COL_DIM, 0.8f));
     }
-    const bd_Chart *chart = &s->song.charts[s->chart];
-    for (int i = s->next_hit; i < s->length; i++) {
+    const bd_Chart *chart = &s->run.song.charts[s->run.chart];
+    for (int i = s->run.next_hit; i < s->run.length; i++) {
         float y = beat_dodge_obstacle_y(s, i);
         if (y < BD_TOP_Y)
             break; /* later steps have not spawned yet */
         if (chart->lane[i] >= 0)
             gfx_glow_circle(lane_x(lanes, chart->lane[i]), y, 22.0f, lane_color(chart->lane[i]));
     }
-    float px = lane_x(lanes, s->lane);
+    float px = lane_x(lanes, s->run.lane);
     DrawTriangle((Vector2){px, BD_PLAYER_Y - 26}, (Vector2){px - 22, BD_PLAYER_Y + 20},
                  (Vector2){px + 22, BD_PLAYER_Y + 20}, ARC_COL_TEXT);
-    if (s->hit_flash > 0.0f)
-        DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_RED, s->hit_flash));
+    if (s->run.hit_flash > 0.0f)
+        DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_RED, s->run.hit_flash));
     for (int h = 0; h < s->lives; h++)
         DrawCircle(40 + h * 34, 76, 11, ARC_COL_RED);
     if (s->combo > 1)
         gfx_text_center(TextFormat("combo x%d", s->combo), ARC_SCREEN_W / 2, ARC_SCREEN_H - 52, 26,
                         ARC_COL_YELLOW);
     /* song progress under the HUD */
-    DrawRectangle(0, 36, (int)((float)ARC_SCREEN_W * arc_clampf(s->time / s->end_time, 0.0f, 1.0f)), 3,
-                  ARC_COL_CYAN);
-    if (s->time < 2.6f) /* song title card */
-        gfx_text_center(s->song.title, ARC_SCREEN_W / 2, 250, 54,
-                        Fade(ARC_COL_TEXT, arc_clampf((2.6f - s->time) / 0.8f, 0.0f, 1.0f)));
+    DrawRectangle(0, 36, (int)((float)ARC_SCREEN_W * arc_clampf(s->run.time / s->run.end_time, 0.0f, 1.0f)),
+                  3, ARC_COL_CYAN);
+    if (s->run.time < 2.6f) /* song title card */
+        gfx_text_center(s->run.song.title, ARC_SCREEN_W / 2, 250, 54,
+                        Fade(ARC_COL_TEXT, arc_clampf((2.6f - s->run.time) / 0.8f, 0.0f, 1.0f)));
 }
 
 /* ------------------------------------------------------------------ play */
@@ -344,13 +345,14 @@ static GameResult play(const GameContext *ctx) {
                 beat_dodge_sync(s, mt + BD_AUDIO_OFFSET_S);
         }
         beat_dodge_step(s, &in, ARC_DT);
-        if (metronome && s->beat_event)
+        if (metronome && s->run.beat_event)
             PlaySound(tick);
         t += ARC_DT;
         BeginDrawing();
         draw_game(s, t);
         gfx_hud("BEAT DODGE", beat_dodge_score(s),
-                TextFormat("%s [%s]   %d BPM", s->song.title, s->song.charts[s->chart].name, s->song.bpm));
+                TextFormat("%s [%s]   %d BPM", s->run.song.title, s->run.song.charts[s->run.chart].name,
+                           s->run.song.bpm));
         arcade_frame_end();
         if (beat_dodge_is_over(s))
             break;
