@@ -15,6 +15,14 @@ Tugasnya membutuhkan: source code, video demo, dan laporan (satu PDF). Repositor
 | ghost_loop | Member 4 | |
 | beat_dodge | Member 5 | |
 | absorb_grow + laporan | Member 6 | |
+| post_it | Leader | |
+| master_juggler | Leader | |
+| bw_reflex | Leader | |
+| different_color | Leader | |
+| spike_dart | Leader | |
+| loop_lap | Leader | |
+| tower_stacker | Leader | |
+| new_star | Leader | |
 | gritty_golf (integrasi engine upstream karya zaxx-q; sebutkan sumbernya di Daftar Pustaka) | isi nama | |
 
 ## Bab II - Hasil Implementasi

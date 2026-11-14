@@ -40,6 +40,10 @@ Selain yang tercantum di bawah, tidak ada aset yang disertakan: semua grafis gam
 | Palet warna `1bit-styx` | `games/gritty_golf/gg/palette_colors.h` | Dari Lospec: https://lospec.com/palette-list/1bit-styx |
 
 
+## Game hasil port dari `simple-games` (hanya aturan)
+
+Delapan game (`post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`) mengimplementasikan ulang mekanik permainan yang didokumentasikan di proyek saudara `simple-games` (spesifikasi aturan dan vektor uji). Tidak ada gambar, suara, font, teks, maupun kode dari proyek itu yang disalin: semua grafis digambar dengan bentuk raylib, semua suara disintesis lewat `gfx_make_tone()`, dan teks bantuan ditulis ulang. `simple-games` sendiri menyatakan bahwa ia dibangun dari hasil dekompilasi aplikasi pihak ketiga; apakah mekanik turunan itu boleh dirilis adalah keputusan pemilik repositori ini.
+
 ## Poiret One (font): `assets/fonts/PoiretOne-Regular.ttf`
 Copyright (c) 2011, Denis Masharov. SIL Open Font License 1.1: teks lengkapnya ada di `assets/fonts/OFL.txt` dan harus menyertai font ini di setiap distribusi (paket rilis sudah menyertakan `assets/`).
 

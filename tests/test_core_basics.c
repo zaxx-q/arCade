@@ -4,6 +4,7 @@
 #include "arcade/fx.h"
 #include "arcade/input.h"
 #include "arcade/mathx.h"
+#include "arcade/playfield.h"
 #include "arcade/rng.h"
 #include "arcade/str.h"
 #include "arcade_test.h"
@@ -131,6 +132,21 @@ static void test_cli(void) {
     CHECK(!cli_parse(3, bad4, &o));
 }
 
+static void test_playfield_helpers(void) {
+    CHECK_EQ_INT(ARC_PF_X, 400);
+    CHECK_EQ_INT(ARC_PF_X + ARC_PF_W, 880);
+    CHECK_EQ_INT(ARC_PF_Y + ARC_PF_H, ARC_SCREEN_H);
+    Vec2 local = arc_pf_from_screen(640.0f, 378.0f); /* centre of the playfield */
+    CHECK_NEAR(local.x, ARC_PF_W / 2.0f, 0.001);
+    CHECK_NEAR(local.y, ARC_PF_H / 2.0f, 0.001);
+    Vec2 back = arc_pf_to_screen(local.x, local.y);
+    CHECK_NEAR(back.x, 640.0f, 0.001);
+    CHECK_NEAR(back.y, 378.0f, 0.001);
+    CHECK(arc_pf_contains(vec2(0.0f, 0.0f), ARC_PF_W, ARC_PF_H));
+    CHECK(!arc_pf_contains(vec2(-1.0f, 10.0f), ARC_PF_W, ARC_PF_H));           /* left gutter */
+    CHECK(!arc_pf_contains(vec2((float)ARC_PF_W, 10.0f), ARC_PF_W, ARC_PF_H)); /* right edge is outside */
+}
+
 int main(void) {
     RUN(test_rng_is_deterministic);
     RUN(test_rng_ranges);
@@ -139,5 +155,6 @@ int main(void) {
     RUN(test_monkey_is_reproducible);
     RUN(test_particles_and_shake);
     RUN(test_cli);
+    RUN(test_playfield_helpers);
     return TEST_SUMMARY();
 }
