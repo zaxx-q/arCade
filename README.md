@@ -102,16 +102,6 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <b>Kontrol:</b> Tombol panah untuk memilih, Space untuk menukar.
       </p>
     </td>
-    <td width="50%" align="center">
-      <h3><a href="games/sandbox/GAME.md">Sandbox</a></h3>
-      <a href="games/sandbox/GAME.md">
-        <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
-      </a>
-      <p align="left">
-        Mainan falling-sand dengan interaksi antara pasir, air, dan batu. Menu hub memakai engine simulasi yang sama persis untuk menganimasikan background-nya.<br/>
-        <b>Kontrol:</b> Klik kiri untuk menggambar, klik kanan untuk menghapus, 0 sampai 3 untuk memilih material, Space untuk pause.
-      </p>
-    </td>
   </tr>
   <tr>
     <td width="50%" align="center">
