@@ -36,7 +36,7 @@ Logic-only builds need no raylib: `cmake --preset logic`. To see the game: `cmak
 
 ## Security & safety
 - Only write files under `ctx->data_dir`; read assets from `ctx->assets_dir`.
-- Validate every file you parse (see `bd_beatmap_load`): reject bad input, never crash.
+- Validate every file you parse (see `bd_song_load`): reject bad input, never crash.
 
 ## PR/commit checklist
 - [ ] New/changed rule has a unit test; monkey test still passes

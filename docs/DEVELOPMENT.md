@@ -97,11 +97,11 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Pengecekan                   | Perintah                                                             | Hasil yang diharapkan                          |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
 | Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 25 test)            |
-| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (17 games)`                    |
+| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (18 games)`                     |
 | Cek format                   | `bash tools/format.sh --check`                                       | `format: OK`                                   |
 | Perhitungan versi            | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                          |
 | Tool scaffolding game        | `bash tools/tests/test_new_game.sh`                                  | `new_game test: OK`                            |
-| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 17 game terdaftar                              |
+| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 18 game terdaftar                              |
 | Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 17 baris game berakhir `-> OK`, PNG ter-ekspor |
 
 ### Jalur Continuous Integration (CI)

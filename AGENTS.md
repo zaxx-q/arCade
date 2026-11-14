@@ -22,7 +22,7 @@ arCade: a hub plus a collection of small games in **plain C99** drawn with **ray
 | Headless smoke of every game + PNGs | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | ~1 min |
 | Sanitizers (Linux/macOS) | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan` | ~30s |
 | New game | `cmake -DID=my_game -DTITLE="My Game" -DOWNER="Name" -P tools/new_game.cmake` | ~1s |
-| Convert MIDI songs for Beat Dodge | `bash tools/songs/build_songs.sh` | ~2s |
+| Convert MIDI songs for Beat Dodge and Beat Catch | `bash tools/songs/build_songs.sh` | ~2s |
 | Next version preview | `bash tools/next_version.sh` | ~1s |
 | Script tests | `bash tools/tests/test_next_version.sh && bash tools/tests/test_new_game.sh` | ~30s |
 
@@ -60,7 +60,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 | Deterministic replay | `games/ghost_loop/` | fixed steps, shared `move_actor()` |
 | Turn-based + algorithms | `games/sort_it/` | `core/sortlib`, optimal-play test |
 | Big static state + engine reuse | `games/sandbox/` | `static` state, `core/sandbox` |
-| File parsing with validation | `games/beat_dodge/beat_dodge_logic.c` | `bd_beatmap_load` rejects bad input |
+| File parsing with validation | `games/beat_dodge/beat_dodge_logic.c` | `bd_song_load` rejects bad input |
 | Wrapping a third-party engine | `games/gritty_golf/` | vendored `gg/` + pure adapter, `gg/VENDORED.md` patch list |
 
 ## Utilities (check before creating new)
@@ -130,7 +130,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 |-----------|------|
 | `core/` | [core/AGENTS.md](./core/AGENTS.md) |
 | `games/` | [games/AGENTS.md](./games/AGENTS.md) (the game contract) |
-| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md), [post_it](./games/post_it/AGENTS.md), [master_juggler](./games/master_juggler/AGENTS.md), [bw_reflex](./games/bw_reflex/AGENTS.md), [different_color](./games/different_color/AGENTS.md), [spike_dart](./games/spike_dart/AGENTS.md), [loop_lap](./games/loop_lap/AGENTS.md), [tower_stacker](./games/tower_stacker/AGENTS.md), [new_star](./games/new_star/AGENTS.md) |
+| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_catch](./games/beat_catch/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md), [post_it](./games/post_it/AGENTS.md), [master_juggler](./games/master_juggler/AGENTS.md), [bw_reflex](./games/bw_reflex/AGENTS.md), [different_color](./games/different_color/AGENTS.md), [spike_dart](./games/spike_dart/AGENTS.md), [loop_lap](./games/loop_lap/AGENTS.md), [tower_stacker](./games/tower_stacker/AGENTS.md), [new_star](./games/new_star/AGENTS.md) |
 | `.github/` | [.github/AGENTS.md](./.github/AGENTS.md) |
 
 > **Agents**: when you read or edit files in a listed directory, load its AGENTS.md first.

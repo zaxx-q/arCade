@@ -14,6 +14,7 @@ Tugasnya membutuhkan: source code, video demo, dan laporan (satu PDF). Repositor
 | laser_mirrors | Member 3 | |
 | ghost_loop | Member 4 | |
 | beat_dodge | Member 5 | |
+| beat_catch | Member 5 | |
 | absorb_grow + laporan | Member 6 | |
 | post_it | Leader | |
 | master_juggler | Leader | |
