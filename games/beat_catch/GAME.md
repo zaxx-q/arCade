@@ -1,0 +1,113 @@
+# Beat Catch - design brief
+
+**Owner:** Member 5  **Folder:** `games/beat_catch/`  **Created:** 2026-11-13
+
+> Cara pakai template ini: ganti semua `TODO(Member 5)` dengan isi yang sebenarnya, lalu hapus petunjuk berbentuk kutipan (baris yang diawali `>`). Tulis untuk teman satu tim yang belum pernah membuka kode game ini: kalimat pendek, istilah dijelaskan, dan angka diambil dari kode, bukan dari ingatan. Contoh isi yang sudah lengkap: `games/time_shooter/GAME.md`.
+
+## Hook
+TODO(Member 5): satu atau dua kalimat. Apa satu ide cerdas dari game ini?
+
+## Penjelasan sederhana
+> 2-4 paragraf pendek. Mulai dari apa yang dialami pemain, lalu apa yang dikerjakan komputer di baliknya, lalu kenapa kode dipisah jadi logic dan front-end. Pakai satu perumpamaan sehari-hari kalau membantu. Tutup dengan satu baris "Kalau cuma punya 1 menit: ...".
+
+TODO(Member 5): jelaskan game ini tanpa jargon dulu.
+
+## Kontrol
+WASD / panah: bergerak. TODO: tulis kontrol yang sebenarnya (kontrol ini juga tampil di kartu menu lewat `GameDef.controls`).
+
+## Aturan dan skor
+TODO(Member 5): bagaimana cara menang, kalah, dan mendapat skor? Tulis rumus skor persis seperti di kode.
+
+## Cara kerja per frame
+> Daftar bernomor yang mengikuti SATU frame sesuai urutan di kode: baca input, `beat_catch_step()`, menggambar. Sebut nama fungsi dan field yang sebenarnya.
+
+TODO(Member 5): urutan langkah dalam satu frame.
+
+## Peta file
+| File | Isinya | Edit di sini kalau ... |
+|------|--------|------------------------|
+| `beat_catch_logic.h` | struct `beat_catch_State` dan fungsi publik (`init`, `step`, `is_over`, `score`) | menambah field state atau fungsi publik |
+| `beat_catch_logic.c` | semua aturan game (tanpa raylib) | mengubah aturan atau angka keseimbangan |
+| `beat_catch_game.c` | loop raylib, menggambar, `GameDef` (judul, kontrol di menu, urutan, ranked) | mengubah tampilan atau teks di menu |
+| `tests/test_beat_catch.c` | unit test (hanya logic) | menambah atau mengubah aturan |
+| `CMakeLists.txt` | mendaftarkan game ke build lewat `arcade_add_game(...)` | menambah file `.c` atau test baru |
+| `GAME.md` | dokumen ini | aturan atau kode berubah |
+| `AGENTS.md` | instruksi untuk AI agent (tidak diterjemahkan) | jarang; ikuti aturan di file itu |
+
+## Data penting (struct)
+> Satu tabel per struct. Cantumkan SEMUA field struct state utama: nama, tipe, artinya (satuan, rentang nilai, siapa yang mengisi).
+
+| Field | Tipe | Artinya |
+|-------|------|---------|
+| TODO | TODO | TODO |
+
+## Fungsi-fungsi penting
+| Fungsi | Tugas | Dipanggil dari |
+|--------|-------|----------------|
+| `beat_catch_init` | TODO | TODO |
+| `beat_catch_step` | TODO | TODO |
+
+## Angka yang bisa diutak-atik
+> Hanya konstanta yang benar-benar ada di kode, termasuk angka langsung di dalam fungsi (tulis "angka langsung di dalam fungsi X").
+
+| Konstanta | Nilai sekarang | File | Efek kalau diubah |
+|-----------|----------------|------|-------------------|
+| TODO | TODO | TODO | TODO |
+
+## Cara menjalankan dan menguji
+```bash
+# test logic saja (tanpa raylib, ~1 detik)
+cmake --preset logic && cmake --build --preset logic && ctest --preset logic -R "^beat_catch\."
+
+# main game-nya
+cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade
+
+# smoke run headless: jalankan game 300 frame dan simpan screenshot PNG
+cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke beat_catch --frames 300 --out smoke-out
+```
+
+| Test | Menjaga aturan apa |
+|------|--------------------|
+| TODO | TODO |
+
+## Jebakan dan hal yang perlu diingat
+> 4-8 poin: aturan yang tidak boleh dilanggar, hal yang kelihatan seperti bug tapi memang disengaja, dan "kalau kamu mengubah X, ingat Y".
+
+- TODO(Member 5): tulis invarian game ini (batas nilai, batas array, aturan menang/kalah, apa pun yang harus tetap benar).
+
+## Langkah implementasi (Implementation steps)
+1. TODO(Member 5): kembangkan `beat_catch_State` dan `beat_catch_step()` dengan mekanik yang sebenarnya (hanya di logic).
+2. TODO(Member 5): tulis unit test untuk setiap aturan di `tests/test_beat_catch.c`.
+3. TODO(Member 5): gambar di `beat_catch_game.c` (pakai helper `gfx_*` dan palet neon dari `arcade/gfx.h`).
+4. TODO(Member 5): isi pseudocode, flowchart, dan tabel konsep di bawah.
+
+## Pseudocode (untuk laporan)
+```
+PROSEDUR step(state, input, dt)
+    JIKA game sudah selesai MAKA KEMBALI
+    perbarui dunia game memakai input dan dt
+    cek tabrakan dan perbarui skor
+AKHIR PROSEDUR
+```
+
+## Flowchart (untuk laporan)
+```mermaid
+flowchart TD
+    A([Mulai]) --> B["init state dengan seed"]
+    B --> C{"loop masih jalan?"}
+    C -- tidak --> Z([Kembalikan skor])
+    C -- ya --> D[baca input]
+    D --> E[jalankan step logic]
+    E --> F[gambar frame]
+    F --> G{"game over?"}
+    G -- tidak --> C
+    G -- ya --> Z
+```
+
+## Konsep kuliah yang dipakai (untuk Bab I laporan)
+| Konsep (Pertemuan) | Di mana (file : fungsi) |
+|--------------------|-------------------------|
+| Struct (13) | `beat_catch_logic.h` : `beat_catch_State` |
+| Percabangan (5) | `beat_catch_logic.c` : `beat_catch_step` |
+| Fungsi (11) | `beat_catch_logic.c` : `respawn_pellet` |
+| TODO | TODO |
