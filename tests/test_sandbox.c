@@ -92,6 +92,37 @@ static void test_paint_and_erase(void) {
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_SAND), 0);
 }
 
+static void test_count_in_rectangle(void) {
+    sandbox_init(&g_sb, 10, 10, 1);
+    for (int x = 0; x < 10; x++)
+        sandbox_set(&g_sb, x, 2, EL_SAND);
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 0, 0, 10, 10, EL_SAND), 10); /* whole grid = sandbox_count */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 2, 2, 3, 1, EL_SAND), 3);    /* only the cells inside the box */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 2, 3, 3, 5, EL_SAND), 0);    /* box below the row */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, -5, -5, 8, 8, EL_SAND), 3); /* clipped to the grid: x 0..2, y 0..2 */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 8, 0, 50, 50, EL_SAND), 2); /* clipped on the far side too */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 0, 0, 0, 5, EL_SAND), 0);   /* empty box */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 20, 20, 5, 5, EL_SAND), 0); /* entirely outside */
+}
+
+/* The hub's vault relies on this: water poured on a stone basin ends up inside it and fills it up. */
+static void test_water_fills_a_stone_basin(void) {
+    sandbox_init(&g_sb, 30, 30, 5);
+    for (int y = 20; y < 26; y++) { /* U-shaped basin: interior x 11..18 (8 wide), y 20..24 (5 tall) */
+        sandbox_set(&g_sb, 10, y, EL_STONE);
+        sandbox_set(&g_sb, 19, y, EL_STONE);
+    }
+    for (int x = 10; x < 20; x++)
+        sandbox_set(&g_sb, x, 25, EL_STONE);
+    for (int i = 0; i < 40; i++) { /* a stream of water from above the opening */
+        sandbox_paint(&g_sb, 14, 4, 2, EL_WATER);
+        sandbox_step(&g_sb);
+    }
+    run(200);
+    int inside = sandbox_count_in(&g_sb, 11, 20, 8, 5, EL_WATER);
+    CHECK_EQ_INT(inside, 8 * 5); /* completely full: the surplus ran over the rim and out */
+}
+
 static void test_element_table(void) {
     for (int i = 0; i < EL_COUNT; i++)
         CHECK(sandbox_element((ElementId)i)->name != NULL);
@@ -121,6 +152,8 @@ int main(void) {
     RUN(test_water_spreads_flat);
     RUN(test_sand_sinks_through_water);
     RUN(test_paint_and_erase);
+    RUN(test_count_in_rectangle);
+    RUN(test_water_fills_a_stone_basin);
     RUN(test_element_table);
     RUN(test_deterministic);
     return TEST_SUMMARY();

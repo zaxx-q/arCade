@@ -1,6 +1,6 @@
 # Sort It - design brief
 
-**Owner:** Leader  **Folder:** `games/sort_it/`  **Status:** v1 sudah jalan (3 ronde)
+**Owner:** Leader  **Folder:** `deferred/sort_it/`  **Status:** v1 sudah jalan (3 ronde)
 
 ## Hook
 Kamu adalah algoritma sorting. Urutkan batang-batang itu dengan swap sesedikit mungkin. Layar menunjukkan berapa swap yang dibutuhkan *selection sort* dan *bubble sort* untuk batang yang sama, serta batas minimum secara teori (`par`).

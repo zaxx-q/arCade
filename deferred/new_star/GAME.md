@@ -1,6 +1,6 @@
 # New Star - design brief
 
-**Owner:** Leader  **Folder:** `games/new_star/`  **Created:** 2026-11-12  **Asal mekanik:** `g10_newstar` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/new_star/`  **Created:** 2026-11-12  **Asal mekanik:** `g10_newstar` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Tiap ronde layar menggelap dan satu bintang baru muncul. Ketuk bintang yang baru saja muncul; mengetuk bintang lama mengakhiri permainan.

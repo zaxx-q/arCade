@@ -35,6 +35,8 @@ bool cli_parse(int argc, char **argv, CliOptions *o) {
             o->show_version = true;
         } else if (strcmp(a, "--list") == 0) {
             o->list_games = true;
+        } else if (strcmp(a, "--all") == 0) {
+            o->show_all = true;
         } else if (strcmp(a, "--smoke") == 0) {
             if (!has_value)
                 return fail(o, "missing value for", a);
@@ -72,7 +74,8 @@ const char *cli_usage(void) {
            "\n"
            "Usage: arCade [options]\n"
            "  --version, -v          print the version and exit\n"
-           "  --list                 list the registered games and exit\n"
+           "  --list                 list the games on the hub menu and exit\n"
+           "  --all                  include the deferred games (archive): with --list, or open in the menu\n"
            "  --smoke <id|all>       automated run with scripted input (CI); needs --frames etc.\n"
            "  --frames N             frames per game in a smoke run (default 300)\n"
            "  --seed N               RNG seed for a smoke run (default 1234)\n"

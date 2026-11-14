@@ -1,6 +1,6 @@
 # Ghost Loop - design brief
 
-**Owner:** Member 4  **Folder:** `games/ghost_loop/`  **Status:** placeholder (record/replay dan satu puzzle pintu sudah jalan)
+**Owner:** Member 4  **Folder:** `deferred/ghost_loop/`  **Status:** placeholder (record/replay dan satu puzzle pintu sudah jalan)
 
 ## Hook
 Setiap ronde berlangsung 8 detik dan direkam. Di ronde berikutnya, ronde-ronde sebelumnya diputar ulang sebagai ghost yang bergerak persis seperti yang kamu lakukan. Bekerja samalah dengan dirimu di masa lalu: di ronde 1 kamu berdiri di atas pad; di ronde 2 ghost-mu yang menahan pad, pintu terbuka, dan kamu berjalan ke exit.

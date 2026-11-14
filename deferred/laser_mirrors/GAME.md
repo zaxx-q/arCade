@@ -1,6 +1,6 @@
 # Laser Mirrors - design brief
 
-**Owner:** Member 3  **Folder:** `games/laser_mirrors/`  **Status:** placeholder (baru satu level, penelusuran sinar sudah jalan)
+**Owner:** Member 3  **Folder:** `deferred/laser_mirrors/`  **Status:** placeholder (baru satu level, penelusuran sinar sudah jalan)
 
 ## Hook
 Klik cermin kuning untuk membaliknya antara `/` dan `\` supaya sinar laser memantul ke semua target. Splitter membelah sinar jadi dua arah sekaligus.

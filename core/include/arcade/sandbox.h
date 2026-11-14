@@ -1,4 +1,4 @@
-/* Falling-sand engine (pure C, no raylib). Used by the hub backdrop AND games/sandbox.
+/* Falling-sand engine (pure C, no raylib). Used by the hub backdrop AND deferred/sandbox.
  *
  * To add an element:
  *   1. add an ElementId before EL_COUNT          (this file)
@@ -42,5 +42,8 @@ void sandbox_set(Sandbox *sb, int x, int y, ElementId id);
 void sandbox_paint(Sandbox *sb, int cx, int cy, int radius, ElementId id);
 void sandbox_step(Sandbox *sb); /* advance the simulation one tick */
 int sandbox_count(const Sandbox *sb, ElementId id);
+/* Like sandbox_count, but only inside the w x h rectangle whose top-left cell is (x, y).
+ * The rectangle is clipped to the grid. Used by the hub's vault to measure how full it is. */
+int sandbox_count_in(const Sandbox *sb, int x, int y, int w, int h, ElementId id);
 
 #endif

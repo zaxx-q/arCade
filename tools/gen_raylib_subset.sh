@@ -11,7 +11,7 @@ OUT=docs/raylib_subset.md
 VERSION="$(grep -m1 '#define RAYLIB_VERSION ' "$HEADER" | sed 's/.*"\(.*\)".*/\1/')"
 
 # functions our own code already calls + a curated list that is handy for new 2D games
-used="$(grep -rhoE '\b[A-Z][A-Za-z0-9]+\(' app core/gfx games/*/*_game.c 2>/dev/null | tr -d '(' | sort -u)"
+used="$(grep -rhoE '\b[A-Z][A-Za-z0-9]+\(' app core/gfx games/*/*_game.c deferred/*/*_game.c 2>/dev/null | tr -d '(' | sort -u)"
 extra="DrawText DrawTextEx MeasureText DrawLine DrawLineV DrawLineEx DrawLineBezier DrawCircle DrawCircleV DrawCircleLines DrawCircleSector DrawEllipse DrawRing DrawRectangle DrawRectangleV DrawRectangleRec DrawRectangleLines DrawRectangleLinesEx DrawRectangleRounded DrawRectangleGradientV DrawTriangle DrawTriangleLines DrawPoly DrawPolyLines CheckCollisionRecs CheckCollisionCircles CheckCollisionCircleRec CheckCollisionPointRec CheckCollisionPointCircle GetRandomValue IsKeyPressed IsKeyDown IsKeyReleased IsMouseButtonPressed IsMouseButtonDown GetMousePosition GetMouseDelta GetMouseWheelMove GetCharPressed GetKeyPressed Fade ColorAlpha ColorLerp GetColor TextFormat LoadSound PlaySound StopSound SetSoundVolume LoadMusicStream UpdateMusicStream PlayMusicStream LoadTexture DrawTexture DrawTexturePro FileExists DirectoryExists LoadFileText SaveFileText"
 
 {
@@ -37,7 +37,7 @@ extra="DrawText DrawTextEx MeasureText DrawLine DrawLineV DrawLineEx DrawLineBez
   echo
   echo "## Constants used by this project"
   echo '```c'
-  for c in $(grep -rhoE '\b(KEY_[A-Z0-9_]+|MOUSE_BUTTON_[A-Z_]+|FLAG_[A-Z0-9_]+|LOG_[A-Z]+|TEXTURE_FILTER_[A-Z_]+|BLEND_[A-Z_]+)\b' app core/gfx games/*/*_game.c 2>/dev/null | sort -u); do
+  for c in $(grep -rhoE '\b(KEY_[A-Z0-9_]+|MOUSE_BUTTON_[A-Z_]+|FLAG_[A-Z0-9_]+|LOG_[A-Z]+|TEXTURE_FILTER_[A-Z_]+|BLEND_[A-Z_]+)\b' app core/gfx games/*/*_game.c deferred/*/*_game.c 2>/dev/null | sort -u); do
     grep -E "^[[:space:]]+${c}[[:space:]]*=" "$HEADER" | head -n 1 | sed 's/^[[:space:]]*//; s/[[:space:]]\{2,\}/  /g' | cut -c1-120 || true
   done
   echo '```'

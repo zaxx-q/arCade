@@ -1,6 +1,6 @@
 # Tower Stacker - design brief
 
-**Owner:** Leader  **Folder:** `games/tower_stacker/`  **Created:** 2026-11-12  **Asal mekanik:** `g08_stack2d` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/tower_stacker/`  **Created:** 2026-11-12  **Asal mekanik:** `g08_stack2d` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Satu batang bergeser kiri-kanan di atas menara. Jatuhkan tepat waktu: yang menjorok dipotong, jadi menara makin sempit. Landasan sempurna menjaga lebar penuh.

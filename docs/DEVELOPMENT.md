@@ -96,13 +96,13 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
 | Pengecekan                   | Perintah                                                             | Hasil yang diharapkan                          |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
-| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 25 test)            |
+| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 27 test)            |
 | Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (18 games)`                     |
 | Cek format                   | `bash tools/format.sh --check`                                       | `format: OK`                                   |
 | Perhitungan versi            | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                          |
 | Tool scaffolding game        | `bash tools/tests/test_new_game.sh`                                  | `new_game test: OK`                            |
-| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 18 game terdaftar                              |
-| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 17 baris game berakhir `-> OK`, PNG ter-ekspor |
+| Registry game di hub         | `build/dev/bin/arCade --list` dan `--list --all`                     | 5 game di menu; 18 dengan `--all` (13 deferred) |
+| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 18 baris game berakhir `-> OK`, preview hub dan `hub_vault` OK, PNG ter-ekspor |
 
 ### Jalur Continuous Integration (CI)
 
@@ -135,28 +135,28 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
 | Game (`id`)   | Folder                 | Pemilik                    | Status                                                                     |
 | ------------- | ---------------------- | -------------------------- | -------------------------------------------------------------------------- |
-| Time Shooter  | `games/time_shooter/`  | Member 1                   | Mekanik inti jalan (slow-motion, wave, shake)                              |
-| Echo Maze     | `games/echo_maze/`     | Member 2                   | Mekanik inti jalan (generator rekursif, pulse sonar, line of sight)        |
-| Laser Mirrors | `games/laser_mirrors/` | Member 3                   | Mekanik inti jalan (level contoh, pelacakan sinar rekursif)                |
-| Ghost Loop    | `games/ghost_loop/`    | Member 4                   | Mekanik inti jalan (record/replay, saklar lantai, logic pintu)             |
+| Time Shooter  | `deferred/time_shooter/`  | Member 1                   | Mekanik inti jalan (slow-motion, wave, shake)                              |
+| Echo Maze     | `deferred/echo_maze/`     | Member 2                   | Mekanik inti jalan (generator rekursif, pulse sonar, line of sight)        |
+| Laser Mirrors | `deferred/laser_mirrors/` | Member 3                   | Mekanik inti jalan (level contoh, pelacakan sinar rekursif)                |
+| Ghost Loop    | `deferred/ghost_loop/`    | Member 4                   | Mekanik inti jalan (record/replay, saklar lantai, logic pintu)             |
 | Beat Dodge & Catch | `games/beat_dodge/` | Member 5                | Jalan (dua mode, Dodge dan Catch, dipilih di layar pilih lagu; lagu dari MIDI, ribbon, close call, combo, health, musik sintesis, 3 kesulitan) |
-| Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
-| Sort It       | `games/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
-| Sandbox       | `games/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
-| Post It       | `games/post_it/`       | Leader                     | Jalan (miring dunia lewat mouse, gugusan post-it, virus, jeda)             |
-| Master Juggler | `games/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa)                                    |
-| BW Reflex     | `games/bw_reflex/`     | Leader                     | Jalan (balik warna dasar, kecepatan naik tiap cocok)                       |
+| Absorb & Grow | `deferred/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
+| Sort It       | `deferred/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
+| Sandbox       | `deferred/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
+| Post It       | `deferred/post_it/`       | Leader                     | Jalan (miring dunia lewat mouse, gulusan post-it, virus, jeda)             |
+| Master Juggler | `deferred/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa)                                    |
+| BW Reflex     | `deferred/bw_reflex/`     | Leader                     | Jalan (balik warna dasar, kecepatan naik tiap cocok)                       |
 | A Different Color | `games/different_color/` | Leader                     | Jalan (dua papan warna acak, timer 30 detik)                               |
-| Spike Dart    | `games/spike_dart/`    | Leader                     | Jalan (lempar paku, orbit, jalur lempar, batas 64)                         |
+| Spike Dart    | `deferred/spike_dart/`    | Leader                     | Jalan (lempar paku, orbit, jalur lempar, batas 64)                         |
 | Loop Lap      | `games/loop_lap/`      | Leader                     | Jalan (rem/biasa/gas, musuh bergabung per lap)                             |
-| Tower Stacker | `games/tower_stacker/` | Leader                     | Jalan (langkah 5 px, potong, scroll, zoom akhir)                           |
-| New Star      | `games/new_star/`      | Leader                     | Jalan (layar gelap, bintang baru, batas waktu dari bintang ke-10)          |
+| Tower Stacker | `deferred/tower_stacker/` | Leader                     | Jalan (langkah 5 px, potong, scroll, zoom akhir)                           |
+| New Star      | `deferred/new_star/`      | Leader                     | Jalan (layar gelap, bintang baru, batas waktu dari bintang ke-10)          |
 | Gritty Golf   | `games/gritty_golf/`   | zaxx-q (upstream), integrasi ke arCade | Jalan (25 level, progres tersimpan; engine disalin ke `gg/`, lihat `gg/VENDORED.md`) |
 
 Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:
 
-1. Baca `games/<id>/GAME.md` -> "Langkah implementasi (Implementation steps)". Bagian "Prioritas dari diskusi tim" di dalamnya berisi daftar pekerjaan yang sudah dibahas.
-2. Cari `TODO(<owner>)`: `grep -rn "TODO(" games core app`.
+1. Baca `games/<id>/GAME.md` (atau `deferred/<id>/GAME.md` untuk game yang ditunda; strukturnya sama) -> "Langkah implementasi (Implementation steps)". Bagian "Prioritas dari diskusi tim" di dalamnya berisi daftar pekerjaan yang sudah dibahas.
+2. Cari `TODO(<owner>)`: `grep -rn "TODO(" games deferred core app`.
 3. Ikuti aturan test-driven: tulis dulu unit test di `games/<id>/tests/`, implementasikan logic murninya di `games/<id>/<id>_logic.c`, baru perbarui tampilannya di `games/<id>/<id>_game.c`.
 4. Jaga `GAME.md` (pseudocode, flowchart, tabel konsep kuliah) tetap sinkron dengan implementasinya.
 

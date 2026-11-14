@@ -43,7 +43,8 @@ arCade: a hub plus a collection of small games in **plain C99** drawn with **ray
 core/include/arcade/  pure-C headers (game.h = contract, input.h, rng.h, mathx.h, leaderboard.h, sandbox.h, ...); gfx.h = raylib helpers
 core/src/             pure-C implementations (unit-tested)      core/gfx/  raylib helpers (window, loop, drawing)
 app/                  hub: main.c (CLI + state machine), screens.c (menu, leaderboard), backdrop.c, smoke.c
-games/<id>/           one game: <id>_logic.[ch] (pure) + <id>_game.c (raylib) + tests/ + GAME.md + AGENTS.md
+games/<id>/           one game ON THE HUB MENU: <id>_logic.[ch] (pure) + <id>_game.c (raylib) + tests/ + GAME.md + AGENTS.md
+deferred/<id>/        same layout, but kept off the menu: still built, tested and smoke-tested; unlocked in the hub by the vault (docs/DEFERRED.md)
 games/_template/      source of `tools/new_game.cmake` (placeholders @ID@ @TITLE@ @OWNER@; never compiled directly)
 cmake/                helpers: arcade_add_game(), registry generator, raylib fetch, warnings, MinGW toolchain
 tools/                new_game.cmake, next_version.sh, check_repo.sh, format.sh, gen_raylib_subset.sh, tests/
@@ -56,10 +57,10 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 | For | Reference | Key patterns |
 |-----|-----------|--------------|
 | New game from scratch | `games/_template/` | logic/front-end split, REQUIRED loop calls, tests |
-| Recursion + generator tests | `games/echo_maze/` | `carve()`, "every seed is solvable" test |
-| Deterministic replay | `games/ghost_loop/` | fixed steps, shared `move_actor()` |
-| Turn-based + algorithms | `games/sort_it/` | `core/sortlib`, optimal-play test |
-| Big static state + engine reuse | `games/sandbox/` | `static` state, `core/sandbox` |
+| Recursion + generator tests | `deferred/echo_maze/` | `carve()`, "every seed is solvable" test |
+| Deterministic replay | `deferred/ghost_loop/` | fixed steps, shared `move_actor()` |
+| Turn-based + algorithms | `deferred/sort_it/` | `core/sortlib`, optimal-play test |
+| Big static state + engine reuse | `deferred/sandbox/` | `static` state, `core/sandbox` |
 | File parsing with validation | `games/beat_dodge/beat_dodge_logic.c` | `bd_song_load` rejects bad input |
 | Wrapping a third-party engine | `games/gritty_golf/` | vendored `gg/` + pure adapter, `gg/VENDORED.md` patch list |
 
@@ -90,7 +91,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 ## Key Decisions
 - Strict `-std=c99 -Wall -Wextra -Wpedantic -Werror`; no VLAs, no `conio.h`, no `system()`, no C++.
 - Game logic never includes raylib (`ARCADE_LOGIC_ONLY` preset proves it) so it is unit-tested and smoke-tested headless.
-- Games are discovered automatically from `games/<id>/` (no shared file to edit).
+- Games are discovered automatically from `games/<id>/` and `deferred/<id>/` (no shared file to edit). Which folder a game sits in decides whether the hub menu lists it; moving the folder is the only change needed (ids, scores and CI stay the same). See `docs/DEFERRED.md`.
 - Versions: git tags + Conventional Commits (`tools/next_version.sh`); workflows never commit.
 
 ## Boundaries
@@ -113,7 +114,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 - Commit `build/`, `scores.txt`, secrets; push directly to `main`; edit generated files (`build/**/generated`, `docs/raylib_subset.md`)
 
 ## Codebase State
-- 17 games run and are unit-tested. Eight are **placeholders** with their core mechanic working (remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games core app`); `gritty_golf` is a complete vendored game (25 levels) wrapped by an adapter; eight more (`post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`) are complete ports of rules from the sibling project `simple-games` (menu order 100..170, portrait playfield, see `THIRD_PARTY_NOTICES.md`).
+- 18 games run and are unit-tested: 5 on the hub menu (`games/`: `beat_catch`, `beat_dodge`, `different_color`, `gritty_golf`, `loop_lap`) and 13 in `deferred/` (reachable through the hub vault or `arCade --all`). `gritty_golf` is a complete vendored game (25 levels) wrapped by an adapter; `different_color`, `loop_lap` and most of `deferred/` are complete ports of rules from the sibling project `simple-games` (see `THIRD_PARTY_NOTICES.md`); the rest are **placeholders** with their core mechanic working (remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games deferred core app`).
 - Not verified locally: Windows MSVC build and native Windows runs (CI job `windows-msvc` is non-blocking until green once).
 
 ## Terminology
@@ -130,7 +131,8 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 |-----------|------|
 | `core/` | [core/AGENTS.md](./core/AGENTS.md) |
 | `games/` | [games/AGENTS.md](./games/AGENTS.md) (the game contract) |
-| `games/<id>/` | [absorb_grow](./games/absorb_grow/AGENTS.md), [beat_dodge](./games/beat_dodge/AGENTS.md), [echo_maze](./games/echo_maze/AGENTS.md), [ghost_loop](./games/ghost_loop/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [laser_mirrors](./games/laser_mirrors/AGENTS.md), [sandbox](./games/sandbox/AGENTS.md), [sort_it](./games/sort_it/AGENTS.md), [time_shooter](./games/time_shooter/AGENTS.md), [post_it](./games/post_it/AGENTS.md), [master_juggler](./games/master_juggler/AGENTS.md), [bw_reflex](./games/bw_reflex/AGENTS.md), [different_color](./games/different_color/AGENTS.md), [spike_dart](./games/spike_dart/AGENTS.md), [loop_lap](./games/loop_lap/AGENTS.md), [tower_stacker](./games/tower_stacker/AGENTS.md), [new_star](./games/new_star/AGENTS.md) |
+| `games/<id>/` | [beat_dodge](./games/beat_dodge/AGENTS.md), [different_color](./games/different_color/AGENTS.md), [gritty_golf](./games/gritty_golf/AGENTS.md), [loop_lap](./games/loop_lap/AGENTS.md) |
+| `deferred/<id>/` | same contract as `games/`; [absorb_grow](./deferred/absorb_grow/AGENTS.md), [bw_reflex](./deferred/bw_reflex/AGENTS.md), [echo_maze](./deferred/echo_maze/AGENTS.md), [ghost_loop](./deferred/ghost_loop/AGENTS.md), [laser_mirrors](./deferred/laser_mirrors/AGENTS.md), [master_juggler](./deferred/master_juggler/AGENTS.md), [new_star](./deferred/new_star/AGENTS.md), [post_it](./deferred/post_it/AGENTS.md), [sandbox](./deferred/sandbox/AGENTS.md), [sort_it](./deferred/sort_it/AGENTS.md), [spike_dart](./deferred/spike_dart/AGENTS.md), [time_shooter](./deferred/time_shooter/AGENTS.md), [tower_stacker](./deferred/tower_stacker/AGENTS.md) |
 | `.github/` | [.github/AGENTS.md](./.github/AGENTS.md) |
 
 > **Agents**: when you read or edit files in a listed directory, load its AGENTS.md first.

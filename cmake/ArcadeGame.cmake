@@ -43,5 +43,30 @@ function(arcade_add_game)
     arcade_apply_warnings(game_${AG_ID})
   endif()
 
+  # The folder decides whether the hub lists the game: games/<id> = shown on the menu, deferred/<id> =
+  # built, unit-tested and smoke-tested like any other game, but only reachable through the hub's archive.
+  get_filename_component(_group_dir "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
+  get_filename_component(_group "${_group_dir}" NAME)
+  if(_group STREQUAL "deferred")
+    set_property(GLOBAL APPEND PROPERTY ARCADE_DEFERRED_IDS ${AG_ID})
+  else()
+    set_property(GLOBAL APPEND PROPERTY ARCADE_LISTED_IDS ${AG_ID})
+  endif()
   set_property(GLOBAL APPEND PROPERTY ARCADE_GAME_IDS ${AG_ID})
+endfunction()
+
+# arcade_discover_games()
+#
+#   Call it from games/CMakeLists.txt and deferred/CMakeLists.txt. Every sub-folder that contains a
+#   CMakeLists.txt is a game; folders starting with "_" or "." (e.g. _template) are ignored.
+function(arcade_discover_games)
+  file(GLOB _entries CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/*")
+  list(SORT _entries)
+  foreach(_e IN LISTS _entries)
+    if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${_e}"
+       AND NOT _e MATCHES "^[_.]"
+       AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_e}/CMakeLists.txt")
+      add_subdirectory("${_e}")
+    endif()
+  endforeach()
 endfunction()

@@ -8,21 +8,51 @@
 #include "arcade/str.h"
 #include "arcade/version.h"
 
-/* Menu order: lower GameDef.order first, ties broken by id (insertion sort on the pointer array). */
-void app_sort_games(AppState *app) {
-    app->game_count = 0;
-    for (int i = 0; i < g_arcade_game_count && i < (int)ARC_ARRAY_LEN(app->games); i++)
-        app->games[app->game_count++] = g_arcade_games[i];
-    for (int i = 1; i < app->game_count; i++) {
-        const GameDef *key = app->games[i];
+/* Menu order: lower GameDef.order first, ties broken by id (insertion sort on a pointer array).
+ * Copies the (up to `cap`) games of `src` into `dst` sorted that way and returns how many. */
+static int sort_games(const GameDef *const *src, int n, const GameDef **dst, int cap) {
+    int count = 0;
+    for (int i = 0; i < n && count < cap; i++)
+        dst[count++] = src[i];
+    for (int i = 1; i < count; i++) {
+        const GameDef *key = dst[i];
         int j = i - 1;
-        while (j >= 0 && (app->games[j]->order > key->order ||
-                          (app->games[j]->order == key->order && strcmp(app->games[j]->id, key->id) > 0))) {
-            app->games[j + 1] = app->games[j];
+        while (j >= 0 && (dst[j]->order > key->order ||
+                          (dst[j]->order == key->order && strcmp(dst[j]->id, key->id) > 0))) {
+            dst[j + 1] = dst[j];
             j--;
         }
-        app->games[j + 1] = key;
+        dst[j + 1] = key;
     }
+    return count;
+}
+
+/* The menu starts with only the games from games/; the ones from deferred/ wait in app->deferred. */
+void app_sort_games(AppState *app) {
+    app->game_count =
+        sort_games(g_arcade_games, g_arcade_game_count, app->games, (int)ARC_ARRAY_LEN(app->games));
+    app->listed_count = app->game_count;
+    app->deferred_count = sort_games(g_arcade_deferred, g_arcade_deferred_count, app->deferred,
+                                     (int)ARC_ARRAY_LEN(app->deferred));
+    app->archive_open = false;
+}
+
+/* Unlocks the archive: the deferred games join the end of the menu (and of the leaderboard tabs). */
+void app_open_archive(AppState *app) {
+    if (app->archive_open)
+        return;
+    for (int i = 0; i < app->deferred_count && app->game_count < (int)ARC_ARRAY_LEN(app->games); i++)
+        app->games[app->game_count++] = app->deferred[i];
+    app->archive_open = true;
+}
+
+int app_all_games(const AppState *app, const GameDef **out, int cap) {
+    int n = 0;
+    for (int i = 0; i < app->listed_count && n < cap; i++)
+        out[n++] = app->games[i];
+    for (int i = 0; i < app->deferred_count && n < cap; i++)
+        out[n++] = app->deferred[i];
+    return n;
 }
 
 static void resolve_dirs(const CliOptions *opt, char *data_dir, size_t dn, char *assets_dir, size_t an) {
@@ -45,14 +75,25 @@ static void resolve_dirs(const CliOptions *opt, char *data_dir, size_t dn, char 
     }
 }
 
-static int list_games(void) {
+/* --list shows the games on the hub menu; --all adds the deferred ones, marked as such. */
+static int list_games(bool include_deferred) {
     static AppState app;
     app_sort_games(&app);
-    for (int i = 0; i < app.game_count; i++) {
+    for (int i = 0; i < app.listed_count; i++) {
         const GameDef *g = app.games[i];
         printf("%-14s %-22s %-8s %s\n", g->id, g->title, g->ranked ? "ranked" : "unranked", g->tagline);
     }
-    printf("%d game(s)\n", app.game_count);
+    if (include_deferred)
+        for (int i = 0; i < app.deferred_count; i++) {
+            const GameDef *g = app.deferred[i];
+            printf("%-14s %-22s %-8s %s  [deferred]\n", g->id, g->title, g->ranked ? "ranked" : "unranked",
+                   g->tagline);
+        }
+    if (include_deferred)
+        printf("%d game(s), %d of them deferred\n", app.listed_count + app.deferred_count,
+               app.deferred_count);
+    else
+        printf("%d game(s)\n", app.listed_count);
     return 0;
 }
 
@@ -71,7 +112,7 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (opt.list_games)
-        return list_games();
+        return list_games(opt.show_all);
 
     static AppState app; /* static: contains the 28 KB leaderboard */
     memset(&app, 0, sizeof(app));
@@ -94,6 +135,10 @@ int main(int argc, char **argv) {
         return 1;
     }
     backdrop_init((unsigned)time(NULL));
+    if (opt.show_all) { /* --all: the archive is open from the start, no need to fill the vault */
+        app_open_archive(&app);
+        backdrop_vault_open_now();
+    }
 
     Screen s = SCR_NAME;
     while (s != SCR_QUIT && !arcade_quit_requested()) {

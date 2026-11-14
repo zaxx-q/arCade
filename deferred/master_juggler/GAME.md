@@ -1,6 +1,6 @@
 # Master Juggler - design brief
 
-**Owner:** Leader  **Folder:** `games/master_juggler/`  **Created:** 2026-11-12  **Asal mekanik:** `g02_masterjuggler` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/master_juggler/`  **Created:** 2026-11-12  **Asal mekanik:** `g02_masterjuggler` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Gerakkan trampolin dengan mouse dan pantulkan semua bola berkali-kali sampai berubah warna; makin tinggi level, makin banyak bola.

@@ -1,6 +1,6 @@
 # Time Shooter - design brief
 
-**Owner:** Member 1  **Folder:** `games/time_shooter/`  **Status:** placeholder (mekanik utama sudah jalan)
+**Owner:** Member 1  **Folder:** `deferred/time_shooter/`  **Status:** placeholder (mekanik utama sudah jalan)
 
 ## Hook
 Gaya Superhot: **waktu hanya bergerak saat kamu bergerak** (atau baru saja menembak). Kalau diam, musuh dan peluru membeku, jadi setiap langkah adalah sebuah keputusan.

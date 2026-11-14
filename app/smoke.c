@@ -6,7 +6,7 @@
 #include "app.h"
 #include "arcade/gfx.h"
 
-/* Renders each hub screen (name, menu, result, leaderboard) with sample data, so CI and the README
+/* Renders each hub screen (name, menu, archive, result, leaderboard) with sample data, so CI and the README
  * screenshots cover the hub UI too. Returns the number of failed screenshots. */
 static int run_hub_previews(const CliOptions *opt, AppState *app, const char *data_dir,
                             const char *assets_dir, int *ran) {
@@ -22,10 +22,21 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
     app->last_rank = 1;
 
     backdrop_init(opt->seed);
+    for (int i = 0; i < 900; i++) /* 15 s of sand and water, so the screenshots show a settled scene */
+        backdrop_update(false, false, 0, 0);
     int failed = 0;
     for (int which = 0; which < PREVIEW_COUNT; which++) {
         if (which == PREVIEW_RESULT && app->last_game == NULL)
             continue;
+        if (which == PREVIEW_ARCHIVE) { /* from here on the vault is open, as if the player had filled it */
+            app_open_archive(app);
+            backdrop_vault_open_now();
+            app->archive_toast = 3.0f;
+        }
+        if (which == PREVIEW_ARCHIVE_END)
+            app->selected = app->game_count - 1;
+        if (which == PREVIEW_RESULT)
+            app->selected = 1 < app->game_count ? 1 : 0;
         char shot[600];
         snprintf(shot, sizeof(shot), "%s/%s.png", opt->out_dir, screens_preview_name(which));
         GameContext ctx;
@@ -57,6 +68,31 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
     return failed;
 }
 
+/* End-to-end check of the archive unlock, with the real scene: (1) nobody touches the hub for a long time and
+ * the vault must stay closed (the ambient sand and water never fill it by accident); (2) a player holding the
+ * right mouse button over the vault opens it within a few seconds. Returns 1 if a check failed. */
+static int run_vault_check(const CliOptions *opt, int *ran) {
+    backdrop_init(opt->seed);
+    for (int i = 0; i < 6000; i++) /* 100 seconds of an idle hub */
+        backdrop_update(false, false, 0, 0);
+    bool idle_ok = !backdrop_vault_is_open() && backdrop_vault_progress() < 0.2f;
+
+    int mx = 0, my = 0;
+    backdrop_vault_mouth(&mx, &my);
+    int frames = 0;
+    while (frames < 600 && !backdrop_vault_is_open()) {
+        backdrop_update(false, true, mx, my); /* right mouse button held above the vault */
+        frames++;
+    }
+    bool pour_ok = backdrop_vault_is_open();
+    backdrop_shutdown();
+    printf("SMOKE %-14s idle 6000 frames stays closed=%s, pouring opens it after %d frames=%s -> %s\n",
+           "hub_vault", idle_ok ? "yes" : "NO", frames, pour_ok ? "yes" : "NO",
+           idle_ok && pour_ok ? "OK" : "FAIL");
+    (*ran)++;
+    return idle_ok && pour_ok ? 0 : 1;
+}
+
 int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_dir) {
     arcade_gfx_init(true, assets_dir);
     if (!IsWindowReady()) {
@@ -70,9 +106,14 @@ int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_di
     app = &storage;
     app_sort_games(app);
 
+    /* every game is smoke-tested, the ones parked in deferred/ included: deferring hides a game, not its bugs
+     */
+    const GameDef *all[128];
+    int all_count = app_all_games(app, all, (int)ARC_ARRAY_LEN(all));
+
     int ran = 0, failed = 0;
-    for (int i = 0; i < app->game_count; i++) {
-        const GameDef *g = app->games[i];
+    for (int i = 0; i < all_count; i++) {
+        const GameDef *g = all[i];
         if (strcmp(opt->smoke_target, "all") != 0 && strcmp(opt->smoke_target, g->id) != 0)
             continue;
 
@@ -97,7 +138,7 @@ int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_di
         ran++;
     }
     if (strcmp(opt->smoke_target, "all") == 0 || strcmp(opt->smoke_target, "hub") == 0)
-        failed += run_hub_previews(opt, app, data_dir, assets_dir, &ran);
+        failed += run_hub_previews(opt, app, data_dir, assets_dir, &ran) + run_vault_check(opt, &ran);
     arcade_gfx_shutdown();
     if (ran == 0) {
         fprintf(stderr, "smoke: no registered game matches '%s' (try --list)\n", opt->smoke_target);

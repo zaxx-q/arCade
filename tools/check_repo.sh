@@ -9,40 +9,47 @@ err() { echo "ERROR: $*"; errors=$((errors + 1)); }
 code_lines() { sed -e 's://.*$::' -e 's:/\*.*\*/::g' "$1" | grep -nvE '^[[:space:]]*(\*|/\*)' || true; }
 
 # ---- 1. every game folder follows the contract -------------------------------------------------
+# games/<id> are listed on the hub menu, deferred/<id> are parked: both follow the same contract.
 games=0
-for dir in games/*/; do
+for dir in games/*/ deferred/*/; do
+  [ -d "$dir" ] || continue
   id="$(basename "$dir")"
+  path="${dir%/}"
   case "$id" in _*) continue ;; esac
   games=$((games + 1))
   for f in CMakeLists.txt AGENTS.md GAME.md "${id}_logic.c" "${id}_logic.h" "${id}_game.c"; do
-    [ -f "${dir}${f}" ] || err "games/$id: missing $f"
+    [ -f "${dir}${f}" ] || err "$path: missing $f"
   done
-  ls "${dir}"tests/*.c >/dev/null 2>&1 || err "games/$id: needs at least one tests/*.c"
+  ls "${dir}"tests/*.c >/dev/null 2>&1 || err "$path: needs at least one tests/*.c"
   if [ -f "${dir}${id}_game.c" ]; then
-    grep -q "game_${id}_def" "${dir}${id}_game.c" || err "games/$id/${id}_game.c must define 'const GameDef game_${id}_def'"
-    grep -q "arcade_loop_begin(" "${dir}${id}_game.c" || err "games/$id/${id}_game.c must call arcade_loop_begin(ctx)"
-    grep -q "arcade_frame_end(" "${dir}${id}_game.c" || err "games/$id/${id}_game.c must end frames with arcade_frame_end()"
-    grep -qE "BeginDrawing\(\)" "${dir}${id}_game.c" || err "games/$id/${id}_game.c never calls BeginDrawing()"
+    grep -q "game_${id}_def" "${dir}${id}_game.c" || err "$path/${id}_game.c must define 'const GameDef game_${id}_def'"
+    grep -q "arcade_loop_begin(" "${dir}${id}_game.c" || err "$path/${id}_game.c must call arcade_loop_begin(ctx)"
+    grep -q "arcade_frame_end(" "${dir}${id}_game.c" || err "$path/${id}_game.c must end frames with arcade_frame_end()"
+    grep -qE "BeginDrawing\(\)" "${dir}${id}_game.c" || err "$path/${id}_game.c never calls BeginDrawing()"
     if code_lines "${dir}${id}_game.c" | grep -E '\bEndDrawing\(' >/dev/null; then
-      err "games/$id/${id}_game.c calls EndDrawing(): use arcade_frame_end() instead"
+      err "$path/${id}_game.c calls EndDrawing(): use arcade_frame_end() instead"
     fi
   fi
   if [ -f "${dir}CMakeLists.txt" ]; then
-    grep -qE "ID +${id}( |$)" "${dir}CMakeLists.txt" || err "games/$id/CMakeLists.txt: arcade_add_game(ID ${id} ...) must match the folder name"
+    grep -qE "ID +${id}( |$)" "${dir}CMakeLists.txt" || err "$path/CMakeLists.txt: arcade_add_game(ID ${id} ...) must match the folder name"
   fi
 done
-[ "$games" -gt 0 ] || err "no games found in games/"
+# the same id in both folders would collide in CMake: fail with a readable message instead
+for dir in deferred/*/; do
+  [ -d "games/$(basename "$dir")" ] && err "$(basename "$dir") exists in both games/ and deferred/: keep one"
+done
+[ "$games" -gt 0 ] || err "no games found in games/ or deferred/"
 [ -d games/_template ] || err "games/_template is missing (needed by tools/new_game.cmake)"
 
 # ---- 2. pure code must not touch raylib or the OS -----------------------------------------------
-mapfile -t pure < <(find core/src core/include games tests -type f \( -name '*.c' -o -name '*.h' \) \
+mapfile -t pure < <(find core/src core/include games deferred tests -type f \( -name '*.c' -o -name '*.h' \) \
   ! -path 'games/_template/*' ! -name '*_game.c' ! -name 'gfx.h' | sort)
 for f in "${pure[@]}"; do
   if grep -nE '#[[:space:]]*include[[:space:]]*[<"](raylib|rlgl|raymath|arcade/gfx)\.h[>"]' "$f" >/dev/null; then
     err "$f: pure code must not include raylib/gfx (only *_game.c, core/gfx and app may)"
   fi
 done
-mapfile -t logic < <(find games -type f -name '*_logic.[ch]' ! -path 'games/_template/*' | sort)
+mapfile -t logic < <(find games deferred -type f -name '*_logic.[ch]' ! -path 'games/_template/*' | sort)
 for f in "${logic[@]}"; do
   if code_lines "$f" | grep -E '\b(rand|srand|time|clock)[[:space:]]*\(' >/dev/null; then
     err "$f: game logic must be deterministic: use arcade/rng.h instead of rand()/time()"
@@ -50,7 +57,7 @@ for f in "${logic[@]}"; do
 done
 
 # ---- 3. portability: things that only exist on one OS -------------------------------------------
-mapfile -t all < <(find core app games tests tools -type f \( -name '*.c' -o -name '*.h' \) ! -path 'games/_template/*' | sort)
+mapfile -t all < <(find core app games deferred tests tools -type f \( -name '*.c' -o -name '*.h' \) ! -path 'games/_template/*' | sort)
 for f in "${all[@]}"; do
   if grep -nE '#[[:space:]]*include[[:space:]]*[<"](conio|windows|unistd|sys/[a-z_]+|dirent|pthread|curses|ncurses)\.h[>"]' "$f" >/dev/null; then
     err "$f: platform-specific header (conio.h, windows.h, unistd.h, sys/*, ...). Use standard C or raylib"
@@ -65,7 +72,7 @@ for f in "${all[@]}"; do
     err "$f: C++ code found. This project is plain C99"
   fi
 done
-if find core app games tests -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.hpp' -o -name '*.cxx' \) | grep -q .; then
+if find core app games deferred tests -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.hpp' -o -name '*.cxx' \) | grep -q .; then
   err "C++ files found: this project is plain C99"
 fi
 

@@ -47,4 +47,4 @@ Pixel mini-golf: 25 hand-made courses, three strikes per attempt, freeze the bal
 - Bad: calling `Game_Tick()` or `Save_Write()` directly from `gritty_golf_game.c`, or editing a physics constant inside `gg/`
 
 ## When stuck
-Read `GAME.md` (Implementation steps) and `gg/VENDORED.md`, copy a pattern from the nearest Golden Sample in the root `AGENTS.md` (`games/sandbox/` for engine reuse and big static state), run the monkey test to find crashes.
+Read `GAME.md` (Implementation steps) and `gg/VENDORED.md`, copy a pattern from the nearest Golden Sample in the root `AGENTS.md` (`deferred/sandbox/` for engine reuse and big static state), run the monkey test to find crashes.

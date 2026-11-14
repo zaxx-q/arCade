@@ -67,6 +67,17 @@ int sandbox_count(const Sandbox *sb, ElementId id) {
     return n;
 }
 
+int sandbox_count_in(const Sandbox *sb, int x, int y, int w, int h, ElementId id) {
+    int x0 = arc_maxi(x, 0), y0 = arc_maxi(y, 0);
+    int x1 = arc_mini(x + w, sb->w), y1 = arc_mini(y + h, sb->h); /* exclusive ends */
+    int n = 0;
+    for (int cy = y0; cy < y1; cy++)
+        for (int cx = x0; cx < x1; cx++)
+            if (sb->cells[cy * sb->w + cx] == (uint8_t)id)
+                n++;
+    return n;
+}
+
 /* Can `mover` move into (x, y)?  Empty cells always; lighter liquids can be pushed out of the way. */
 static bool can_enter(const Sandbox *sb, int x, int y, ElementId mover) {
     if (!in_bounds(sb, x, y))

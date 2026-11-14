@@ -8,6 +8,7 @@ typedef struct CliOptions {
     bool show_help;
     bool show_version;
     bool list_games;
+    bool show_all;         /* --all: the hub archive (games in deferred/) is open from the start */
     bool smoke;            /* --smoke <id|all>: headless-style automated run */
     char smoke_target[48]; /* game id or "all" */
     int frames;            /* --frames N (smoke), default 300 */

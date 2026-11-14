@@ -29,7 +29,9 @@ while (arcade_loop_running()) {          // false saat ESC, window ditutup, atau
 
 ## Registry game otomatis
 
-`games/CMakeLists.txt` melakukan glob pada `games/<id>/CMakeLists.txt`; masing-masing memanggil `arcade_add_game(...)` (`cmake/ArcadeGame.cmake`), yang membangun `game_<id>_logic` (murni), `game_<id>` (raylib), dan satu executable test per file test, lalu mencatat id-nya. `cmake/ArcadeRegistry.cmake` membuat `build/<preset>/generated/game_registry.c` (sebuah array berisi `&game_<id>_def`). Hub me-link semua game dan mengurutkan array itu berdasarkan `GameDef.order`, lalu id. Tidak ada yang perlu mengedit file bersama untuk menambah game.
+`games/CMakeLists.txt` dan `deferred/CMakeLists.txt` sama-sama memanggil `arcade_discover_games()` (`cmake/ArcadeGame.cmake`), yang melakukan glob pada `<folder>/<id>/CMakeLists.txt` (folder berawalan `_` atau `.` dilewati). Masing-masing memanggil `arcade_add_game(...)`, yang membangun `game_<id>_logic` (murni), `game_<id>` (raylib), dan satu executable test per file test, lalu mencatat id-nya ke daftar `ARCADE_LISTED_IDS` (game di `games/`) atau `ARCADE_DEFERRED_IDS` (game di `deferred/`). `cmake/ArcadeRegistry.cmake` membuat `build/<preset>/generated/game_registry.c` dengan dua array: `g_arcade_games` (menu hub) dan `g_arcade_deferred` (arsip). `GameDef` tidak berubah, jadi sebuah game tidak tahu ia ada di folder yang mana. Hub me-link semua game dan mengurutkan tiap array berdasarkan `GameDef.order`, lalu id. Tidak ada yang perlu mengedit file bersama untuk menambah game atau memindahkannya antar-folder.
+
+Menu hub hanya menampilkan `g_arcade_games`. Isi `g_arcade_deferred` baru ikut tampil setelah arsip dibuka: lewat "vault" di latar belakang hub (`core/vault`, ditaruh di atas engine sandbox) atau lewat `arCade --all`. Test, smoke test (`--smoke all`), dan CI tetap mencakup kedua folder. Detailnya ada di [DEFERRED.md](./DEFERRED.md).
 
 ## Piramida testing
 
@@ -61,6 +63,6 @@ while (arcade_loop_running()) {          // false saat ESC, window ditutup, atau
 | raylib 6.2 yang di-pin lewat CMake `FetchContent`        | Setup otomatis dengan satu perintah di semua platform tanpa memasang library secara manual.            |
 | Logic / front-end dipisah                                | Memungkinkan CI headless yang cepat, unit test tanpa GPU/display, dan backend rendering yang bisa diganti. |
 | Simulasi deterministik (RNG PCG32, step tetap `1/60s`)   | Test yang bisa diprediksi, sistem replay (misalnya Ghost Loop), dan smoke run yang bisa direproduksi.  |
-| Penemuan game otomatis (`games/<id>/`)                   | Anggota tim bekerja di folder masing-masing tanpa konflik merge di registry pusat.                     |
+| Penemuan game otomatis (`games/<id>/`, `deferred/<id>/`) | Anggota tim bekerja di folder masing-masing tanpa konflik merge; memindah folder cukup untuk menampilkan atau menyembunyikan game. |
 | Git tag + Conventional Commits                           | Semantic versioning yang deterministik langsung dari riwayat commit, tanpa commit bump yang tidak perlu. |
 | Audio disintesis lewat kode                              | Tidak ada masalah lisensi audio, dan tidak ada crash karena file aset yang hilang.                     |

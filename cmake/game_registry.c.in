@@ -6,3 +6,8 @@ const GameDef *const g_arcade_games[] = {
 @ARCADE_REGISTRY_ENTRIES@    0
 };
 const int g_arcade_game_count = @ARCADE_GAME_COUNT@;
+
+const GameDef *const g_arcade_deferred[] = {
+@ARCADE_DEFERRED_ENTRIES@    0
+};
+const int g_arcade_deferred_count = @ARCADE_DEFERRED_COUNT@;

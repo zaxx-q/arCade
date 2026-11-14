@@ -1,6 +1,6 @@
 # Sandbox - design brief
 
-**Owner:** Leader  **Folder:** `games/sandbox/`  **Status:** v1 sudah jalan (unranked)
+**Owner:** Leader  **Folder:** `deferred/sandbox/`  **Status:** v1 sudah jalan (unranked)
 
 ## Hook
 Mainan falling-sand (pasir jatuh). Engine yang sama (`core/sandbox.[ch]`) juga menganimasikan background hub, jadi menambah elemen akan memperbaiki keduanya.
@@ -12,7 +12,7 @@ Tidak ada "fisika" sungguhan. Aturannya sangat sederhana dan dijalankan untuk se
 
 Pemain melukis elemen dengan mouse kiri, menghapus dengan mouse kanan, dan memilih elemen dengan tombol angka atau scroll mouse. Tidak ada menang atau kalah.
 
-Kodenya dibagi tiga lapis: `core/src/sandbox.c` (engine murni: aturan gerak sel, dipakai bersama dengan background hub), `games/sandbox/sandbox_logic.c` (input pemain: memilih elemen, ukuran kuas, pause, melukis), dan `sandbox_game.c` (menggambar). Perhatikan awalan nama: fungsi game memakai `sbx_`, fungsi engine memakai `sandbox_`, karena nama `sandbox_*` sudah dipakai oleh engine.
+Kodenya dibagi tiga lapis: `core/src/sandbox.c` (engine murni: aturan gerak sel, dipakai bersama dengan background hub), `deferred/sandbox/sandbox_logic.c` (input pemain: memilih elemen, ukuran kuas, pause, melukis), dan `sandbox_game.c` (menggambar). Perhatikan awalan nama: fungsi game memakai `sbx_`, fungsi engine memakai `sandbox_`, karena nama `sandbox_*` sudah dipakai oleh engine.
 
 **Kalau cuma punya 1 menit:** menambah elemen biasanya berarti mengubah `core/include/arcade/sandbox.h` dan `core/src/sandbox.c`, bukan folder game ini. Gerak semua sel ada di `sandbox_step`.
 
@@ -42,10 +42,10 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 |------|--------|------------------------|
 | `core/include/arcade/sandbox.h` | `ElementId`, `MoveKind`, `ElementDef`, struct `Sandbox`, batas `SANDBOX_MAX_W/H`, API engine | menambah elemen atau jenis gerak baru |
 | `core/src/sandbox.c` | Tabel `k_elements`, `sandbox_step` (aturan gerak), `can_enter`, `move_cell`, `sandbox_paint`, dll. | menambah baris elemen atau aturan gerak |
-| `games/sandbox/sandbox_logic.h` | `sbx_State`, `SBX_W/H/CELL`, fungsi publik `sbx_*` | menambah field state game |
-| `games/sandbox/sandbox_logic.c` | `handle_keys`, `build_scene`, `sbx_step`, skor, batas kuas | menambah tombol atau alat baru |
-| `games/sandbox/sandbox_game.c` | Loop raylib, `draw_palette`, HUD, `game_sandbox_def` | mengubah tampilan palet atau teks di menu |
-| `games/sandbox/tests/test_sandbox.c` | 4 unit test untuk lapisan game | menambah tombol atau alat |
+| `deferred/sandbox/sandbox_logic.h` | `sbx_State`, `SBX_W/H/CELL`, fungsi publik `sbx_*` | menambah field state game |
+| `deferred/sandbox/sandbox_logic.c` | `handle_keys`, `build_scene`, `sbx_step`, skor, batas kuas | menambah tombol atau alat baru |
+| `deferred/sandbox/sandbox_game.c` | Loop raylib, `draw_palette`, HUD, `game_sandbox_def` | mengubah tampilan palet atau teks di menu |
+| `deferred/sandbox/tests/test_sandbox.c` | 4 unit test untuk lapisan game | menambah tombol atau alat |
 | `tests/test_sandbox.c` (di root repo) | 9 unit test untuk engine (`core.sandbox`) | menambah elemen atau aturan gerak |
 | `app/backdrop.c` | Animasi pasir dan air di belakang menu hub (memakai engine yang sama) | mengubah background hub |
 | `docs/SANDBOX.md` | Panduan menambah elemen dan daftar ide | menambah ide atau langkah baru |
@@ -133,7 +133,7 @@ cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade
 cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke sandbox --frames 300 --out smoke-out
 ```
 
-Lapisan game (`games/sandbox/tests/test_sandbox.c`, nama test CTest `sandbox.test_sandbox`):
+Lapisan game (`deferred/sandbox/tests/test_sandbox.c`, nama test CTest `sandbox.test_sandbox`):
 
 | Test | Menjaga aturan apa |
 |------|--------------------|

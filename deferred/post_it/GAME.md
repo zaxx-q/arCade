@@ -1,6 +1,6 @@
 # Post It - design brief
 
-**Owner:** Leader  **Folder:** `games/post_it/`  **Created:** 2026-11-12  **Asal mekanik:** `g01_grabgreen` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/post_it/`  **Created:** 2026-11-12  **Asal mekanik:** `g01_grabgreen` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Satu post-it kuning di tengah. Miringkan dunia dengan mouse, tempelkan post-it berwarna ke gugusanmu, dan jangan sampai virus menyentuh satu pun.

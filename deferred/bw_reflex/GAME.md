@@ -1,6 +1,6 @@
 # BW Reflex - design brief
 
-**Owner:** Leader  **Folder:** `games/bw_reflex/`  **Created:** 2026-11-12  **Asal mekanik:** `g03_bwreflex` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/bw_reflex/`  **Created:** 2026-11-12  **Asal mekanik:** `g03_bwreflex` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Satu ketukan membalik warna dasar layar: cocokkan hitam atau putih dengan balok yang jatuh sebelum mendarat.

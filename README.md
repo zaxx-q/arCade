@@ -14,51 +14,9 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 
 ## Game
 
+Hub hanya menampilkan game yang ada di folder `games/` (saat ini 4 game; Beat Dodge dan Beat Catch sudah digabung menjadi satu game). Game lainnya dipindahkan ke folder `deferred/` supaya cakupan tugas tetap kecil: kodenya tetap di-build, di-test, dan di-smoke-test seperti biasa, hanya tidak muncul di menu. Cara membuka arsip di hub dan cara memindahkan game ada di [docs/DEFERRED.md](docs/DEFERRED.md).
+
 <table>
-  <tr>
-    <td width="50%" align="center">
-      <h3><a href="games/time_shooter/GAME.md">Time Shooter</a></h3>
-      <a href="games/time_shooter/GAME.md">
-        <img src="docs/screenshots/time_shooter.png" width="380" alt="Screenshot Time Shooter"/>
-      </a>
-      <p align="left">
-        Waktu hanya berjalan saat kamu bergerak atau menembak. Kalau diam, musuh dan peluru membeku di tempat, jadi kamu punya waktu untuk merencanakan setiap langkah.<br/>
-        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak, mouse untuk membidik, klik kiri untuk menembak.
-      </p>
-    </td>
-    <td width="50%" align="center">
-      <h3><a href="games/echo_maze/GAME.md">Echo Maze</a></h3>
-      <a href="games/echo_maze/GAME.md">
-        <img src="docs/screenshots/echo_maze.png" width="380" alt="Screenshot Echo Maze"/>
-      </a>
-      <p align="left">
-        Maze-nya gelap. Tekan Space untuk mengirim pulse sonar yang menerangi sebentar dinding-dinding yang terlihat langsung dari posisimu. Capai pintu keluar dengan pulse sesedikit mungkin.<br/>
-        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak, Space untuk pulse.
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <h3><a href="games/laser_mirrors/GAME.md">Laser Mirrors</a></h3>
-      <a href="games/laser_mirrors/GAME.md">
-        <img src="docs/screenshots/laser_mirrors.png" width="380" alt="Screenshot Laser Mirrors"/>
-      </a>
-      <p align="left">
-        Klik cermin untuk memutarnya dan membelokkan sinar laser. Tile splitter membagi sinar menjadi dua cabang supaya kamu bisa mengenai semua target di grid.<br/>
-        <b>Kontrol:</b> Klik kiri pada cermin kuning untuk memutar.
-      </p>
-    </td>
-    <td width="50%" align="center">
-      <h3><a href="games/ghost_loop/GAME.md">Ghost Loop</a></h3>
-      <a href="games/ghost_loop/GAME.md">
-        <img src="docs/screenshots/ghost_loop.png" width="380" alt="Screenshot Ghost Loop"/>
-      </a>
-      <p align="left">
-        Setiap ronde berlangsung 8 detik. Saat ronde diulang, percobaan-percobaan sebelumnya diputar ulang sebagai ghost. Berdirilah di atas tombol lantai pada ronde awal supaya ghost-mu menahan pintu tetap terbuka untukmu di ronde berikutnya.<br/>
-        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
-      </p>
-    </td>
-  </tr>
   <tr>
     <td width="50%" align="center">
       <h3><a href="games/beat_dodge/GAME.md">Beat Dodge &amp; Catch</a></h3>
@@ -72,61 +30,17 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       </p>
     </td>
     <td width="50%" align="center">
-      <h3><a href="games/absorb_grow/GAME.md">Absorb & Grow</a></h3>
-      <a href="games/absorb_grow/GAME.md">
-        <img src="docs/screenshots/absorb_grow.png" width="380" alt="Screenshot Absorb & Grow"/>
+      <h3><a href="games/gritty_golf/GAME.md">Gritty Golf</a></h3>
+      <a href="games/gritty_golf/GAME.md">
+        <img src="docs/screenshots/gritty_golf.png" width="380" alt="Screenshot Gritty Golf"/>
       </a>
       <p align="left">
-        Serap blob yang lebih kecil untuk menambah massa, dan hindari yang lebih besar. Blob baru mengikuti ukuranmu saat ini, dan gerakanmu makin lambat seiring kamu membesar.<br/>
-        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
+        Mini-golf pixel dengan 25 level buatan tangan. Bekukan bola di udara, bidik, atur tenaga, lalu tembak. Kamu hanya punya tiga strike per percobaan, jadi setiap pukulan harus dipikirkan. Progres tersimpan per pemain.<br/>
+        <b>Kontrol:</b> Space, Enter, atau klik untuk membekukan bola dan membidik, mengunci sudut, lalu mengunci tenaga dan menembak. R mengulang level, L membuka pilih level, F (dua kali) mengakhiri dan mengirim skor.
       </p>
     </td>
   </tr>
   <tr>
-    <td width="50%" align="center">
-      <h3><a href="games/sort_it/GAME.md">Sort It</a></h3>
-      <a href="games/sort_it/GAME.md">
-        <img src="docs/screenshots/sort_it.png" width="380" alt="Screenshot Sort It"/>
-      </a>
-      <p align="left">
-        Tukar posisi bar untuk mengurutkannya sebelum jatah swap habis. Layar menampilkan berapa langkah yang kamu pakai dibandingkan dengan patokan selection sort dan bubble sort.<br/>
-        <b>Kontrol:</b> Tombol panah untuk memilih, Space untuk menukar.
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <h3><a href="games/post_it/GAME.md">Post It</a></h3>
-      <a href="games/post_it/GAME.md">
-        <img src="docs/screenshots/post_it.png" width="380" alt="Screenshot Post It"/>
-      </a>
-      <p align="left">
-        Satu post-it kuning di tengah. Miringkan dunia dengan mouse, tempelkan post-it berwarna ke gugusanmu, dan jangan sampai virus merah menyentuh satu pun.<br/>
-        <b>Kontrol:</b> Mouse (geser menjauh dari tengah) atau WASD/panah untuk memiringkan dunia, klik atau P untuk jeda.
-      </p>
-    </td>
-    <td width="50%" align="center">
-      <h3><a href="games/master_juggler/GAME.md">Master Juggler</a></h3>
-      <a href="games/master_juggler/GAME.md">
-        <img src="docs/screenshots/master_juggler.png" width="380" alt="Screenshot Master Juggler"/>
-      </a>
-      <p align="left">
-        Trampolin mengikuti mouse. Pantulkan semua bola berkali-kali sampai berubah warna; makin tinggi level, makin banyak bola. Tiga nyawa.<br/>
-        <b>Kontrol:</b> Mouse untuk menggeser trampolin (atau A/D), klik atau Spasi untuk memulai level.
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <h3><a href="games/bw_reflex/GAME.md">BW Reflex</a></h3>
-      <a href="games/bw_reflex/GAME.md">
-        <img src="docs/screenshots/bw_reflex.png" width="380" alt="Screenshot BW Reflex"/>
-      </a>
-      <p align="left">
-        Balok hitam atau putih jatuh. Balik warna dasar tepat waktu supaya warnanya sama saat balok mendarat; tiap balok yang cocok membuat balok berikutnya lebih cepat.<br/>
-        <b>Kontrol:</b> Klik atau tombol apa saja untuk membalik warna dasar.
-      </p>
-    </td>
     <td width="50%" align="center">
       <h3><a href="games/different_color/GAME.md">A Different Color</a></h3>
       <a href="games/different_color/GAME.md">
@@ -135,18 +49,6 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       <p align="left">
         Dua papan kotak berwarna acak, satu kotak di papan bawah sedikit berbeda warnanya. Temukan dia sebelum 30 detik habis; papan makin besar tiap ronde.<br/>
         <b>Kontrol:</b> Klik kotak yang berbeda di papan atas atau bawah.
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <h3><a href="games/spike_dart/GAME.md">Spike Dart</a></h3>
-      <a href="games/spike_dart/GAME.md">
-        <img src="docs/screenshots/spike_dart.png" width="380" alt="Screenshot Spike Dart"/>
-      </a>
-      <p align="left">
-        Lempar paku ke target yang berputar. Paku menancap lalu ikut berputar; jangan melempar saat paku lama sedang lewat di jalur lempar.<br/>
-        <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk melempar.
       </p>
     </td>
     <td width="50%" align="center">
@@ -160,10 +62,137 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       </p>
     </td>
   </tr>
+</table>
+
+<details>
+  <summary><b>Game yang ditunda (13 game di <code>deferred/</code>)</b></summary>
+  <br/>
+
+<table>
   <tr>
     <td width="50%" align="center">
-      <h3><a href="games/tower_stacker/GAME.md">Tower Stacker</a></h3>
-      <a href="games/tower_stacker/GAME.md">
+      <h3><a href="deferred/echo_maze/GAME.md">Echo Maze</a></h3>
+      <a href="deferred/echo_maze/GAME.md">
+        <img src="docs/screenshots/echo_maze.png" width="380" alt="Screenshot Echo Maze"/>
+      </a>
+      <p align="left">
+        Maze-nya gelap. Tekan Space untuk mengirim pulse sonar yang menerangi sebentar dinding-dinding yang terlihat langsung dari posisimu. Capai pintu keluar dengan pulse sesedikit mungkin.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak, Space untuk pulse.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/laser_mirrors/GAME.md">Laser Mirrors</a></h3>
+      <a href="deferred/laser_mirrors/GAME.md">
+        <img src="docs/screenshots/laser_mirrors.png" width="380" alt="Screenshot Laser Mirrors"/>
+      </a>
+      <p align="left">
+        Klik cermin untuk memutarnya dan membelokkan sinar laser. Tile splitter membagi sinar menjadi dua cabang supaya kamu bisa mengenai semua target di grid.<br/>
+        <b>Kontrol:</b> Klik kiri pada cermin kuning untuk memutar.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="deferred/ghost_loop/GAME.md">Ghost Loop</a></h3>
+      <a href="deferred/ghost_loop/GAME.md">
+        <img src="docs/screenshots/ghost_loop.png" width="380" alt="Screenshot Ghost Loop"/>
+      </a>
+      <p align="left">
+        Setiap ronde berlangsung 8 detik. Saat ronde diulang, percobaan-percobaan sebelumnya diputar ulang sebagai ghost. Berdirilah di atas tombol lantai pada ronde awal supaya ghost-mu menahan pintu tetap terbuka untukmu di ronde berikutnya.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/absorb_grow/GAME.md">Absorb &amp; Grow</a></h3>
+      <a href="deferred/absorb_grow/GAME.md">
+        <img src="docs/screenshots/absorb_grow.png" width="380" alt="Screenshot Absorb &amp; Grow"/>
+      </a>
+      <p align="left">
+        Serap blob yang lebih kecil untuk menambah massa, dan hindari yang lebih besar. Blob baru mengikuti ukuranmu saat ini, dan gerakanmu makin lambat seiring kamu membesar.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="deferred/sort_it/GAME.md">Sort It</a></h3>
+      <a href="deferred/sort_it/GAME.md">
+        <img src="docs/screenshots/sort_it.png" width="380" alt="Screenshot Sort It"/>
+      </a>
+      <p align="left">
+        Tukar posisi bar untuk mengurutkannya sebelum jatah swap habis. Layar menampilkan berapa langkah yang kamu pakai dibandingkan dengan patokan selection sort dan bubble sort.<br/>
+        <b>Kontrol:</b> Tombol panah untuk memilih, Space untuk menukar.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/sandbox/GAME.md">Sandbox</a></h3>
+      <a href="deferred/sandbox/GAME.md">
+        <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
+      </a>
+      <p align="left">
+        Mainan falling-sand: pasir, air, batu, api, kayu, dan lebih banyak lagi. Gambar dengan mouse, ganti elemen, perhatikan reaksi berlangsung piksel demi piksel.<br/>
+        <b>Kontrol:</b> Klik atau seret untuk melukis, roda mouse untuk ukuran kuas, tombol angka atau klik palet untuk memilih elemen, R untuk mereset.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="deferred/time_shooter/GAME.md">Time Shooter</a></h3>
+      <a href="deferred/time_shooter/GAME.md">
+        <img src="docs/screenshots/time_shooter.png" width="380" alt="Screenshot Time Shooter"/>
+      </a>
+      <p align="left">
+        Waktu hanya berjalan saat kamu bergerak atau menembak. Kalau diam, musuh dan peluru membeku di tempat, jadi kamu punya waktu untuk merencanakan setiap langkah.<br/>
+        <b>Kontrol:</b> WASD atau tombol panah untuk bergerak, mouse untuk membidik, klik kiri untuk menembak.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/post_it/GAME.md">Post It</a></h3>
+      <a href="deferred/post_it/GAME.md">
+        <img src="docs/screenshots/post_it.png" width="380" alt="Screenshot Post It"/>
+      </a>
+      <p align="left">
+        Satu post-it kuning di tengah. Miringkan dunia dengan mouse, tempelkan post-it berwarna ke gugusanmu, dan jangan sampai virus merah menyentuh satu pun.<br/>
+        <b>Kontrol:</b> Mouse (geser menjauh dari tengah) atau WASD/panah untuk memiringkan dunia, klik atau P untuk jeda.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="deferred/master_juggler/GAME.md">Master Juggler</a></h3>
+      <a href="deferred/master_juggler/GAME.md">
+        <img src="docs/screenshots/master_juggler.png" width="380" alt="Screenshot Master Juggler"/>
+      </a>
+      <p align="left">
+        Trampolin mengikuti mouse. Pantulkan semua bola berkali-kali sampai berubah warna; makin tinggi level, makin banyak bola. Tiga nyawa.<br/>
+        <b>Kontrol:</b> Mouse untuk menggeser trampolin (atau A/D), klik atau Spasi untuk memulai level.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/bw_reflex/GAME.md">BW Reflex</a></h3>
+      <a href="deferred/bw_reflex/GAME.md">
+        <img src="docs/screenshots/bw_reflex.png" width="380" alt="Screenshot BW Reflex"/>
+      </a>
+      <p align="left">
+        Balok hitam atau putih jatuh. Balik warna dasar tepat waktu supaya warnanya sama saat balok mendarat; tiap balok yang cocok membuat balok berikutnya lebih cepat.<br/>
+        <b>Kontrol:</b> Klik atau tombol apa saja untuk membalik warna dasar.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="deferred/spike_dart/GAME.md">Spike Dart</a></h3>
+      <a href="deferred/spike_dart/GAME.md">
+        <img src="docs/screenshots/spike_dart.png" width="380" alt="Screenshot Spike Dart"/>
+      </a>
+      <p align="left">
+        Lempar paku ke target yang berputar. Paku menancap lalu ikut berputar; jangan melempar saat paku lama sedang lewat di jalur lempar.<br/>
+        <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk melempar.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/tower_stacker/GAME.md">Tower Stacker</a></h3>
+      <a href="deferred/tower_stacker/GAME.md">
         <img src="docs/screenshots/tower_stacker.png" width="380" alt="Screenshot Tower Stacker"/>
       </a>
       <p align="left">
@@ -171,9 +200,11 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk menjatuhkan batang.
       </p>
     </td>
-    <td width="50%" align="center">
-      <h3><a href="games/new_star/GAME.md">New Star</a></h3>
-      <a href="games/new_star/GAME.md">
+  </tr>
+  <tr>
+    <td width="100%" colspan="2" align="center">
+      <h3><a href="deferred/new_star/GAME.md">New Star</a></h3>
+      <a href="deferred/new_star/GAME.md">
         <img src="docs/screenshots/new_star.png" width="380" alt="Screenshot New Star"/>
       </a>
       <p align="left">
@@ -182,20 +213,9 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       </p>
     </td>
   </tr>
-  <tr>
-    <td width="100%" colspan="2" align="center">
-      <h3><a href="games/gritty_golf/GAME.md">Gritty Golf</a></h3>
-      <a href="games/gritty_golf/GAME.md">
-        <img src="docs/screenshots/gritty_golf.png" width="380" alt="Screenshot Gritty Golf"/>
-      </a>
-      <p align="left">
-        Mini-golf pixel dengan 25 level buatan tangan. Bekukan bola di udara, bidik, atur tenaga, lalu tembak. Kamu hanya punya tiga strike per percobaan, jadi setiap pukulan harus dipikirkan. Progres tersimpan per pemain.<br/>
-        <b>Kontrol:</b> Space, Enter, atau klik untuk membekukan bola dan membidik, mengunci sudut, lalu mengunci tenaga dan menembak. R mengulang level, L membuka pilih level, F (dua kali) mengakhiri dan mengirim skor.
-      </p>
-    </td>
-  </tr>
 </table>
 
+</details>
 ---
 
 ## Sorotan
@@ -204,7 +224,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 - Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search.
 - Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
 - Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
-- Game terdaftar otomatis dari folder di games/; menambah game baru tidak perlu mengubah file source hub yang sudah ada.
+- Game terdaftar otomatis dari folder di games/ (tampil di menu) dan deferred/ (ditunda, hanya lewat arsip); menambah atau memindahkan game tidak perlu mengubah file source hub yang sudah ada.
 - Bisa di-build dan dijalankan di Linux maupun Windows.
 
 ---
@@ -241,20 +261,22 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 
 | Tombol                  | Aksi                                           |
 | ----------------------- | ---------------------------------------------- |
-| Up / Down atau W / S    | Memilih game di menu (mouse juga bisa)         |
+| Up / Down atau W / S    | Memilih game di menu (mouse dan scroll juga bisa) |
 | Enter atau klik         | Memulai game yang dipilih                      |
 | L                       | Membuka leaderboard                            |
 | N                       | Mengganti nama pemain                          |
 | Esc                     | Keluar dari hub (di dalam game: kembali ke menu) |
 
-Di background menu, klik kiri menggambar pasir dan klik kanan menggambar air.
+Di background menu, klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game yang ditunda (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
 
 Flag command line:
 
 ```bash
-arCade --list                # Menampilkan semua game yang terdaftar
+arCade --list                # Menampilkan game yang tampil di menu hub (folder games/)
+arCade --list --all          # Menampilkan juga game yang ditunda (folder deferred/)
+arCade --all                 # Menjalankan hub dengan arsip sudah terbuka (untuk developer)
 arCade --version             # Menampilkan informasi versi
-arCade --smoke all           # Menjalankan pengecekan headless otomatis untuk semua game
+arCade --smoke all           # Menjalankan pengecekan headless otomatis untuk semua game, termasuk yang ditunda
 arCade --smoke <id>          # Menjalankan pengecekan headless untuk satu game
 ```
 
@@ -266,7 +288,7 @@ Proyek ini menjaga pemisahan yang tegas antara aturan game dan rendering:
 
 ```
 app/ (hub menu, leaderboard, smoke runner)
- └── games/<id>/<id>_game.c    (menggambar dan membaca input dengan raylib)
+ └── games/<id>/<id>_game.c    (menggambar dan membaca input dengan raylib; deferred/<id>/ sama)
       ├── core/gfx/            (setup window, frame timing, helper menggambar)
       └── games/<id>/<id>_logic.c (C99 murni: state, collision, scoring)
            └── core/src/       (RNG, input monkey, sandbox engine, leaderboard)
@@ -283,6 +305,7 @@ Untuk detail soal kontrak loop dan layout memori, lihat [docs/ARCHITECTURE.md](d
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): setup toolchain, perintah build yang sering dipakai, dan roadmap.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): struktur sistem dan keputusan desain.
 - [docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md): cara membuat game baru dengan script scaffolding.
+- [docs/DEFERRED.md](docs/DEFERRED.md): folder `deferred/`, cara menunda atau mengembalikan game, dan cara kerja arsip di hub.
 - [docs/SANDBOX.md](docs/SANDBOX.md): aturan cellular automata dan cara menambah material baru.
 - [docs/RELEASING.md](docs/RELEASING.md): konvensi tag dan workflow rilis.
 - [docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md): pemetaan kebutuhan tugas kuliah ke lokasi kode.

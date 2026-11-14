@@ -2,7 +2,7 @@
 
 **Owner:** @OWNER@  **Folder:** `games/@ID@/`  **Created:** @DATE@
 
-> Cara pakai template ini: ganti semua `TODO(@OWNER@)` dengan isi yang sebenarnya, lalu hapus petunjuk berbentuk kutipan (baris yang diawali `>`). Tulis untuk teman satu tim yang belum pernah membuka kode game ini: kalimat pendek, istilah dijelaskan, dan angka diambil dari kode, bukan dari ingatan. Contoh isi yang sudah lengkap: `games/time_shooter/GAME.md`.
+> Cara pakai template ini: ganti semua `TODO(@OWNER@)` dengan isi yang sebenarnya, lalu hapus petunjuk berbentuk kutipan (baris yang diawali `>`). Tulis untuk teman satu tim yang belum pernah membuka kode game ini: kalimat pendek, istilah dijelaskan, dan angka diambil dari kode, bukan dari ingatan. Contoh isi yang sudah lengkap: `deferred/time_shooter/GAME.md`.
 
 ## Hook
 TODO(@OWNER@): satu atau dua kalimat. Apa satu ide cerdas dari game ini?

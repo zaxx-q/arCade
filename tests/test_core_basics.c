@@ -114,8 +114,12 @@ static void test_cli(void) {
 
     char *none[] = {"hub"};
     CHECK(cli_parse(1, none, &o));
-    CHECK(!o.smoke && !o.show_help && !o.show_version && !o.list_games);
+    CHECK(!o.smoke && !o.show_help && !o.show_version && !o.list_games && !o.show_all);
     CHECK_EQ_INT(o.frames, 300);
+
+    char *all[] = {"hub", "--list", "--all"};
+    CHECK(cli_parse(3, all, &o));
+    CHECK(o.list_games && o.show_all);
 
     char *flags[] = {"hub", "--version", "--list", "-h"};
     CHECK(cli_parse(4, flags, &o));

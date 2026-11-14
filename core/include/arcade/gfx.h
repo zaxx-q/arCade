@@ -104,7 +104,7 @@ void gfx_hud(const char *title, int score, const char *extra); /* top bar: title
 void gfx_draw_particles(const ParticleSystem *ps, Vec2 offset);
 Color gfx_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
-/* ---- Sandbox rendering (hub backdrop + games/sandbox) ---- */
+/* ---- Sandbox rendering (hub backdrop + deferred/sandbox) ---- */
 typedef struct GfxSandboxView {
     Texture2D tex;
     int w, h;

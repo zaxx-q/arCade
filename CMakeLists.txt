@@ -41,6 +41,7 @@ if(NOT ARCADE_LOGIC_ONLY)
 endif()
 
 add_subdirectory(games)
+add_subdirectory(deferred)
 add_subdirectory(tools)
 
 if(ARCADE_BUILD_TESTS)
@@ -53,6 +54,8 @@ if(NOT ARCADE_LOGIC_ONLY)
 endif()
 
 # ---- Summary ---------------------------------------------------------------
-get_property(_ids GLOBAL PROPERTY ARCADE_GAME_IDS)
+get_property(_listed GLOBAL PROPERTY ARCADE_LISTED_IDS)
+get_property(_deferred GLOBAL PROPERTY ARCADE_DEFERRED_IDS)
 message(STATUS "arCade ${ARCADE_VERSION_RESOLVED} | logic-only=${ARCADE_LOGIC_ONLY} headless=${ARCADE_HEADLESS} werror=${ARCADE_WERROR} sanitize=${ARCADE_SANITIZE}")
-message(STATUS "Games: ${_ids}")
+message(STATUS "Games (hub menu): ${_listed}")
+message(STATUS "Games (deferred): ${_deferred}")

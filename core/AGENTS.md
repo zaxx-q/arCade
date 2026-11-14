@@ -13,7 +13,8 @@ Shared library for every game and arCade. Two parts: **pure C** (`core/src`, hea
 | `include/arcade/rng.h` | deterministic PCG32 |
 | `include/arcade/playfield.h` | header-only portrait playfield (480 x 684 under the HUD): `ARC_PF_*`, `arc_pf_from_screen`, `arc_pf_to_screen`, `arc_pf_contains` |
 | `include/arcade/leaderboard.h` | text-file scores, insertion sort, linear + binary search |
-| `include/arcade/sandbox.h`, `src/sandbox.c` | falling-sand engine (hub background + `games/sandbox`) |
+| `include/arcade/sandbox.h`, `src/sandbox.c` | falling-sand engine (hub background + `deferred/sandbox`) |
+| `include/arcade/vault.h`, `src/vault.c` | the hub's "vault": a stone basin in the sandbox that opens when it is full (unlocks the deferred games; pure, no window) |
 | `include/arcade/sortlib.h` | bubble/selection/insertion sort with swap counters |
 | `include/arcade/synth.h`, `src/synth.c` | pure software synth (notes + drums -> 16-bit PCM, WAV header) |
 | `include/arcade/midi.h`, `src/midi.c` | Standard MIDI File reader (note events per track) |
@@ -32,7 +33,7 @@ Pure part: any C99 compiler + CMake (`cmake --preset logic`). Front-end part nee
 - Portable C99 only: use `ARC_PI` (not `M_PI`), `arc_strlcpy`/`arc_stricmp` (not `strlcpy`/`strcasecmp`/`strdup`), no VLAs, no POSIX/Windows headers.
 - Pure files never include `raylib.h` or `arcade/gfx.h`; `gfx.h` is the only header that does.
 - Fixed-size arrays and caller-owned structs: no `malloc` in hot paths; large structs are passed by pointer.
-- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_sortlib`, `test_sandbox`).
+- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_sortlib`, `test_sandbox`, `test_vault`).
 - API changes to `GameContext`, `GameDef`, `ArcadeInput`, `arcade_loop_*`, `arcade_poll`: update **all** of `core/gfx/gfx.c`, `input.c` (monkey), `app/`, `games/_template`, and every game; ask first.
 
 ## Security & safety

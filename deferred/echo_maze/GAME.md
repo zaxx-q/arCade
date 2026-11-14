@@ -1,6 +1,6 @@
 # Echo Maze - design brief
 
-**Owner:** Member 2  **Folder:** `games/echo_maze/`  **Status:** placeholder (generator, sonar, dan line of sight sudah jalan)
+**Owner:** Member 2  **Folder:** `deferred/echo_maze/`  **Status:** placeholder (generator, sonar, dan line of sight sudah jalan)
 
 ## Hook
 Layar hitam pekat. Tekan Space untuk mengirim sonar ping: cincin yang melebar menerangi dinding yang ia capai (hanya dinding yang terlihat langsung, alias line of sight). Cari jalan dari pojok kiri atas ke pintu keluar hijau dengan ping sesedikit mungkin.

@@ -1,6 +1,6 @@
 # Spike Dart - design brief
 
-**Owner:** Leader  **Folder:** `games/spike_dart/`  **Created:** 2026-11-12  **Asal mekanik:** `g06_knifedart` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/spike_dart/`  **Created:** 2026-11-12  **Asal mekanik:** `g06_knifedart` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Lempar paku ke target yang berputar, tapi jangan sampai paku baru menabrak paku lama yang sedang lewat di jalur lempar.

@@ -1,6 +1,6 @@
 # Absorb and Grow - design brief
 
-**Owner:** Member 6 (juga editor laporan)  **Folder:** `games/absorb_grow/`  **Status:** placeholder (loop utama sudah jalan)
+**Owner:** Member 6 (juga editor laporan)  **Folder:** `deferred/absorb_grow/`  **Status:** placeholder (loop utama sudah jalan)
 
 ## Hook
 Katamari di cawan petri: telan apa pun yang jelas lebih kecil darimu, lari dari apa pun yang jelas lebih besar. Semua yang kamu serap menambah luasmu, dan blob baru selalu dibuat dengan ukuran relatif terhadap kamu, jadi selalu ada makanan dan selalu ada bahaya.

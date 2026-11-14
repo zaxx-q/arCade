@@ -3,7 +3,7 @@
 1. **Scaffold**: `cmake -DID=my_game -DTITLE="My Game" -DOWNER="Nama Kamu" -P tools/new_game.cmake`
    (`ID`: huruf kecil, angka, dan underscore; menjadi nama folder, prefix file, dan key leaderboard).
 2. **Build**: `cmake --preset logic && cmake --build --preset logic && ctest --preset logic -R "^my_game\."` - template-nya sudah berupa game "kumpulkan pellet" yang jalan dan punya test. Tidak ada langkah registrasi: CMake menemukan `games/my_game/` sendiri.
-3. **Mainkan**: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade` -> game muncul di menu. (`--list` menampilkan semua game yang terdaftar.)
+3. **Mainkan**: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade` -> game muncul di menu. (`--list` menampilkan game yang ada di menu, yaitu isi `games/`; `--list --all` menambahkan game di `deferred/`.)
 4. **Ganti mekaniknya** di `my_game_logic.c` (C murni, deterministik, tanpa raylib), dan tulis test-nya lebih dulu atau bersamaan. Pertahankan 4 fungsi: `init`, `step`, `is_over`, `score`.
 5. **Gambar** di `my_game_game.c` dengan helper `gfx_*` dan palet `ARC_COL_*`. Pertahankan pemanggilan loop (`arcade_loop_begin`, `arcade_poll`, `arcade_frame_end`).
 6. **Isi metadata**: `GameDef` di bagian bawah `my_game_game.c` (tagline, controls, `order`, `ranked`), lalu `GAME.md` dan bagian "Game-specific rules" di `AGENTS.md`.
@@ -11,6 +11,8 @@
 8. **Buka PR** dengan judul `feat(my_game): add my_game`.
 
 Aturan yang tidak boleh dilewati ada di `games/AGENTS.md` (dan dicek otomatis oleh `tools/check_repo.sh`).
+
+Game baru selalu dibuat di `games/` supaya langsung tampil di menu. Kalau nanti sebuah game perlu disembunyikan dari menu (atau dikembalikan), cukup pindahkan foldernya antara `games/` dan `deferred/` lalu jalankan ulang CMake; id, skor, dan CI tidak berubah. Lihat [DEFERRED.md](./DEFERRED.md).
 
 ## Mengisi `GAME.md`
 
@@ -30,4 +32,4 @@ Aturan yang tidak boleh dilewati ada di `games/AGENTS.md` (dan dicek otomatis ol
 | Langkah implementasi (Implementation steps) | Checklist prioritas tim dan langkah dari design awal |
 | Pseudocode, Flowchart, Konsep kuliah | Bahan untuk laporan (lihat `docs/REPORT_GUIDE.md`) |
 
-Contoh yang paling lengkap ada di `games/time_shooter/GAME.md`; tiru bentuknya. Komentar di kode sering menyebut "Implementation steps" atau nomor langkahnya, jadi judul bagian `Langkah implementasi (Implementation steps)` dan nomor langkah yang sudah ada jangan diubah.
+Contoh yang paling lengkap ada di `deferred/time_shooter/GAME.md`; tiru bentuknya. Komentar di kode sering menyebut "Implementation steps" atau nomor langkahnya, jadi judul bagian `Langkah implementasi (Implementation steps)` dan nomor langkah yang sudah ada jangan diubah.
