@@ -160,8 +160,12 @@ int main(int argc, char **argv) {
             printf("  track %d \"%s\": %d notes%s\n", t, g_midi.tracks[t].name, g_midi.tracks[t].note_count,
                    strcmp(g_midi.tracks[t].name, st.player_track) == 0 ? "  <- player voice" : "");
         for (int c = 0; c < g_song.chart_count; c++) {
-            printf("  chart %-6s %d lanes: %4d obstacles, %.2f per second, %d steps\n", g_song.charts[c].name,
-                   st.lanes[c], st.obstacles[c], st.per_second[c], g_song.charts[c].length);
+            printf(
+                "  chart %-6s %-5s %d lanes: %4d beads in %4d objects (%3d ribbons: %3d folded, %3d moved, "
+                "%3d lone beads dropped), %.2f per second, %d steps\n",
+                g_song.charts[c].name, g_song.charts[c].kind == BD_CHART_CATCH ? "catch" : "dodge",
+                st.lanes[c], st.beads[c], st.objects[c], st.ribbons[c], st.folded[c], st.repaired[c],
+                st.dropped[c], st.per_second[c], g_song.charts[c].length);
             bd_ChartMetrics m;
             bd_chart_metrics(&g_song, c, &m);
             print_metrics_line("", &g_song.charts[c], &m);
