@@ -35,6 +35,14 @@ int bd_chart_obstacles(const bd_Chart *chart) {
     return n;
 }
 
+int bd_note_step(int start, int steps_per_beat) {
+    int scaled = start * steps_per_beat; /* in 1/24 of a step */
+    int step = scaled / BD_CLOCKS_PER_BEAT, rest = scaled % BD_CLOCKS_PER_BEAT;
+    if (rest * 2 > BD_CLOCKS_PER_BEAT || (rest * 2 == BD_CLOCKS_PER_BEAT && step % 2 == 1))
+        step++;
+    return step;
+}
+
 float bd_chart_multiplier(const char *name) {
     if (strcmp(name, "easy") == 0)
         return 1.0f;
@@ -252,107 +260,148 @@ void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list) {
         m->chosen = true;
 }
 
-/* ------------------------------------------------------------------ the game */
-static void restart(beat_dodge_State *s) {
-    const bd_Chart *c = &s->song.charts[s->chart];
-    s->lanes = c->lanes;
-    s->length = c->length;
-    s->time = 0.0f;
-    s->spb = 60.0f / (float)s->song.bpm;
-    s->step_sec = s->spb / (float)s->song.steps;
-    s->lead = BD_LEAD_BEATS * s->spb;
-    s->end_time = bd_song_seconds(&s->song, s->chart);
-    s->next_hit = 0;
-    s->last_beat = -1;
-    s->beat_event = false;
-    s->lane = s->lanes / 2;
+/* ------------------------------------------------------------------ the shared run (clock + lane) */
+void bd_run_start(bd_Run *r, const bd_Song *song, int chart) {
+    if (&r->song != song) /* the caller may pass the copy this run already holds */
+        r->song = *song;
+    r->chart = arc_clampi(chart, 0, song->chart_count - 1);
+    const bd_Chart *c = &r->song.charts[r->chart];
+    r->lanes = c->lanes;
+    r->length = c->length;
+    r->time = 0.0f;
+    r->spb = 60.0f / (float)r->song.bpm;
+    r->step_sec = r->spb / (float)r->song.steps;
+    r->lead = BD_LEAD_BEATS * r->spb;
+    r->end_time = bd_song_seconds(&r->song, r->chart);
+    r->next_hit = 0;
+    r->last_beat = -1;
+    r->beat_event = false;
+    r->lane = r->lanes / 2;
+    for (int l = 0; l < BD_MAX_LANES; l++)
+        r->last_in_lane[l] = -1000.0f;
+    r->last_in_lane[r->lane] = 0.0f;
+    r->hit_flash = 0.0f;
+    r->over = r->won = false;
+}
+
+float bd_run_arrival(const bd_Run *r, int step) {
+    return r->lead + (float)step * r->step_sec;
+}
+
+float bd_run_obstacle_y(const bd_Run *r, int step) {
+    float k = 1.0f - (bd_run_arrival(r, step) - r->time) / r->lead; /* 0 = just spawned, 1 = arrived */
+    return BD_TOP_Y + (BD_PLAYER_Y - BD_TOP_Y) * k;
+}
+
+void bd_run_tick(bd_Run *r, const ArcadeInput *in, float dt) {
+    if (r->over)
+        return;
+    r->time += dt;
+    r->hit_flash = arc_maxf(0.0f, r->hit_flash - dt);
+
+    int beat = (int)(r->time / r->spb);
+    r->beat_event = beat != r->last_beat;
+    r->last_beat = beat;
+
+    if (in->left_pressed)
+        r->lane = arc_maxi(0, r->lane - 1);
+    if (in->right_pressed)
+        r->lane = arc_mini(r->lanes - 1, r->lane + 1);
+    if (in->typed >= '1' && in->typed < '1' + r->lanes) /* direct lane keys: 1..N */
+        r->lane = in->typed - '1';
+    r->last_in_lane[r->lane] = r->time;
+}
+
+void bd_run_sync(bd_Run *r, float clock_seconds) {
+    if (!r->over && fabsf(r->time - clock_seconds) > 0.15f)
+        r->time = clock_seconds;
+}
+
+/* ------------------------------------------------------------------ Beat Dodge rules */
+/* All scoring numbers live in these two functions so the live game and the "perfect run" that defines
+ * max_points can never disagree. */
+static int
+award_dodge(int combo) { /* points for one dodged obstacle; the longer the combo, the more (max x4) */
+    return 10 * arc_mini(combo, 4);
+}
+
+static int award_finish(int lives) { /* bonus for surviving the whole song */
+    return lives * 50;
+}
+
+static void reset_rules(beat_dodge_State *s) { /* everything except the shared run, which bd_run_start did */
+    const bd_Chart *c = &s->run.song.charts[s->run.chart];
     s->lives = BD_START_LIVES;
     s->dodged = s->hits = s->combo = s->best_combo = s->points = 0;
     s->multiplier = bd_chart_multiplier(c->name);
-    s->hit_flash = 0.0f;
-    s->over = s->won = false;
     int obstacles = bd_chart_obstacles(c);
-    s->max_points = BD_START_LIVES * 50;
-    for (int k = 1; k <= obstacles; k++) /* what a perfect run earns */
-        s->max_points += 10 * arc_mini(k, 4);
+    s->max_points = award_finish(BD_START_LIVES);
+    for (int k = 1; k <= obstacles; k++) /* what a perfect run earns: every obstacle dodged, no hit */
+        s->max_points += award_dodge(k);
 }
 
 void beat_dodge_init(beat_dodge_State *s, unsigned seed) {
-    bd_song_default(&s->song, seed);
-    s->chart = 0;
-    restart(s);
+    bd_song_default(&s->run.song, seed);
+    bd_run_start(&s->run, &s->run.song, 0);
+    reset_rules(s);
 }
 
 void beat_dodge_use_song(beat_dodge_State *s, const bd_Song *song, int chart) {
-    s->song = *song;
-    s->chart = arc_clampi(chart, 0, song->chart_count - 1);
-    restart(s);
+    bd_run_start(&s->run, song, chart);
+    reset_rules(s);
 }
 
 float beat_dodge_arrival(const beat_dodge_State *s, int step) {
-    return s->lead + (float)step * s->step_sec;
+    return bd_run_arrival(&s->run, step);
 }
 
 float beat_dodge_obstacle_y(const beat_dodge_State *s, int step) {
-    float k = 1.0f - (beat_dodge_arrival(s, step) - s->time) / s->lead; /* 0 = just spawned, 1 = arrived */
-    return BD_TOP_Y + (BD_PLAYER_Y - BD_TOP_Y) * k;
+    return bd_run_obstacle_y(&s->run, step);
 }
 
 /* TODO(Member 5): drive `time` from a music stream clock instead of the fixed dt so the beat stays locked to
  * real audio on slow machines (beat_dodge_sync does this; the front-end calls it): see GAME.md
  * "Implementation steps". */
 void beat_dodge_step(beat_dodge_State *s, const ArcadeInput *in, float dt) {
-    if (s->over)
+    bd_Run *r = &s->run;
+    if (r->over)
         return;
-    s->time += dt;
-    s->hit_flash = arc_maxf(0.0f, s->hit_flash - dt);
-
-    int beat = (int)(s->time / s->spb);
-    s->beat_event = beat != s->last_beat;
-    s->last_beat = beat;
-
-    if (in->left_pressed)
-        s->lane = arc_maxi(0, s->lane - 1);
-    if (in->right_pressed)
-        s->lane = arc_mini(s->lanes - 1, s->lane + 1);
-    if (in->typed >= '1' && in->typed < '1' + s->lanes) /* direct lane keys: 1..N */
-        s->lane = in->typed - '1';
+    bd_run_tick(r, in, dt);
 
     /* resolve every obstacle that has now arrived at the player line */
-    const bd_Chart *c = &s->song.charts[s->chart];
-    while (s->next_hit < s->length && s->time >= beat_dodge_arrival(s, s->next_hit) && !s->over) {
-        int l = c->lane[s->next_hit];
+    const bd_Chart *c = &r->song.charts[r->chart];
+    while (r->next_hit < r->length && r->time >= bd_run_arrival(r, r->next_hit) && !r->over) {
+        int l = c->lane[r->next_hit];
         if (l >= 0) {
-            if (l == s->lane) { /* hit */
+            if (l == r->lane) { /* hit */
                 s->lives--;
                 s->hits++;
                 s->combo = 0;
-                s->hit_flash = 0.35f;
+                r->hit_flash = 0.35f;
                 if (s->lives <= 0)
-                    s->over = true;
-            } else { /* dodged: the longer the combo, the more each dodge is worth (max x4) */
+                    r->over = true;
+            } else { /* dodged */
                 s->dodged++;
                 s->combo++;
                 s->best_combo = arc_maxi(s->best_combo, s->combo);
-                s->points += 10 * arc_mini(s->combo, 4);
+                s->points += award_dodge(s->combo);
             }
         }
-        s->next_hit++;
+        r->next_hit++;
     }
-    if (!s->over && s->time >= s->end_time) { /* survived the whole song */
-        s->won = true;
-        s->over = true;
-        s->points += s->lives * 50;
+    if (!r->over && r->time >= r->end_time) { /* survived the whole song */
+        r->won = true;
+        r->over = true;
+        s->points += award_finish(s->lives);
     }
 }
 
 void beat_dodge_sync(beat_dodge_State *s, float clock_seconds) {
-    if (!s->over && fabsf(s->time - clock_seconds) > 0.15f)
-        s->time = clock_seconds;
+    bd_run_sync(&s->run, clock_seconds);
 }
 
 bool beat_dodge_is_over(const beat_dodge_State *s) {
-    return s->over;
+    return s->run.over;
 }
 
 int beat_dodge_score(const beat_dodge_State *s) {
