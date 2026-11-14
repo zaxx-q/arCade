@@ -3,7 +3,7 @@
 # AGENTS.md - games/
 
 ## Overview
-Every folder `games/<id>/` is one game and is discovered automatically by CMake (folders starting with `_` are ignored). A game = **pure logic** (`<id>_logic.[ch]`) + **raylib front-end** (`<id>_game.c`) + tests + `GAME.md` + `AGENTS.md`. This file is the contract all games follow.
+Every folder `games/<id>/` is one game and is discovered automatically by CMake (folders starting with `_` are ignored). A game = **pure logic** (`<id>_logic.[ch]`) + **raylib front-end** (`<id>_game.c`) + tests + `GAME.md` + `AGENTS.md`. This file is the contract all games follow. A portrait game may use the 480 x 684 playfield in `arcade/playfield.h` (logic in playfield-local pixels, `<id>_init_sized(s, seed, w, h)` for tests); the 8 games ported from simple-games use `GameDef.order` 100..170.
 
 ## Key Files
 | File (per game) | Role |

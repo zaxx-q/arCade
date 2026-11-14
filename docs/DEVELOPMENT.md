@@ -96,13 +96,13 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
 | Pengecekan                   | Perintah                                                             | Hasil yang diharapkan                          |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
-| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 17 test)            |
-| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (9 games)`                     |
+| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 25 test)            |
+| Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (17 games)`                    |
 | Cek format                   | `bash tools/format.sh --check`                                       | `format: OK`                                   |
 | Perhitungan versi            | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                          |
 | Tool scaffolding game        | `bash tools/tests/test_new_game.sh`                                  | `new_game test: OK`                            |
-| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 9 game terdaftar                               |
-| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 9 baris berakhir `-> OK`, PNG ter-ekspor       |
+| Registry game di hub         | `build/dev/bin/arCade --list`                                        | 17 game terdaftar                              |
+| Smoke run headless           | `build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | 17 baris game berakhir `-> OK`, PNG ter-ekspor |
 
 ### Jalur Continuous Integration (CI)
 
@@ -127,6 +127,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 - [x] Scaffold awal untuk ke-8 game tim, lengkap dengan unit test dan front-end raylib.
 - [x] Matriks CI otomatis (Linux gcc/clang, Windows MinGW, Windows MSVC, AddressSanitizer, cppcheck, smoke run headless).
 - [x] Pipeline rilis otomatis dengan packaging lintas platform dan artifact screenshot (`v0.1.1`).
+- [x] Port 8 game dari proyek saudara `simple-games` (hanya aturan, tanpa aset): `post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`, lengkap dengan unit test, front-end, dan `GAME.md`.
 
 ### Fase 2: Polish Game & Mekanik (Sedang Berjalan)
 
@@ -142,6 +143,14 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
 | Sort It       | `games/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
 | Sandbox       | `games/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
+| Post It       | `games/post_it/`       | Leader                     | Jalan (miring dunia lewat mouse, gugusan post-it, virus, jeda)             |
+| Master Juggler | `games/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa)                                    |
+| BW Reflex     | `games/bw_reflex/`     | Leader                     | Jalan (balik warna dasar, kecepatan naik tiap cocok)                       |
+| A Different Color | `games/different_color/` | Leader                     | Jalan (dua papan warna acak, timer 30 detik)                               |
+| Spike Dart    | `games/spike_dart/`    | Leader                     | Jalan (lempar paku, orbit, jalur lempar, batas 64)                         |
+| Loop Lap      | `games/loop_lap/`      | Leader                     | Jalan (rem/biasa/gas, musuh bergabung per lap)                             |
+| Tower Stacker | `games/tower_stacker/` | Leader                     | Jalan (langkah 5 px, potong, scroll, zoom akhir)                           |
+| New Star      | `games/new_star/`      | Leader                     | Jalan (layar gelap, bintang baru, batas waktu dari bintang ke-10)          |
 | Gritty Golf   | `games/gritty_golf/`   | zaxx-q (upstream), integrasi ke arCade | Jalan (25 level, progres tersimpan; engine disalin ke `gg/`, lihat `gg/VENDORED.md`) |
 
 Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:

@@ -104,6 +104,94 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
     </td>
   </tr>
   <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/post_it/GAME.md">Post It</a></h3>
+      <a href="games/post_it/GAME.md">
+        <img src="docs/screenshots/post_it.png" width="380" alt="Screenshot Post It"/>
+      </a>
+      <p align="left">
+        Satu post-it kuning di tengah. Miringkan dunia dengan mouse, tempelkan post-it berwarna ke gugusanmu, dan jangan sampai virus merah menyentuh satu pun.<br/>
+        <b>Kontrol:</b> Mouse (geser menjauh dari tengah) atau WASD/panah untuk memiringkan dunia, klik atau P untuk jeda.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/master_juggler/GAME.md">Master Juggler</a></h3>
+      <a href="games/master_juggler/GAME.md">
+        <img src="docs/screenshots/master_juggler.png" width="380" alt="Screenshot Master Juggler"/>
+      </a>
+      <p align="left">
+        Trampolin mengikuti mouse. Pantulkan semua bola berkali-kali sampai berubah warna; makin tinggi level, makin banyak bola. Tiga nyawa.<br/>
+        <b>Kontrol:</b> Mouse untuk menggeser trampolin (atau A/D), klik atau Spasi untuk memulai level.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/bw_reflex/GAME.md">BW Reflex</a></h3>
+      <a href="games/bw_reflex/GAME.md">
+        <img src="docs/screenshots/bw_reflex.png" width="380" alt="Screenshot BW Reflex"/>
+      </a>
+      <p align="left">
+        Balok hitam atau putih jatuh. Balik warna dasar tepat waktu supaya warnanya sama saat balok mendarat; tiap balok yang cocok membuat balok berikutnya lebih cepat.<br/>
+        <b>Kontrol:</b> Klik atau tombol apa saja untuk membalik warna dasar.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/different_color/GAME.md">A Different Color</a></h3>
+      <a href="games/different_color/GAME.md">
+        <img src="docs/screenshots/different_color.png" width="380" alt="Screenshot A Different Color"/>
+      </a>
+      <p align="left">
+        Dua papan kotak berwarna acak, satu kotak di papan bawah sedikit berbeda warnanya. Temukan dia sebelum 30 detik habis; papan makin besar tiap ronde.<br/>
+        <b>Kontrol:</b> Klik kotak yang berbeda di papan atas atau bawah.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/spike_dart/GAME.md">Spike Dart</a></h3>
+      <a href="games/spike_dart/GAME.md">
+        <img src="docs/screenshots/spike_dart.png" width="380" alt="Screenshot Spike Dart"/>
+      </a>
+      <p align="left">
+        Lempar paku ke target yang berputar. Paku menancap lalu ikut berputar; jangan melempar saat paku lama sedang lewat di jalur lempar.<br/>
+        <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk melempar.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/loop_lap/GAME.md">Loop Lap</a></h3>
+      <a href="games/loop_lap/GAME.md">
+        <img src="docs/screenshots/loop_lap.png" width="380" alt="Screenshot Loop Lap"/>
+      </a>
+      <p align="left">
+        Bolamu berlari sendiri di lingkaran atas. Atur kecepatan dengan rem dan gas supaya lolos dari musuh di lingkaran bawah yang tumpang tindih.<br/>
+        <b>Kontrol:</b> Tahan mouse di kiri (rem) atau kanan (gas), atau A/D, panah, Spasi. P untuk jeda.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/tower_stacker/GAME.md">Tower Stacker</a></h3>
+      <a href="games/tower_stacker/GAME.md">
+        <img src="docs/screenshots/tower_stacker.png" width="380" alt="Screenshot Tower Stacker"/>
+      </a>
+      <p align="left">
+        Satu batang bergeser di atas menara. Jatuhkan tepat waktu: bagian yang menjorok dipotong, jadi menara makin sempit. Landasan sempurna menjaga lebar penuh.<br/>
+        <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk menjatuhkan batang.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="games/new_star/GAME.md">New Star</a></h3>
+      <a href="games/new_star/GAME.md">
+        <img src="docs/screenshots/new_star.png" width="380" alt="Screenshot New Star"/>
+      </a>
+      <p align="left">
+        Tiap ronde layar menggelap dan satu bintang baru muncul. Ketuk bintang yang baru saja muncul; mengetuk bintang lama mengakhiri permainan.<br/>
+        <b>Kontrol:</b> Klik bintang yang baru muncul.
+      </p>
+    </td>
+  </tr>
+  <tr>
     <td width="100%" colspan="2" align="center">
       <h3><a href="games/gritty_golf/GAME.md">Gritty Golf</a></h3>
       <a href="games/gritty_golf/GAME.md">
