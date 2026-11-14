@@ -1,7 +1,7 @@
-/* The pieces of the front-end that Beat Dodge and Beat Catch share: song select screen, music playback and
- * the drawing of the playfield. They are IMPLEMENTED in beat_dodge_game.c (the only file of the two games
- * that may include raylib) and used by beat_catch_game.c through this header, which therefore holds no raylib
- * types. */
+/* The pieces of the front-end that the dodge mode and the catch mode share: song select screen (with the
+ * Dodge/Catch switch), music playback and the drawing of the playfield. They are IMPLEMENTED in
+ * beat_dodge_game.c and used by beat_catch_game.c (the catch mode's run loop) through this header, which
+ * therefore holds no raylib types. */
 #ifndef BEAT_DODGE_UI_H
 #define BEAT_DODGE_UI_H
 
@@ -10,14 +10,18 @@
 #include "arcade/game.h"
 #include "beat_dodge_logic.h"
 
-/* How the playfield looks: Beat Dodge has solid obstacles and a triangle, Beat Catch has hollow rings and a
+/* How the playfield looks: dodge mode has solid obstacles and a triangle, catch mode has hollow rings and a
  * cup. */
 typedef enum bd_UiStyle { BD_UI_DODGE, BD_UI_CATCH } bd_UiStyle;
 
-/* Runs the song select screen of `menu->kind` (the menu must be bd_menu_init'ed by the caller and keeps its
- * selection between calls). Returns true when a song and chart were chosen (menu->song, menu->chart), false
- * when the player backs out or closes the window. */
+/* Runs the song select screen (the menu must be bd_menu_init'ed by the caller and keeps its selection, mode
+ * included, between calls). The player switches the mode with the big DODGE / CATCH buttons (click, or the M
+ * key). Returns true when a song and chart were chosen (menu->kind, menu->song, menu->chart), false when the
+ * player backs out or closes the window. */
 bool bd_ui_select_song(const GameContext *ctx, const char *title, bd_Menu *menu, const bd_SongList *list);
+
+/* Plays one song in catch mode (beat_catch_game.c). Returns the score of the run like a GameDef play(). */
+GameResult bd_ui_play_catch(const GameContext *ctx, const bd_Song *song, int chart);
 
 /* Smoke runs have no input: draws the select screen for a moment and writes <screenshot>_select.png. */
 void bd_ui_preview_select(const GameContext *ctx, const char *title, bd_ChartKind kind,

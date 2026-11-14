@@ -352,6 +352,26 @@ void bd_menu_pick_chart(bd_Menu *m, const bd_SongList *list, int chart) {
         m->chart = chart;
 }
 
+void bd_menu_set_kind(bd_Menu *m, const bd_SongList *list, bd_ChartKind kind) {
+    if (m->kind == kind)
+        return;
+    int nth = 0; /* position of the current chart among the charts of the old kind */
+    if (list->count > 0 && m->song >= 0 && m->song < list->count) {
+        const bd_Song *old = &list->songs[m->song];
+        for (int c = 0; c < old->chart_count && c < m->chart; c++)
+            nth += old->charts[c].kind == m->kind ? 1 : 0;
+    }
+    m->kind = kind;
+    if (list->count == 0)
+        return;
+    const bd_Song *song = &list->songs[arc_clampi(m->song, 0, list->count - 1)];
+    int count = bd_song_kind_count(song, kind);
+    if (count == 0)
+        bd_menu_move_song(m, list, 1); /* no chart of this kind here: the next song that has one */
+    else
+        m->chart = bd_song_kind_chart(song, kind, arc_mini(nth, count - 1));
+}
+
 void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list) {
     if (list->count == 0)
         return;

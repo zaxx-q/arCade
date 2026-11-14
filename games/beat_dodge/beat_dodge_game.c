@@ -1,7 +1,8 @@
-/* Beat Dodge - raylib front-end: song select screen, music playback and drawing.
- * All rules live in beat_dodge_logic.c; the music is synthesised from the song's melody (core/synth).
- * The select screen, the music and the playfield are shared with Beat Catch (beat_dodge_ui.h), which is why
- * they are not static. */
+/* Beat Dodge & Catch - raylib front-end: song select screen (with the Dodge/Catch switch), music playback,
+ * drawing and the dodge mode's run loop. The rules live in beat_dodge_logic.c (dodge) and beat_catch_logic.c
+ * (catch); the music is synthesised from the song's melody (core/synth). The select screen, the music and the
+ * playfield are shared with the catch mode (beat_catch_game.c, through beat_dodge_ui.h), which is why they are
+ * not static. */
 #include <stdio.h>
 #include <string.h>
 
@@ -62,6 +63,12 @@ static const char *clock_text(float seconds) {
 #define PLAY_Y 556
 #define PLAY_W 526
 #define PLAY_H 56
+/* the big mode switch: two buttons side by side above the song details */
+#define MODE_X 650
+#define MODE_Y 18
+#define MODE_W 282
+#define MODE_H 90
+#define MODE_GAP 18
 
 static int menu_first(const bd_Menu *m, const bd_SongList *list) {
     return arc_clampi(m->song - MENU_ROWS / 2, 0, arc_maxi(0, list->count - MENU_ROWS));
@@ -71,8 +78,37 @@ static bool in_rect(float x, float y, float rx, float ry, float rw, float rh) {
     return x >= rx && x < rx + rw && y >= ry && y < ry + rh;
 }
 
-/* Mouse: click a song to pick it, click a difficulty to pick it (click it again to start), click PLAY to
- * start; the wheel scrolls through the songs. Only songs and charts of the menu's kind are offered. */
+static Rectangle mode_rect(bd_ChartKind kind) {
+    return (Rectangle){(float)(MODE_X + (kind == BD_CHART_CATCH ? MODE_W + MODE_GAP : 0)), MODE_Y, MODE_W,
+                       MODE_H};
+}
+
+static Color mode_color(bd_ChartKind kind) {
+    return kind == BD_CHART_DODGE ? ARC_COL_MAGENTA : ARC_COL_GREEN;
+}
+
+/* One of the two mode buttons: a filled "radio" dot and a coloured frame show which mode is on. */
+static void draw_mode_button(bd_ChartKind kind, bool active, bool hover) {
+    Rectangle r = mode_rect(kind);
+    Color c = mode_color(kind);
+    DrawRectangleRounded(r, 0.25f, 8, active ? Fade(c, 0.30f) : Fade(ARC_COL_PANEL, hover ? 0.95f : 0.75f));
+    if (active)
+        DrawRectangleRoundedLinesEx(r, 0.25f, 8, 4.0f, c);
+    else
+        DrawRectangleRoundedLinesEx(r, 0.25f, 8, 1.5f, hover ? Fade(c, 0.7f) : ARC_COL_DIM);
+    int cx = (int)r.x + 34, cy = (int)(r.y + r.height / 2.0f);
+    DrawCircleLines(cx, cy, 14.0f, active ? c : ARC_COL_DIM);
+    if (active)
+        DrawCircle(cx, cy, 8.0f, c);
+    gfx_text(kind == BD_CHART_DODGE ? "DODGE" : "CATCH", (int)r.x + 64, (int)r.y + 12, 36,
+             active ? ARC_COL_TEXT : ARC_COL_DIM);
+    gfx_text(kind == BD_CHART_DODGE ? "stay out of the notes' lane" : "be in the notes' lane", (int)r.x + 66,
+             (int)r.y + 58, 16, active ? c : ARC_COL_DIM);
+}
+
+/* Mouse: click DODGE or CATCH to switch the mode, click a song to pick it, click a difficulty to pick it
+ * (click it again to start), click PLAY to start; the wheel scrolls through the songs. Only songs and charts of
+ * the menu's mode are offered. */
 static void menu_mouse(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list) {
     if (list->count == 0)
         return;
@@ -81,6 +117,14 @@ static void menu_mouse(bd_Menu *m, const ArcadeInput *in, const bd_SongList *lis
     if (!in->fire_pressed)
         return;
     float x = in->aim_x, y = in->aim_y;
+    for (int k = 0; k < 2; k++) {
+        bd_ChartKind kind = k == 0 ? BD_CHART_DODGE : BD_CHART_CATCH;
+        Rectangle r = mode_rect(kind);
+        if (in_rect(x, y, r.x, r.y, r.width, r.height)) {
+            bd_menu_set_kind(m, list, kind);
+            return;
+        }
+    }
     int first = menu_first(m, list);
     for (int row = 0; row < MENU_ROWS && first + row < list->count; row++)
         if (in_rect(x, y, ROW_X, (float)(ROW_Y0 + row * ROW_PITCH), ROW_W, ROW_H)) {
@@ -109,7 +153,11 @@ static void draw_select(const char *title, const bd_SongList *list, const bd_Men
     Vector2 mouse = GetMousePosition();
     gfx_backdrop(t);
     gfx_text(title, 48, 22, 40, ARC_COL_CYAN);
-    gfx_text("choose a song and a difficulty", 52, 76, 18, ARC_COL_DIM);
+    gfx_text("choose a mode, a song and a difficulty", 52, 76, 18, ARC_COL_DIM);
+    draw_mode_button(BD_CHART_DODGE, m->kind == BD_CHART_DODGE,
+                     in_rect(mouse.x, mouse.y, MODE_X, MODE_Y, MODE_W, MODE_H));
+    draw_mode_button(BD_CHART_CATCH, m->kind == BD_CHART_CATCH,
+                     in_rect(mouse.x, mouse.y, MODE_X + MODE_W + MODE_GAP, MODE_Y, MODE_W, MODE_H));
 
     int first = menu_first(m, list);
     for (int row = 0; row < MENU_ROWS && first + row < list->count; row++) {
@@ -164,11 +212,11 @@ static void draw_select(const char *title, const bd_SongList *list, const bd_Men
     }
     Rectangle play = {PLAY_X, PLAY_Y, PLAY_W, PLAY_H};
     bool play_hover = in_rect(mouse.x, mouse.y, play.x, play.y, play.width, play.height);
-    DrawRectangleRounded(play, 0.3f, 8, Fade(ARC_COL_CYAN, play_hover ? 0.35f : 0.18f));
-    DrawRectangleRoundedLinesEx(play, 0.3f, 8, 2.0f, ARC_COL_CYAN);
+    DrawRectangleRounded(play, 0.3f, 8, Fade(mode_color(m->kind), play_hover ? 0.35f : 0.18f));
+    DrawRectangleRoundedLinesEx(play, 0.3f, 8, 2.0f, mode_color(m->kind));
     gfx_text_center("PLAY", (int)(PLAY_X + PLAY_W / 2), (int)PLAY_Y + 12, 28, ARC_COL_TEXT);
-    gfx_text("[Up/Down] or click a song   [Left/Right] or click a difficulty   [Enter] or PLAY: start   "
-             "[Esc] back",
+    gfx_text("[M] or click DODGE / CATCH: mode   [Up/Down] or click: song   [Left/Right] or click: difficulty   "
+             "[Enter] or PLAY: start   [Esc] back",
              48, ARC_SCREEN_H - 36, 17, ARC_COL_DIM);
 }
 
@@ -365,6 +413,8 @@ bool bd_ui_select_song(const GameContext *ctx, const char *title, bd_Menu *menu,
     while (arcade_loop_running()) {
         ArcadeInput in;
         arcade_poll(&in);
+        if (in.typed == 'm' || in.typed == 'M') /* the keyboard twin of the DODGE / CATCH buttons */
+            bd_menu_set_kind(menu, list, menu->kind == BD_CHART_DODGE ? BD_CHART_CATCH : BD_CHART_DODGE);
         bd_menu_step(menu, &in, list);
         menu_mouse(menu, &in, list);
         t += ARC_DT;
@@ -377,24 +427,32 @@ bool bd_ui_select_song(const GameContext *ctx, const char *title, bd_Menu *menu,
     return false;
 }
 
+/* A copy of ctx for one part of a smoke run: `frames` long, with its screenshot written to
+ * <name><suffix>.<ext> (the text goes into `path`). False when there is no screenshot name to derive from. */
+static bool derive_ctx(GameContext *out, const GameContext *ctx, char *path, size_t size, const char *suffix,
+                       int frames) {
+    const char *shot = ctx->screenshot_path;
+    const char *dot = shot != NULL ? strrchr(shot, '.') : NULL;
+    if (dot == NULL)
+        return false;
+    snprintf(path, size, "%.*s%s%s", (int)(dot - shot), shot, suffix, dot);
+    *out = *ctx;
+    out->screenshot_path = path;
+    out->max_frames = frames;
+    return true;
+}
+
 /* Smoke runs have no input, so they just draw the select screen for a moment (screenshot: <name>_select.png).
  */
 void bd_ui_preview_select(const GameContext *ctx, const char *title, bd_ChartKind kind,
                           const bd_SongList *list) {
     char path[700];
-    const char *shot = ctx->screenshot_path;
-    const char *dot = shot != NULL ? strrchr(shot, '.') : NULL;
-    if (dot == NULL)
+    GameContext c;
+    if (!derive_ctx(&c, ctx, path, sizeof(path), "_select", 30))
         return;
-    snprintf(path, sizeof(path), "%.*s_select%s", (int)(dot - shot), shot, dot);
-    GameContext c = *ctx;
-    c.screenshot_path = path;
-    c.max_frames = 30;
     bd_Menu m;
     bd_menu_init(&m, kind);
-    m.song = list->count > 1 ? 1 : 0;
-    m.chart = bd_song_kind_chart(&list->songs[m.song], kind,
-                                 bd_song_kind_count(&list->songs[m.song], kind) > 1 ? 1 : 0);
+    m.chart = bd_song_kind_chart(&list->songs[0], kind, bd_song_kind_count(&list->songs[0], kind) > 1 ? 1 : 0);
     arcade_loop_begin(&c);
     float t = 0.0f;
     while (arcade_loop_running()) {
@@ -406,34 +464,19 @@ void bd_ui_preview_select(const GameContext *ctx, const char *title, bd_ChartKin
 }
 
 /* ------------------------------------------------------------------ play */
+#define BD_TITLE "Beat Dodge & Catch"
+
 static bd_SongList g_list; /* ~544 KB */
 static beat_dodge_State g_state;
 static bd_Menu g_menu;
 static bool g_menu_ready;
 
-static GameResult play(const GameContext *ctx) {
-    char dir[700];
-    snprintf(dir, sizeof(dir), "%s/beatmaps", ctx->assets_dir ? ctx->assets_dir : "assets");
-    int count = bd_songlist_load(dir, &g_list);
-
-    if (count == 0) { /* no song files found: play the built-in practice song */
+/* One run of the dodge mode. song == NULL: no song files were found, play the built-in song. */
+static GameResult play_dodge(const GameContext *ctx, const bd_Song *song, int chart) {
+    if (song == NULL)
         beat_dodge_init(&g_state, ctx->seed);
-    } else if (ctx->headless) { /* smoke runs: no menu, no audio; the first real song on its hardest chart */
-        bd_ui_preview_select(ctx, "Beat Dodge", BD_CHART_DODGE, &g_list);
-        const bd_Song *song = &g_list.songs[count > 1 ? 1 : 0];
-        int hardest = bd_song_kind_chart(song, BD_CHART_DODGE, bd_song_kind_count(song, BD_CHART_DODGE) - 1);
-        beat_dodge_use_song(&g_state, song, hardest);
-    } else {
-        if (!g_menu_ready) {
-            bd_menu_init(&g_menu, BD_CHART_DODGE);
-            g_menu_ready = true;
-        }
-        if (!bd_ui_select_song(ctx, "Beat Dodge", &g_menu, &g_list)) {
-            GameResult cancelled = {0, false};
-            return cancelled;
-        }
-        beat_dodge_use_song(&g_state, &g_list.songs[g_menu.song], g_menu.chart);
-    }
+    else
+        beat_dodge_use_song(&g_state, song, chart);
     beat_dodge_State *s = &g_state;
 
     Sound tick = {0}; /* metronome for songs without music */
@@ -475,11 +518,55 @@ static GameResult play(const GameContext *ctx) {
     return r;
 }
 
+/* Smoke runs have no input and no audio: the select screen, then both modes on the hardest chart of the first
+ * song, each for half of the frames with its own screenshot (<name>.png for dodge, <name>_catch.png for catch).
+ */
+static GameResult play_smoke(const GameContext *ctx) {
+    bd_ui_preview_select(ctx, BD_TITLE, BD_CHART_DODGE, &g_list);
+    const bd_Song *song = &g_list.songs[0];
+    int frames = ctx->max_frames > 0 ? arc_maxi(ctx->max_frames / 2, 2) : 150;
+    GameContext first = *ctx, second;
+    char path[700];
+    first.max_frames = frames;
+    if (!derive_ctx(&second, ctx, path, sizeof(path), "_catch", frames)) {
+        second = *ctx;
+        second.max_frames = frames;
+    }
+    GameResult r = play_dodge(&first, song, bd_song_kind_chart(song, BD_CHART_DODGE,
+                                                               bd_song_kind_count(song, BD_CHART_DODGE) - 1));
+    int catches = bd_song_kind_count(song, BD_CHART_CATCH);
+    if (catches > 0)
+        bd_ui_play_catch(&second, song, bd_song_kind_chart(song, BD_CHART_CATCH, catches - 1));
+    return r;
+}
+
+static GameResult play(const GameContext *ctx) {
+    char dir[700];
+    snprintf(dir, sizeof(dir), "%s/beatmaps", ctx->assets_dir ? ctx->assets_dir : "assets");
+    int count = bd_songlist_load(dir, &g_list);
+    if (count == 0) /* no song files found: the built-in song, dodge only */
+        return play_dodge(ctx, NULL, 0);
+    if (ctx->headless)
+        return play_smoke(ctx);
+    if (!g_menu_ready) {
+        bd_menu_init(&g_menu, BD_CHART_DODGE);
+        g_menu_ready = true;
+    }
+    if (!bd_ui_select_song(ctx, BD_TITLE, &g_menu, &g_list)) {
+        GameResult cancelled = {0, false};
+        return cancelled;
+    }
+    const bd_Song *song = &g_list.songs[g_menu.song];
+    if (g_menu.kind == BD_CHART_CATCH)
+        return bd_ui_play_catch(ctx, song, g_menu.chart);
+    return play_dodge(ctx, song, g_menu.chart);
+}
+
 const GameDef game_beat_dodge_def = {"beat_dodge",
-                                     "Beat Dodge",
-                                     "Dodge notes that arrive on the beat of real songs",
-                                     "Pick a song, then Left/Right or 1-4: change lane  obstacles reach the "
-                                     "line on the beat  3 lives  close calls pay double",
+                                     BD_TITLE,
+                                     "Dodge or catch the notes of real songs on the beat",
+                                     "Pick a mode and a song, then Left/Right or 1-4: change lane  Dodge: "
+                                     "avoid the notes  Catch: be in their lane",
                                      50,
                                      true,
                                      play};

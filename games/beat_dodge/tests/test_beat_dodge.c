@@ -753,7 +753,7 @@ static void test_menu_only_offers_charts_of_its_own_kind(void) {
 /* Every shipped song must load and be playable: lanes in range, sensible density, and a perfect run wins. */
 static void test_every_shipped_song_is_playable(void) {
     int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
-    CHECK(n >= 1);                   /* at least default.txt */
+    CHECK(n >= 1);                   /* at least one song is listed */
     CHECK_EQ_INT(g_list.skipped, 0); /* nothing listed in songs.txt may be broken */
     static int8_t plan[BD_MAX_STEPS];
     float empty5_sum = 0.0f;

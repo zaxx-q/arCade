@@ -1,16 +1,13 @@
-/* Beat Catch - raylib front-end: window loop and the drawing that is specific to catching.
- * All rules live in beat_catch_logic.c. The song select screen, the music and the playfield are shared with
- * Beat Dodge (beat_dodge_ui.h); here they are used with the "catch" look: hollow rings and a cup. */
-#include <stdio.h>
+/* Catch mode of Beat Dodge & Catch - raylib front-end: the run loop and the drawing that is specific to
+ * catching. All rules live in beat_catch_logic.c. The song select screen (with the Dodge/Catch switch), the
+ * music and the playfield are shared with the dodge mode (beat_dodge_ui.h); here they are used with the "catch"
+ * look: hollow rings and a cup. beat_dodge_game.c calls bd_ui_play_catch when the player chose catch. */
 
 #include "arcade/gfx.h"
 #include "beat_catch_logic.h"
 #include "beat_dodge_ui.h"
 
-static bd_SongList g_list; /* ~544 KB: static, never a local */
-static beat_catch_State g_state;
-static bd_Menu g_menu;
-static bool g_menu_ready;
+static beat_catch_State g_state; /* ~34 KB: static, never a local */
 
 /* Health bar under the HUD: green while healthy, yellow below half, red below a quarter. */
 static void draw_health(int health) {
@@ -43,31 +40,9 @@ static void draw_game(const beat_catch_State *s, float t) {
                         Fade(ARC_COL_TEXT, arc_clampf((2.6f - s->run.time) / 0.8f, 0.0f, 1.0f)));
 }
 
-static GameResult play(const GameContext *ctx) {
-    char dir[700];
-    snprintf(dir, sizeof(dir), "%s/beatmaps", ctx->assets_dir ? ctx->assets_dir : "assets");
-    int count = bd_songlist_load(dir, &g_list);
+GameResult bd_ui_play_catch(const GameContext *ctx, const bd_Song *song, int chart) {
     beat_catch_State *s = &g_state;
-
-    if (count == 0) { /* no song files found: play the built-in practice song */
-        beat_catch_init(s, ctx->seed);
-    } else if (ctx->headless) { /* smoke runs: no menu, no audio; the first real song on its hardest catch
-                                   chart */
-        bd_ui_preview_select(ctx, "Beat Catch", BD_CHART_CATCH, &g_list);
-        const bd_Song *song = &g_list.songs[count > 1 ? 1 : 0];
-        int hardest = bd_song_kind_chart(song, BD_CHART_CATCH, bd_song_kind_count(song, BD_CHART_CATCH) - 1);
-        beat_catch_use_song(s, song, hardest);
-    } else {
-        if (!g_menu_ready) {
-            bd_menu_init(&g_menu, BD_CHART_CATCH);
-            g_menu_ready = true;
-        }
-        if (!bd_ui_select_song(ctx, "Beat Catch", &g_menu, &g_list)) {
-            GameResult cancelled = {0, false};
-            return cancelled;
-        }
-        beat_catch_use_song(s, &g_list.songs[g_menu.song], g_menu.chart);
-    }
+    beat_catch_use_song(s, song, chart);
 
     Sound tick = {0}; /* metronome for songs without music */
     bool has_music = !ctx->headless && bd_ui_music_start(&s->run);
@@ -116,14 +91,3 @@ static GameResult play(const GameContext *ctx) {
     r.finished = beat_catch_is_over(s);
     return r;
 }
-
-/* The hub finds this symbol through the generated registry. The name MUST be game_<id>_def. */
-const GameDef game_beat_catch_def = {
-    "beat_catch",
-    "Beat Catch",
-    "Catch the notes of real songs on the beat",
-    "Pick a song, then Left/Right or 1-4: change lane  be in a note's lane when "
-    "it reaches the line  keep the combo",
-    55,
-    true,
-    play};

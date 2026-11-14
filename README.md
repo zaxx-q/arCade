@@ -61,27 +61,16 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
   </tr>
   <tr>
     <td width="50%" align="center">
-      <h3><a href="games/beat_dodge/GAME.md">Beat Dodge</a></h3>
+      <h3><a href="games/beat_dodge/GAME.md">Beat Dodge &amp; Catch</a></h3>
       <a href="games/beat_dodge/GAME.md">
-        <img src="docs/screenshots/beat_dodge.png" width="380" alt="Screenshot Beat Dodge"/>
+        <img src="docs/screenshots/beat_dodge.png" width="188" alt="Screenshot Beat Dodge (mode Dodge)"/>
+        <img src="docs/screenshots/beat_dodge_catch.png" width="188" alt="Screenshot Beat Dodge &amp; Catch (mode Catch)"/>
       </a>
       <p align="left">
-        Game ritme: rintangan dan ribbon jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. Satu objek hanya memakai satu nyawa, dan lolos tipis bernilai dua kali lipat. Lagunya dibuat dari MIDI dan dimainkan lewat synthesizer bawaan.<br/>
-        <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane.
+        Game ritme dengan dua mode yang dipilih lewat tombol besar DODGE / CATCH di layar pilih lagu. Lagunya dibuat dari file MIDI dan dimainkan lewat synthesizer bawaan; rintangan dan ribbon (rangkaian not cepat yang disambung jadi satu pita) jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. <b>Dodge:</b> hindari not. Satu objek hanya memakai satu nyawa, dan lolos tipis (close call) bernilai dua kali lipat. <b>Catch:</b> berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo supaya pengali skor naik sampai x4, dan jaga health.<br/>
+        <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane. Di layar pilih lagu, tombol M atau klik DODGE / CATCH mengganti mode.
       </p>
     </td>
-    <td width="50%" align="center">
-      <h3><a href="games/beat_catch/GAME.md">Beat Catch</a></h3>
-      <a href="games/beat_catch/GAME.md">
-        <img src="docs/screenshots/beat_catch.png" width="380" alt="Screenshot Beat Catch"/>
-      </a>
-      <p align="left">
-        Kebalikan Beat Dodge: tangkap, jangan hindari. Berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo dan health. Memakai lagu yang sama dengan Beat Dodge, tetapi skor dan leaderboard-nya terpisah.<br/>
-        <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane.
-      </p>
-    </td>
-  </tr>
-  <tr>
     <td width="50%" align="center">
       <h3><a href="games/absorb_grow/GAME.md">Absorb & Grow</a></h3>
       <a href="games/absorb_grow/GAME.md">
@@ -92,6 +81,8 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
       </p>
     </td>
+  </tr>
+  <tr>
     <td width="50%" align="center">
       <h3><a href="games/sort_it/GAME.md">Sort It</a></h3>
       <a href="games/sort_it/GAME.md">

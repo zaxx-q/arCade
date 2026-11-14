@@ -1,9 +1,11 @@
-# Beat Dodge - design brief
+# Beat Dodge & Catch - design brief
 
-**Owner:** Member 5  **Folder:** `games/beat_dodge/`  **Status:** jalan: 9 lagu dari MIDI (plus lagu latihan), 3 kesulitan, chart dodge 3-4 lane dengan ribbon, aturan satu nyawa per objek, skor "close call", musik hasil sintesis (synthesised)
+**Owner:** Member 5  **Folder:** `games/beat_dodge/`  **Status:** jalan: dua mode (Dodge dan Catch) yang dipilih dengan tombol besar di layar pilih lagu, 9 lagu dari MIDI, 3 kesulitan per mode, ribbon; mode Dodge: satu nyawa per objek dan skor "close call"; mode Catch: combo dan health; musik hasil sintesis (synthesised)
 
 ## Hook
-Rhythm bullet-dodger: rintangan jatuh melalui beberapa lane dan sampai di garis pemain **tepat pada bunyi lagu**. Setiap bunyi melodi yang kamu dengar punya rintangan yang bisa kamu lihat, dan semakin dekat kamu lewat tanpa tersentuh, semakin besar poinnya.
+Rhythm game dengan dua mode yang dipilih di layar pilih lagu lewat tombol besar **DODGE** / **CATCH** (satu game, satu leaderboard, lagu yang sama). Bagian ini menjelaskan mode **Dodge**; mode **Catch** (kebalikannya: tangkap, jangan hindari) dijelaskan di bagian "Mode Catch" di bawah.
+
+Mode Dodge adalah rhythm bullet-dodger: rintangan jatuh melalui beberapa lane dan sampai di garis pemain **tepat pada bunyi lagu**. Setiap bunyi melodi yang kamu dengar punya rintangan yang bisa kamu lihat, dan semakin dekat kamu lewat tanpa tersentuh, semakin besar poinnya.
 
 ## Penjelasan sederhana
 Bayangkan lingkaran-lingkaran bercahaya yang jatuh dari atas layar ke sebuah garis di bawah. Kamu berdiri di salah satu lane (jalur) sebagai segitiga putih. Saat sebuah lingkaran menyentuh garis, ada dua kemungkinan:
@@ -34,13 +36,13 @@ Istilah yang akan sering muncul:
 | close call | objek yang dilewati tanpa kena, setelah pemain berdiri di salah satu lane-nya dalam 0,3 detik sebelum bead pertamanya tiba |
 | melodi (`notes[]`) | not untuk musik; dibunyikan oleh synthesizer bawaan, bukan file audio |
 
-Kodenya dibagi lima bagian. `beat_dodge_logic.c` berisi aturan Beat Dodge, format file lagu, jam bersama (`bd_Run`), pemeriksa "apakah chart bisa dimainkan manusia", dan logic menu (semuanya tanpa raylib). `beat_dodge_convert.c` mengubah MIDI menjadi lagu (dipakai oleh tool `midi2beatmap` dan test, bukan oleh game saat dimainkan). `beat_dodge_game.c` adalah satu-satunya file yang memakai raylib: layar main, dan juga layar pilih lagu, pemutaran musik, dan penggambaran lapangan yang **dipakai bersama** dengan Beat Catch lewat `beat_dodge_ui.h`. Game kembarannya, `games/beat_catch/`, memakai ulang semua ini; lihat `games/beat_catch/GAME.md`.
+Kodenya dibagi enam bagian. `beat_dodge_logic.c` berisi aturan Beat Dodge, format file lagu, jam bersama (`bd_Run`), pemeriksa "apakah chart bisa dimainkan manusia", dan logic menu (semuanya tanpa raylib). `beat_dodge_convert.c` mengubah MIDI menjadi lagu (dipakai oleh tool `midi2beatmap` dan test, bukan oleh game saat dimainkan). `beat_dodge_game.c` memakai raylib untuk layar pilih lagu (dengan tombol mode), pemutaran musik, penggambaran lapangan, dan loop main mode Dodge; semuanya, kecuali loop mode Dodge, **dipakai bersama** dengan mode Catch lewat `beat_dodge_ui.h`. Mode Catch punya `beat_catch_logic.[ch]` (aturan tangkap) dan `beat_catch_game.c` (loop mainnya, `bd_ui_play_catch`); lihat bagian "Mode Catch" di bawah. Semua file ini berada di folder ini dan terdaftar dalam satu game (`arcade_add_game(ID beat_dodge ...)`).
 
 **Kalau cuma punya 1 menit:** semua posisi dan tabrakan dihitung dari `bd_run_arrival()`. Jangan menghitung dari jumlah frame atau kecepatan piksel; kalau tidak, musik dan rintangan tidak sinkron lagi.
 
 ## Kontrol
 - Saat main: Left/Right (atau A/D) pindah satu lane. Tombol `1` sampai `4` (maksimal sebanyak jumlah lane di chart, bisa sampai `5`) langsung loncat ke lane itu. Kamu punya 3 nyawa.
-- Layar pilih lagu: Up/Down (atau W/S) memilih lagu, Left/Right memilih kesulitan, Enter atau Space mulai, Esc kembali ke hub. Mouse: klik lagu atau kesulitan, klik PLAY, roda mouse menggulir lagu. Menu Beat Dodge hanya menawarkan chart dodge. Kartu kesulitan menampilkan jumlah **objek** (bukan bead) dan kata "ribbon".
+- Layar pilih lagu: Up/Down (atau W/S) memilih lagu, Left/Right memilih kesulitan, Enter atau Space mulai, Esc kembali ke hub. Mouse: klik lagu atau kesulitan, klik PLAY, roda mouse menggulir lagu. **Dua tombol besar di atas panel lagu, DODGE dan CATCH, mengganti mode**: klik salah satunya, atau tekan **M**. Tombol yang aktif berbingkai tebal dengan titik terisi, dan pilihan mode diingat sampai game ditutup. Lagu dan kesulitan tetap sama waktu mode berganti (normal dodge menjadi normal catch). Menu hanya menawarkan chart dari mode yang aktif. Kartu kesulitan menampilkan jumlah **objek** (bukan bead) dan kata "ribbon".
 
 ## Aturan dan skor
 Setiap bead dinilai **tepat pada saat ia sampai di garis pemain**. Tidak ada "jendela" waktu untuk kena atau tidak: yang dilihat hanya lane pemain pada saat itu, jadi kamu boleh pindah lane sampai frame terakhir sebelum bead tiba.
@@ -66,8 +68,8 @@ multiplier : easy 1.0, normal 1.5, hard 2.0
 ## Cara kerja per frame
 **Sebelum loop utama** (`play()` di `beat_dodge_game.c`):
 
-1. `bd_songlist_load()` membaca `assets/beatmaps/songs.txt` dan memuat setiap lagu yang tercantum. Kalau tidak ada lagu yang berhasil dimuat, game memakai lagu latihan bawaan (`beat_dodge_init()`, dibuat acak dari `ctx->seed`).
-2. Mode normal: `bd_ui_select_song()` menampilkan layar pilih lagu (hanya chart dodge) sampai pemain memilih lagu, atau Esc untuk batal. Mode headless (smoke run): `bd_ui_preview_select()` menggambar layar itu sebentar untuk screenshot, lalu game langsung memakai lagu kedua di daftar pada chart dodge terakhirnya (hard), tanpa audio.
+1. `bd_songlist_load()` membaca `assets/beatmaps/songs.txt` dan memuat setiap lagu yang tercantum. Kalau tidak ada lagu yang berhasil dimuat, game memakai lagu bawaan kecil (`beat_dodge_init()`, dibuat dari `ctx->seed`) dan hanya mode Dodge.
+2. Mode normal: `bd_ui_select_song()` menampilkan layar pilih lagu sampai pemain memilih mode, lagu, dan kesulitan, atau menekan Esc untuk batal. Kalau modenya CATCH, `play()` memanggil `bd_ui_play_catch()` dan sisa langkah di sini tidak dipakai (lihat "Mode Catch"). Mode headless (smoke run): `bd_ui_preview_select()` menggambar layar pilih lagu sebentar untuk screenshot, lalu mode Dodge dan mode Catch dimainkan bergantian pada chart tersulit lagu pertama, masing-masing separuh dari jumlah frame dan tanpa audio.
 3. `beat_dodge_use_song()` memanggil `bd_run_start()` (salinan lagu, jumlah lane, `spb`, `step_sec`, `lead`, `end_time`, lane awal di tengah) lalu `reset_rules()` (3 nyawa, `max_points`, multiplier).
 4. `bd_ui_music_start()`: kalau ada perangkat audio dan lagunya punya melodi, melodi di-render synthesizer menjadi WAV di memori lalu dimainkan lewat `LoadMusicStreamFromMemory`. Not yang punya bead di chart yang dipilih berbunyi sebagai lead (voice 0), yang lain sebagai backing pelan (voice 3). Kalau tidak ada melodi tapi ada audio, game memainkan tick metronom tiap ketukan.
 
@@ -91,17 +93,17 @@ multiplier : easy 1.0, normal 1.5, hard 2.0
 | `beat_dodge_logic.h` | Struct `bd_Chart`, `bd_Note`, `bd_Song`, `bd_SongList`, `bd_Menu`, `bd_Reach`, `bd_Run`, `beat_dodge_State`, konstanta `BD_*`, dan **dokumentasi format file lagu** (komentar di bagian atas) | mengubah struct, batas, atau format lagu |
 | `beat_dodge_logic.c` | Lagu bawaan, `bd_song_load` / `bd_song_save`, daftar lagu, menu, `bd_Run`, cek lane yang terjangkau, `bd_catch_tolerance`, dan aturan Beat Dodge (`judge_bead`, `award_*`, `beat_dodge_step`, skor) | mengubah aturan, skor, atau validasi file |
 | `beat_dodge_convert.h/.c` | Konversi MIDI ke lagu: memilih track pemain, ribbon, penipisan per kesulitan, pemetaan pitch ke lane (dynamic programming), validasi dan perbaikan, ukuran chart (`bd_chart_metrics`) | mengubah cara chart dibuat dari melodi |
-| `beat_dodge_ui.h` | Antarmuka bagian tampilan yang dipakai bersama dengan Beat Catch (tanpa tipe raylib) | menambah fungsi tampilan bersama |
+| `beat_dodge_ui.h` | Antarmuka bagian tampilan yang dipakai bersama oleh mode Dodge dan mode Catch (tanpa tipe raylib), termasuk `bd_ui_play_catch` | menambah fungsi tampilan bersama |
 | `beat_dodge_game.c` | Layar main Beat Dodge, `game_beat_dodge_def`, dan **implementasi** `bd_ui_*`: layar pilih lagu, pemutaran musik (WAV di memori), penggambaran lapangan | mengubah tampilan atau teks menu |
 | `tests/test_beat_dodge.c` | 34 unit test untuk logic dan semua lagu yang dikirim | mengubah aturan, format, atau menambah lagu |
 | `tests/test_beat_dodge_convert.c` | 9 unit test untuk konverter MIDI | mengubah konverter |
 | `CMakeLists.txt` | Mendaftarkan game (`LOGIC` memuat dua file `.c`, `TESTS` dua file test) | menambah file baru |
 | `GAME.md`, `AGENTS.md` | Dokumen ini, dan instruksi AI agent (tidak diterjemahkan) | lihat catatan masing-masing |
-| `../../assets/beatmaps/` | `songs.txt` (daftar lagu di menu), `default.txt` (Practice, format lama), `fnf/*.txt` (9 lagu hasil konversi) | menambah atau mengganti lagu |
+| `../../assets/beatmaps/` | `songs.txt` (daftar lagu di menu), `fnf/*.txt` (9 lagu hasil konversi) | menambah atau mengganti lagu |
 | `../../tools/midi2beatmap.c`, `../../tools/songs/` | Program konversi MIDI (`--report`, `--metrics`), skrip `build_songs.sh`, `songs.list`, dan file `.mid` sumber | membangun ulang lagu |
 | `../../core/src/midi.c`, `synth.c` | Pembaca file MIDI dan synthesizer (bukan bagian game ini, tapi dipakai) | jarang |
 | `../../docs/SONGS.md` | Panduan menambah lagu dan status verifikasi audio | menambah lagu |
-| `../beat_catch/` | Game kembaran yang memakai modul ini | lihat `games/beat_catch/GAME.md` |
+| `beat_catch_logic.[ch]`, `beat_catch_game.c`, `tests/test_beat_catch.c` | Mode Catch: aturan tangkap, loop main, 19 unit test | lihat bagian "Mode Catch" |
 
 ## Data penting (struct)
 `bd_Chart`: satu kesulitan untuk satu jenis game.
@@ -135,7 +137,7 @@ multiplier : easy 1.0, normal 1.5, hard 2.0
 
 `bd_SongList` (sekitar 544 KB, `static` di `beat_dodge_game.c`): `count` lagu yang berhasil dimuat, `skipped` file yang rusak, dan `songs[BD_MAX_SONGS]` (maksimal 16 lagu). `bd_Menu`: `song`, `chart`, `chosen` (sudah memilih), dan `kind` (jenis chart yang ditawarkan menu itu). `bd_Reach`: lane mana saja yang masih bisa dipijak (lihat "cek lane yang terjangkau").
 
-`bd_Run`: bagian run yang tidak bergantung pada aturan satu game. Beat Dodge dan Beat Catch sama-sama menanamnya di state mereka.
+`bd_Run`: bagian run yang tidak bergantung pada aturan satu mode. `beat_dodge_State` (mode Dodge) dan `beat_catch_State` (mode Catch) sama-sama menanamnya.
 
 | Field | Tipe | Artinya |
 |-------|------|---------|
@@ -184,7 +186,7 @@ melody
 ```
 
 - `steps 4`: tiap karakter di chart = 1/4 ketukan. Harus ditulis **sebelum** chart pertama.
-- `chart <nama> <lane> [catch]`: memulai sebuah chart. Kata ketiga `catch` membuatnya chart Beat Catch (`dodge` adalah default). Baris-baris pola sesudahnya disambung jadi satu: `.` = kosong, `0` sampai `4` = bead di lane itu yang **memulai objek baru**, `a` sampai `e` = bead di lane 0 sampai 4 yang **melanjutkan objek** bead sebelumnya (ribbon). Boleh ada step kosong di antara bead satu ribbon.
+- `chart <nama> <lane> [catch]`: memulai sebuah chart. Kata ketiga `catch` membuatnya chart mode Catch (`dodge` adalah default). Baris-baris pola sesudahnya disambung jadi satu: `.` = kosong, `0` sampai `4` = bead di lane itu yang **memulai objek baru**, `a` sampai `e` = bead di lane 0 sampai 4 yang **melanjutkan objek** bead sebelumnya (ribbon). Boleh ada step kosong di antara bead satu ribbon.
 - `melody`: sesudahnya satu not per baris: `start len pitch voice` (start dan len dalam 1/24 ketukan).
 - File versi 1 (hanya `bpm` dan baris pola, seperti `default.txt`) dan versi 2 (tanpa huruf dan tanpa `catch`) masih valid: otomatis menjadi chart dodge tanpa ribbon.
 - **Parser ketat**: kalau ada satu saja baris yang salah (direktif tidak dikenal, lane yang tidak ada, BPM di luar 60 sampai 220, chart kurang dari 8 step, huruf ribbon tanpa bead di depannya, kata ketiga yang tidak dikenal, dan seterusnya), seluruh file ditolak dan `out` tidak disentuh. Ini disengaja supaya typo langsung ketahuan.
@@ -195,17 +197,17 @@ Ini pemeriksa "apakah chart bisa dimainkan manusia". Manusia dimodelkan butuh `B
 ## Fungsi-fungsi penting
 | Fungsi | Tugas | Dipanggil dari |
 |--------|-------|----------------|
-| `beat_dodge_init(s, seed)` | Memuat lagu latihan bawaan (`bd_song_default`) dan memulai | `play()` kalau tidak ada lagu, dan test |
+| `beat_dodge_init(s, seed)` | Memuat lagu bawaan kecil (`bd_song_default`) dan memulai | `play()` kalau tidak ada file lagu, dan test |
 | `beat_dodge_use_song(s, song, chart)` | `bd_run_start` + `reset_rules` | `play()`, test |
 | `beat_dodge_step(s, in, dt)` | Satu langkah logic: jam, menilai bead, menang | `play()` tiap frame, test |
 | `judge_bead(s, c, step)` (static) | Menilai satu bead: kena, satu nyawa per objek, close call, poin objek | `beat_dodge_step` |
 | `award_object`, `award_finish` (static) | **Satu-satunya** tempat angka poin berada (10/20 dan 50) | `judge_bead`, `reset_rules`, `beat_dodge_step` |
 | `beat_dodge_sync(s, clock)` | Mengikuti jam eksternal (musik) kalau selisihnya > 0,15 detik | `play()` |
 | `beat_dodge_score(s)` | Skor ternormalisasi, bilangan bulat | HUD dan hasil akhir |
-| `bd_run_start`, `bd_run_tick`, `bd_run_sync` | Jam, ketukan, lane pemain; dipakai bersama dengan Beat Catch | kedua game |
+| `bd_run_start`, `bd_run_tick`, `bd_run_sync` | Jam, ketukan, lane pemain; dipakai bersama oleh kedua mode | kedua mode |
 | `bd_run_arrival(r, step)`, `bd_run_obstacle_y(r, step)` | `lead + step * step_sec` dan posisi y (interpolasi linear antara `BD_TOP_Y` dan `BD_PLAYER_Y`) | gambar, penilaian, test |
 | `bd_chart_objects`, `bd_chart_beads`, `bd_chart_in_ribbon`, `bd_chart_next_bead`, `bd_chart_object_span` | Menghitung dan menelusuri objek, bead, dan ribbon di chart | aturan, konverter, tampilan, test |
-| `bd_catch_tolerance(span)` | Toleransi lane untuk chart catch (0 atau 1) | Beat Catch, cek lane terjangkau |
+| `bd_catch_tolerance(span)` | Toleransi lane untuk chart catch (0 atau 1) | mode Catch, cek lane terjangkau |
 | `bd_chart_playable`, `bd_chart_plan`, `bd_reach_*` | Cek lane yang terjangkau (lihat di atas) | konverter, test |
 | `bd_song_load(path, out)` / `bd_song_save(path, song)` | Baca dan tulis file lagu; load menolak file yang rusak | daftar lagu, test |
 | `bd_songlist_load(dir, out)` | Memuat semua lagu yang disebut di `<dir>/songs.txt` dan melewati yang rusak | `play()`, test |
@@ -239,8 +241,8 @@ Ini pemeriksa "apakah chart bisa dimainkan manusia". Manusia dimodelkan butuh `B
 | multiplier | easy `1.0`, normal `1.5`, hard `2.0` | `bd_chart_multiplier` di `beat_dodge_logic.c` | bobot skor per kesulitan |
 | kedip merah | `0.35` detik; tulisan "CLOSE!" `0.6` detik | `beat_dodge_logic.c` | hanya tampilan |
 | ambang sinkron | `0.15` detik | `bd_run_sync` di `beat_dodge_logic.c` | seberapa besar selisih sebelum `time` ikut jam audio |
-| lagu latihan | 64 step, 120 BPM, 4 step awal kosong lalu sekitar 65% rintangan | `bd_song_default` di `beat_dodge_logic.c` | hanya dipakai kalau tidak ada file lagu |
-| `BD_AUDIO_OFFSET_S` | `0.0` detik | `beat_dodge_game.c` | geser musik kalau terdengar lebih cepat atau lambat dari rintangan. Dipakai bersama Beat Catch; keputusan pemilik: sinkron audio sudah baik, jangan diubah |
+| lagu bawaan | 64 step, 120 BPM, 4 step awal kosong lalu sekitar 65% rintangan | `bd_song_default` di `beat_dodge_logic.c` | hanya dipakai test dan kalau tidak ada file lagu; tidak muncul di menu |
+| `BD_AUDIO_OFFSET_S` | `0.0` detik | `beat_dodge_game.c` | geser musik kalau terdengar lebih cepat atau lambat dari rintangan. Dipakai bersama mode Catch; keputusan pemilik: sinkron audio sudah baik, jangan diubah |
 | volume musik | `0.85` | `bd_ui_music_start` di `beat_dodge_game.c` | hanya audio |
 | jarak antar lane | 220 px (3 lane), 190 px (4 lane), 165 px (5 lane) | `lane_spacing` di `beat_dodge_game.c` | hanya tampilan |
 
@@ -252,8 +254,8 @@ cmake --preset logic && cmake --build --preset logic && ctest --preset logic -R 
 # main game-nya
 cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade
 
-# smoke run headless: jalankan game 420 frame dan simpan screenshot PNG
-# (juga menulis beat_dodge_select.png, yaitu layar pilih lagu)
+# smoke run headless: jalankan game 420 frame dan simpan screenshot PNG (separuh frame mode Dodge,
+# separuh mode Catch; juga menulis beat_dodge_select.png dan beat_dodge_catch.png)
 cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke beat_dodge --frames 420 --out smoke-out
 
 # ukuran chart semua lagu (bead per detik, burst, lane kosong, dst.)
@@ -321,7 +323,7 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 - **Angka poin hanya ada di `award_object` dan `award_finish`.** `max_points` memutar ulang permainan sempurna lewat dua fungsi itu, jadi mengubah angkanya tidak merusak skor 1000. Jangan menulis angka poin di tempat lain.
 - **Satu nyawa per objek.** Kalau bead pertama sebuah ribbon sudah mengenaimu, bead sisanya tidak dinilai lagi. `obj_hit` dan `obj_close` direset hanya di bead yang `link`-nya 0, yaitu awal objek baru.
 - **Close call memakai `last_in_lane[]`**, yang diperbarui oleh `bd_run_tick`. Kalau kamu mengubah cara pemain berpindah lane, pastikan `last_in_lane` tetap diperbarui.
-- **Modul ini dipakai Beat Catch.** Mengubah `bd_Run`, format lagu, `bd_catch_tolerance`, atau `bd_chart_playable` berarti mengubah Beat Catch juga; jalankan `ctest --preset logic` penuh dan bangun ulang lagu (`bash tools/songs/build_songs.sh`) kalau cek kelayakan berubah.
+- **Modul ini dipakai mode Catch.** Mengubah `bd_Run`, format lagu, `bd_catch_tolerance`, atau `bd_chart_playable` berarti mengubah mode Catch juga; jalankan `ctest --preset logic` penuh dan bangun ulang lagu (`bash tools/songs/build_songs.sh`) kalau cek kelayakan berubah.
 - **`beat_dodge_ui.h` tidak boleh memuat tipe raylib.** `tools/check_repo.sh` melarang raylib di semua file selain `*_game.c`; fungsi `bd_ui_*` diimplementasikan di `beat_dodge_game.c`.
 - **Nama fungsi lama.** `bd_beatmap_load`, `bd_BeatMap`, dan `bd_song_to_synth(song, delay, out)` yang ada di dokumen versi lama sudah tidak ada. Sekarang: `bd_song_load`, `bd_Chart` / `bd_Song`, dan `bd_song_to_synth(song, chart, delay, out)`.
 - Lagu berakhir saat **melodi** selesai, bukan saat bead terakhir. `bd_song_seconds` mengambil yang lebih lambat antara chart dan melodi, ditambah 1 ketukan penutup. Jadi di akhir lagu ada waktu tanpa rintangan.
@@ -338,13 +340,14 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 ### Keputusan pemilik (tidak dibuka ulang)
 Daftar "Prioritas dari diskusi tim" yang lama (game terlalu mudah dan membosankan) sudah diputuskan:
 - **Sinkron 1-ke-1** berarti setiap bunyi yang terdengar punya objek yang terlihat. Bunyi yang cepat tidak dibuang atau dijadikan bunyi tanpa rintangan; ia digambar sebagai **ribbon** (bead yang disambung), dan ribbon dihitung sebagai satu objek untuk nyawa, jarak, dan skor. Dengan begitu aturan jeda 0,2 detik yang lama tetap terjaga untuk objek, dan tidak ada lonjakan kesulitan.
-- **"Catch the beat"** menjadi **game terpisah**, Beat Catch (`games/beat_catch/`), dengan skor dan leaderboard sendiri. Beat Dodge tidak berubah menjadi game menangkap.
-- **Combo dihapus dari Beat Dodge** (tetap ada di Beat Catch). Penggantinya adalah poin close call.
+- **"Catch the beat"** menjadi **mode kedua** dalam game yang sama (awalnya sempat dibuat sebagai game terpisah, Beat Catch, lalu digabung atas permintaan pemilik): mode Dodge tidak berubah menjadi game menangkap, pemain memilih mode dengan tombol besar DODGE / CATCH di layar pilih lagu, dan kedua mode memakai satu leaderboard.
+- **Lagu "Practice" dihapus** dari menu dan dari `assets/beatmaps/` (`default.txt`). Lagu bawaan kecil `bd_song_default` tetap ada hanya untuk test dan sebagai cadangan kalau tidak ada file lagu.
+- **Combo dihapus dari Beat Dodge** (tetap ada di mode Catch). Penggantinya adalah poin close call.
 - **Sinkron audio** sudah baik; `BD_AUDIO_OFFSET_S` tidak diubah.
 
 Masalah aslinya nyata sebagian: pemain "pemalas" bisa melewati 73 sampai 86% rintangan tanpa menekan tombol, karena nada yang berulang jatuh di lane yang sama dan satu rintangan hanya menutup satu lane. Diam total tidak menang, tetapi tidak ada alasan untuk bergerak.
 
-**Data pengukuran awal** (9 lagu FNF, rata-rata; Practice tidak dihitung; memainkan chart asli lewat `beat_dodge_step` dengan bot sederhana):
+**Data pengukuran awal** (9 lagu FNF, rata-rata; memainkan chart asli lewat `beat_dodge_step` dengan bot sederhana):
 
 | Ukuran | easy | normal | hard |
 |--------|------|--------|------|
@@ -357,7 +360,7 @@ Masalah aslinya nyata sebagian: pemain "pemalas" bisa melewati 73 sampai 86% rin
 | Diam di lane yang paling jarang kena: game over pada | 18% lagu | 13% lagu | 22% lagu |
 | Kalau aturan dibalik jadi "catch": rintangan yang butuh pindah lane | 53% | 52% | 56% |
 
-**Baseline Fase 0** (sebelum ribbon; angka "sebelum" untuk setiap gate). Direproduksi oleh program, bukan skrip luar: `build/logic/bin/midi2beatmap --metrics assets/beatmaps/fnf/*.txt` (9 lagu FNF, Practice tidak dihitung). Definisi ada di lampiran A rencana implementasi dan di komentar `bd_ChartMetrics` (`beat_dodge_convert.h`).
+**Baseline Fase 0** (sebelum ribbon; angka "sebelum" untuk setiap gate). Direproduksi oleh program, bukan skrip luar: `build/logic/bin/midi2beatmap --metrics assets/beatmaps/fnf/*.txt` (9 lagu FNF). Definisi ada di lampiran A rencana implementasi dan di komentar `bd_ChartMetrics` (`beat_dodge_convert.h`).
 
 | Ukuran | easy | normal | hard |
 |--------|------|--------|------|
@@ -453,7 +456,7 @@ AKHIR PROSEDUR
 ## Flowchart (untuk laporan)
 ```mermaid
 flowchart TD
-    A([Mulai]) --> B["pilih lagu dan kesulitan dodge, atau pakai lagu latihan"]
+    A([Mulai]) --> B["pilih mode DODGE, lagu, dan kesulitan"]
     B --> C{"loop masih jalan?"}
     C -- tidak --> Z([Kembalikan skor])
     C -- ya --> D["baca input, perbarui time dan ketukan"]
@@ -485,7 +488,7 @@ flowchart TD
 | Matematika (12) | `bd_run_obstacle_y` (interpolasi linear), `bd_reach_steps` (langkah lane per waktu), normalisasi skor dengan bilangan bulat, `gfx_make_tone` (bunyi `sinf` untuk metronom) |
 | Perulangan (6) | loop `while` yang menilai bead yang sudah tiba, di `beat_dodge_step`; loop yang memutar ulang permainan sempurna di `reset_rules` |
 | Percabangan (5) | kena / lolos / close call di `judge_bead` |
-| Fungsi dan modularitas (10) | `award_object` dan `award_finish` sebagai satu-satunya tempat angka poin; `bd_Run` dan `bd_ui_*` dipakai dua game |
+| Fungsi dan modularitas (10) | `award_object` dan `award_finish` sebagai satu-satunya tempat angka poin; `bd_Run` dan `bd_ui_*` dipakai dua mode |
 | Algoritma (dynamic programming) | `partition_pitches` di `beat_dodge_convert.c` membagi pitch menjadi kelompok lane |
 
 ## Songs (tambahan)
@@ -500,7 +503,7 @@ Bagian ini menjelaskan sistem lagu yang ditambahkan setelah design awal.
 | normal | 3 | tiap not 8th (grid 2) | 0,45 detik | sampai 2 lane | x1,5 | 88 |
 | hard | 4 | tiap not 16th (grid 1) | 0,30 detik | sampai 3 lane | x2,0 | 113 |
 
-- **Daftar lagu** (jumlah objek chart dodge easy / normal / hard; BPM): Practice (120, hanya chart normal: 30), Bopeebo (100: 76 / 82 / 114), Satin Panties (110: 91 / 106 / 110), Roses (120: 85 / 85 / 89), High (125: 94 / 109 / 117), Eggnog (150: 72 / 73 / 113), South (165: 57 / 57 / 80), Dad Battle (180: 68 / 68 / 104), M.I.L.F (180: 103 / 103 / 153), Thorns (190: 110 / 110 / 138). Jumlah objek chart catch ada di `games/beat_catch/GAME.md`.
+- **Daftar lagu** (jumlah objek chart dodge easy / normal / hard; BPM): Bopeebo (100: 76 / 82 / 114), Satin Panties (110: 91 / 106 / 110), Roses (120: 85 / 85 / 89), High (125: 94 / 109 / 117), Eggnog (150: 72 / 73 / 113), South (165: 57 / 57 / 80), Dad Battle (180: 68 / 68 / 104), M.I.L.F (180: 103 / 103 / 153), Thorns (190: 110 / 110 / 138). Jumlah objek chart catch ada di bagian "Mode Catch".
 - **Kenapa lane diturunkan dari pitch:** file MIDI Friday Night Funkin' hanya menyimpan melodi (waktu dan nada), bukan lane panah. Konverter menaruh nada rendah di kiri dan nada tinggi di kanan, lalu menyeimbangkan supaya tiap lane kira-kira sama sering dipakai. Jumlah lane adalah keputusan gameplay, bukan data dari lagu.
 - **Cara konversi, versi singkat:** `core/src/midi.c` membaca not tiap track, `beat_dodge_convert.c` menggabungkan track lawan dan pemain, menjatuhkan tiap not ke step 16th terdekat (kalau dua not jatuh ke step yang sama, not pemain yang dipakai), menyambung not cepat menjadi ribbon, menipiskan not tunggal per kesulitan, memetakan pitch ke lane, memvalidasi dengan cek lane terjangkau, dan menyimpan seluruh melodi untuk musik. Chart catch dibuat dengan cara yang sama dari voice pemain saja.
 - **Menambah atau membangun ulang lagu:**
@@ -511,3 +514,250 @@ Bagian ini menjelaskan sistem lagu yang ditambahkan setelah design awal.
   echo my_song.txt >> assets/beatmaps/songs.txt                 # tampil di menu sesuai urutan ini
   bash tools/songs/build_songs.sh                               # bangun ulang semua lagu FNF dari tools/songs/fnf/*.mid
   ```
+
+## Mode Catch (dulu game terpisah "Beat Catch")
+Kebalikan mode Dodge: **tangkap, jangan hindari.** Setiap bunyi melodi pemain punya cincin yang jatuh ke garis, dan kamu harus sudah berdiri di lane-nya tepat saat cincin itu sampai. Lagunya sama persis dengan mode Dodge dan keduanya dipilih di layar pilih lagu lewat tombol besar **DODGE** / **CATCH**. Satu lagu punya enam chart: tiga untuk dodge (dari kedua voice melodi) dan tiga untuk catch (hanya dari voice pemain, "Boyfriend"); mode Catch hanya menampilkan chart catch. Mode ini memakai ulang format lagu, jam (`bd_Run`), cek lane yang terjangkau, menu, musik, dan penggambaran lapangan dari mode Dodge; yang baru hanya aturan *tangkap* di `beat_catch_logic.[ch]` dan loop mainnya di `beat_catch_game.c`.
+
+### Penjelasan sederhana
+Bayangkan lingkaran-lingkaran **kosong** (cincin) yang jatuh dari atas layar ke sebuah garis di bawah. Kamu adalah sebuah **cangkir** yang bisa digeser ke kiri dan kanan antar lane. Saat sebuah cincin menyentuh garis:
+
+- kamu ada di lane yang tepat: cincin **tertangkap**, kamu dapat poin, dan combo naik;
+- kamu ada di lane lain: cincin **lolos**, combo putus, dan kalau ini objek baru yang gagal, health berkurang.
+
+Not yang cepat dan berurutan tidak digambar sebagai banyak cincin terpisah, tetapi disambung menjadi satu **ribbon** (pita) yang berkelok di antara beberapa lane. Ribbon dinilai sebagai **satu objek**, tetapi setiap cincin di dalamnya dinilai sendiri-sendiri. Aturan kunci ribbon: kalau ribbon itu **pindah lane**, kamu tidak perlu mengikuti tiap cincinnya. Kamu boleh berdiri satu lane dari sebuah cincin dan cincin itu tetap tertangkap, jadi ribbon yang menyentuh tiga lane tertangkap seluruhnya dari lane tengahnya. Kalau ribbon itu **tetap di satu lane**, kamu harus berdiri tepat di lane itu. Aturan ini ada di satu fungsi, `bd_catch_tolerance()`.
+
+
+Istilah tambahan untuk mode Catch (bead, ribbon, objek, lane, lead sama dengan mode Dodge):
+
+| Istilah | Artinya |
+|---------|---------|
+| bead | satu not di chart: satu step yang punya lane |
+| ribbon | rangkaian bead yang disambung (huruf `a` sampai `e` di file lagu) |
+| objek | satu ribbon, atau satu bead tunggal. Health dan jarak dihitung per objek, penilaian per bead |
+| span | selisih lane terkecil dan terbesar yang disentuh sebuah objek (0 untuk bead tunggal atau ribbon di satu lane) |
+| toleransi | berapa lane dari sebuah bead kamu boleh berdiri dan tetap menangkapnya: 0 bila span 0, 1 bila span lebih dari 0 |
+| combo | jumlah bead yang tertangkap berturut-turut |
+
+### Peta file mode Catch
+| File | Isinya | Edit di sini kalau ... |
+|------|--------|------------------------|
+| `beat_catch_logic.h/.c` | `beat_catch_State`, konstanta `BC_*`, `judge_bead`, `award_bead`, `award_finish`, `reset_rules`, `beat_catch_step`, skor | mengubah angka keseimbangan atau aturan tangkap, combo, health |
+| `beat_catch_game.c` | `bd_ui_play_catch`: loop mode Catch, health bar, combo, bunyi "lolos" | mengubah tampilan khusus mode Catch |
+| `tests/test_beat_catch.c` | 19 unit test | mengubah aturan |
+| `beat_dodge_logic.[ch]`, `beat_dodge_ui.h`, `beat_dodge_game.c`, `beat_dodge_convert.[ch]` | dipakai bersama: format lagu, `bd_Run`, `bd_catch_tolerance`, `bd_chart_playable`, menu dan tombol mode, musik, penggambaran lapangan, pembuat chart catch | lihat bagian Beat Dodge di atas |
+
+### Kontrol
+- Sama dengan mode Dodge: Left/Right (atau A/D) pindah satu lane, tombol `1` sampai `4` loncat ke lane itu. Di layar pilih lagu, tombol **M** atau klik tombol **CATCH** / **DODGE** mengganti mode.
+
+### Aturan dan skor
+Setiap bead dinilai **tepat saat ia sampai di garis**. Tidak ada jendela waktu: yang dihitung hanya lane pemain pada saat itu.
+
+- **Tertangkap:** `|lane pemain - lane bead| <= toleransi`. Bead tunggal poin dasar `BC_LONE_POINTS` = 10, bead di dalam ribbon `BC_RIBBON_POINTS` = 5. Poin dikali **pengali combo**: `1 + min(combo / 10, 3)`, jadi x1 untuk 10 bead pertama, x2 untuk bead ke-11 sampai 20, x3, lalu x4 dari bead ke-31 berturut-turut. `combo` di rumus adalah jumlah bead yang sudah tertangkap berturut-turut *sebelum* bead ini.
+- **Lolos (tidak tertangkap):** combo kembali ke 0 dan layar berkedip merah. Kalau ini bead pertama yang gagal dari objeknya, health berkurang `BC_HEALTH_PER_MISS` = 15. **Satu objek hanya memotong health sekali**, berapa pun beadnya yang gagal.
+- **Health:** mulai 100. Objek yang tertangkap **seluruhnya** menambah `BC_HEALTH_PER_CLEAN_OBJECT` = 2 (tidak pernah di atas 100), dihitung di bead terakhir objek itu. Health 0 berarti game over.
+- **Bertahan sampai lagu selesai** (`time >= end_time`) memberi bonus `BC_FINISH_PER_HEALTH` = 5 poin per health yang tersisa. Kalau game over, bonus ini tidak diberikan.
+
+Skor yang ditampilkan dinormalkan supaya adil antar lagu:
+
+```
+skor = 1000 * multiplier * points / max_points      (hitungan bilangan bulat)
+max_points = 5 * 100 + jumlah poin kalau SEMUA bead tertangkap (combo tidak pernah putus)
+multiplier : easy 1.0, normal 1.5, hard 2.0
+```
+
+`max_points` tidak ditulis sebagai rumus terpisah: `reset_rules()` memutar ulang permainan sempurna lewat fungsi yang sama dengan yang dipakai saat bermain (`award_bead`, `award_finish`). Karena itu skor sempurna selalu persis **1000 x multiplier** (1000 / 1500 / 2000), dan skor tidak bisa lebih dari itu. Skor mode Catch dan mode Dodge sama-sama dinormalkan ke 1000 x multiplier untuk permainan sempurna, dan keduanya masuk ke leaderboard yang sama (satu per game, kuncinya `GameDef.id` = `beat_dodge`); leaderboard tidak mencatat mode apa yang dimainkan.
+
+### Cara kerja per frame
+**Sebelum loop utama:** `play()` di `beat_dodge_game.c` menampilkan layar pilih lagu (`bd_ui_select_song()`). Kalau pemain memilih mode CATCH, `play()` memanggil `bd_ui_play_catch(ctx, lagu, chart)` (di `beat_catch_game.c`). Mode headless (smoke) memainkan mode Dodge lalu mode Catch pada chart tersulit lagu pertama, masing-masing separuh dari jumlah frame, tanpa audio (screenshot `beat_dodge.png` dan `beat_dodge_catch.png`).
+
+1. `beat_catch_use_song()` memanggil `bd_run_start()` (jam, lane awal di tengah) lalu `reset_rules()` (health 100, combo 0, `max_points`, multiplier).
+2. `bd_ui_music_start()`: kalau ada audio dan melodi, melodi di-render synthesizer menjadi WAV di memori dan dimainkan. Not yang punya bead di chart yang dipilih berbunyi sebagai lead terang, yang lain sebagai backing pelan (`bd_song_to_synth`). Tanpa melodi tapi ada audio: tick metronom.
+
+**Setiap frame:**
+
+1. `arcade_poll(&in)`.
+2. Kalau ada musik: `bd_ui_music_time()` memberi posisi lagu, lalu `beat_catch_sync()` menyamakan `time` **hanya** kalau selisihnya lebih dari 0,15 detik.
+3. `beat_catch_step(s, &in, ARC_DT)`:
+   1. Kalau `over`, keluar.
+   2. `bd_run_tick()`: `time += dt`, ketukan baru, kedip merah berkurang, geser lane.
+   3. `catch_flash` berkurang.
+   4. **Loop `while`** menilai semua bead yang kini sampai di garis (`time >= bd_run_arrival(next_hit)`), kenapa `while`: sinkronisasi audio bisa membuat `time` melompat. Step kosong dilewati. `judge_bead()` menilai satu bead: tertangkap atau lolos, poin, combo, health.
+   5. Kalau belum game over dan `time >= end_time`: `won = true`, `over = true`, bonus health ditambahkan.
+4. Front-end membunyikan nada rendah setiap `missed` bertambah, atau tick metronom kalau tidak ada musik.
+5. `draw_game()`: `bd_ui_draw_field()` (lane, cincin dan ribbon, cangkir, cincin tangkapan di garis), kedip merah, bar health, combo dan pengali, bar progres lagu, judul lagu 2,6 detik pertama. Lalu HUD dan `arcade_frame_end()`.
+6. Kalau `beat_catch_is_over()`, loop berhenti. `score = beat_catch_score(s)`, `finished = true`. Esc di tengah lagu: `finished = false`, skor tidak dicatat.
+
+### Data penting (struct)
+`beat_catch_State`: seluruh keadaan saat bermain (sekitar 34 KB karena `bd_Run` menyalin lagunya, jadi harus `static`).
+
+| Field | Tipe | Artinya |
+|-------|------|---------|
+| `run` | `bd_Run` | bagian yang sama dengan mode Dodge: salinan lagu, `time`, `lane`, `next_hit`, `lead`, `end_time`, `over`, `won`, `hit_flash` |
+| `health` | `int` | 100 sampai 0 |
+| `combo`, `best_combo` | `int` | bead tertangkap berturut-turut dan rekor lagu ini |
+| `caught`, `missed` | `int` | jumlah **bead** |
+| `missed_objects` | `int` | jumlah **objek** yang punya bead gagal (masing-masing memotong health sekali) |
+| `points`, `max_points` | `int` | poin mentah dan poin sempurna (untuk normalisasi) |
+| `multiplier` | `float` | multiplier kesulitan, bukan pengali combo |
+| `obj_missed` | `bool` | objek yang sedang dinilai sudah memotong health |
+| `catch_flash`, `catch_lane` | `float`, `int` | untuk cincin yang melebar di garis saat bead tertangkap (hanya tampilan) |
+
+### Fungsi-fungsi penting
+| Fungsi | Tugas | Dipanggil dari |
+|--------|-------|----------------|
+| `beat_catch_init(s, seed)` | lagu bawaan kecil, chart-nya jadi catch | test (tidak dipakai `play()`) |
+| `beat_catch_use_song(s, song, chart)` | mulai lagu: `bd_run_start` + `reset_rules` | `play()`, test |
+| `beat_catch_step(s, in, dt)` | satu langkah logic | `play()` tiap frame, test |
+| `judge_bead(s, c, step)` (static) | satu bead: toleransi, poin, combo, health, bead terakhir objek | `beat_catch_step` |
+| `beat_catch_combo_multiplier(combo)` | `1 + min(combo / 10, 3)` | `award_bead`, HUD, test |
+| `award_bead`, `award_finish` (static) | **satu-satunya** tempat angka poin berada | `judge_bead`, `reset_rules` |
+| `beat_catch_score(s)` | skor ternormalisasi, bilangan bulat | HUD, hasil akhir |
+| `bd_catch_tolerance(span)`, `bd_chart_object_span()` | toleransi menurut span objek | `judge_bead`, `bd_chart_playable`, konverter |
+| `bd_ui_*` | layar pilih lagu, musik, penggambaran | `beat_catch_game.c` |
+
+### Angka yang bisa diutak-atik
+Semua angka aturan ada di `beat_catch_logic.h` dan **hanya** di sana. Mengubahnya tidak merusak `max_points`, karena `max_points` dihitung dengan memutar ulang permainan sempurna.
+
+| Konstanta | Nilai | Efek kalau diubah |
+|-----------|-------|-------------------|
+| `BC_START_HEALTH` | `100` | health awal dan batas atas |
+| `BC_HEALTH_PER_CLEAN_OBJECT` | `2` | pemulihan per objek yang tertangkap seluruhnya |
+| `BC_HEALTH_PER_MISS` | `15` | hukuman per objek yang punya bead gagal. Rasio 2 : 15 berarti pemain bertahan kalau menangkap sekitar 88% objek atau lebih |
+| `BC_LONE_POINTS` / `BC_RIBBON_POINTS` | `10` / `5` | poin dasar bead tunggal dan bead ribbon |
+| `BC_COMBO_STEP`, `BC_MAX_COMBO_BONUS` | `10`, `3` | pengali naik tiap 10 bead berturut-turut sampai x4 |
+| `BC_FINISH_PER_HEALTH` | `5` | bonus per health di akhir lagu |
+| `bd_catch_tolerance` | span 0 -> 0, lainnya -> 1 | seberapa jauh dari sebuah bead kamu boleh berdiri. **Ini juga mengubah chart mana yang dianggap bisa dimainkan**, jadi bangun ulang lagu (`bash tools/songs/build_songs.sh`) |
+| multiplier | easy `1.0`, normal `1.5`, hard `2.0` | `bd_chart_multiplier` |
+| `k_preset[]` (catch) | easy 3 lane, normal 4 lane, hard 4 lane | `beat_dodge_convert.c` |
+
+Seluruh angka health dan toleransi adalah **titik awal untuk diuji main**, bukan hasil playtest manusia. Alat ukurnya adalah bot (lihat di bawah). Kalau game terasa terlalu mudah atau terlalu keras, ubah `BC_HEALTH_PER_MISS` dulu.
+
+### Cara menjalankan dan menguji
+```bash
+# test logic saja (tanpa raylib, ~1 detik)
+cmake --preset logic && cmake --build --preset logic && ctest --preset logic -R "^beat_dodge\.test_beat_catch"
+```
+
+`tests/test_beat_catch.c` (19 test, dijalankan CTest sebagai `beat_dodge.test_beat_catch`):
+
+| Test | Menjaga aturan apa |
+|------|--------------------|
+| `test_init_is_sane` | lagu bawaan kecil (`beat_catch_init`, hanya untuk test): chart catch, health 100, skor 0 |
+| `test_a_lone_bead_needs_the_exact_lane` | bead tunggal: lane tepat tertangkap, selisih satu lane lolos dan memotong health |
+| `test_a_ribbon_that_changes_lane_is_caught_from_its_middle` | ribbon yang pindah lane tertangkap dari lane tengah, poin 5 per bead |
+| `test_a_ribbon_in_one_lane_needs_that_exact_lane` | ribbon yang tetap di satu lane: toleransi 0 |
+| `test_a_ribbon_costs_exactly_one_penalty` | satu objek memotong health sekali, berapa pun beadnya yang gagal |
+| `test_the_combo_multiplier_steps_at_10_20_and_30` | pengali x1, x2, x3, x4 dan berhenti di x4 |
+| `test_a_miss_resets_the_combo` | satu bead gagal memutus combo, pengali mulai dari x1 lagi |
+| `test_health_is_counted_per_object_and_never_above_the_start` | ribbon enam bead hanya memulihkan sekali, batas atas 100 |
+| `test_zero_health_ends_the_run` | tujuh objek gagal berturut-turut: game over, kalah, skor 0 |
+| `test_surviving_the_song_pays_for_the_health_left` | bonus 5 per health, poin = `max_points` untuk permainan sempurna |
+| `test_the_perfect_bot_scores_the_ceiling` | easy 1000, normal 1500, hard 2000, persis |
+| `test_standing_in_a_corner_loses_and_scores_almost_nothing` | pemain yang hanya berdiri di lane 0 pada chart 4 lane kalah, menangkap kurang dari 8 bead, skor di bawah 150 |
+| `test_default_song_perfect_bot_wins` | lagu bawaan bisa ditangkap sempurna |
+| `test_sync_only_fixes_large_drift` | selisih 0,05 detik diabaikan, 0,5 detik diikuti |
+| `test_the_clock_and_the_arrival_match_beat_dodge` | waktu tiba sebuah bead dan nilai `bd_catch_tolerance` (0 dan 2 -> 0 dan 1) sama dengan yang dipakai mode Dodge |
+| `test_the_human_speed_bot_clears_every_shipped_catch_chart` | bot yang mengikuti jalur `bd_chart_plan` dengan satu ketukan panah tiap 0,1 detik menang di **semua** chart catch yang dikirim, dengan kurang dari 10% objek gagal |
+| `test_the_perfect_bot_scores_the_ceiling_on_shipped_charts` | semua chart catch yang dikirim: tangkap semua, skor `1000 * multiplier` |
+| `test_standing_still_loses_on_every_shipped_catch_chart` | diam saja di lane awal kalah di semua chart catch yang dikirim |
+| `test_monkey_is_safe` | input acak: lane, health, poin, combo selalu dalam batas |
+
+### Jebakan dan hal yang perlu diingat
+- **Satu sumber toleransi.** `bd_catch_tolerance` dipakai oleh aturan, oleh `bd_chart_playable`/`bd_chart_plan`, dan oleh konverter. Jangan menulis angka 0 atau 1 di tempat lain.
+- **CMake:** semua file kedua mode didaftarkan dalam satu `arcade_add_game(ID beat_dodge ...)`: `beat_catch_logic.c` di `LOGIC`, `beat_catch_game.c` di `GAME`, dan `tests/test_beat_catch.c` di `TESTS`.
+- **`beat_dodge_ui.h` tidak boleh memuat tipe raylib** (`bd_ui_play_catch` mengembalikan `GameResult`, bukan tipe raylib). `tools/check_repo.sh` melarang raylib di semua file selain `*_game.c`. Fungsi `bd_ui_*` diimplementasikan di `beat_dodge_game.c` dan hanya memakai `int`, `float`, `bool`, dan struct logic.
+- **`BD_AUDIO_OFFSET_S` bersama.** Sinkronisasi musik memakai satu nilai (0,0) untuk kedua mode. Jangan menggesernya hanya untuk satu mode.
+- **Satu leaderboard untuk dua mode.** Skor kedua mode sama-sama dinormalkan (1000 x multiplier untuk permainan sempurna), tetapi leaderboard (kunci `GameDef.id` = `beat_dodge`, format file tidak berubah) tidak mencatat modenya. Skor Beat Dodge versi lama berada di skala yang berbeda dari skor sekarang.
+- Semua lagu di `songs.txt` punya enam chart (3 dodge dan 3 catch). Kalau suatu lagu hanya punya chart satu mode, ia tampil redup di menu mode yang lain dan `bd_menu_set_kind` melompat ke lagu berikutnya yang punya. Lagu bawaan `bd_song_default` (satu chart dodge) tidak muncul di menu; ia hanya dipakai test dan sebagai cadangan kalau tidak ada file lagu sama sekali (hanya mode Dodge).
+- **Audio belum diverifikasi** di sandbox build (tidak ada perangkat suara). Yang sudah dites: logic, kebenaran chart, dan tampilan lewat screenshot headless.
+
+### Langkah implementasi (Implementation steps)
+
+#### Hasil pengukuran (9 lagu, rata-rata per kesulitan)
+Dihitung dengan memainkan chart asli lewat `beat_catch_step`, dan chart-nya diukur dengan `build/logic/bin/midi2beatmap --metrics assets/beatmaps/fnf/*.txt`.
+
+| Ukuran | easy | normal | hard |
+|--------|------|--------|------|
+| Lane | 3 | 4 | 4 |
+| Bead per chart | 197 | 204 | 219 |
+| Objek per chart (ribbon + bead tunggal) | 47 (38 + 9) | 54 (38 + 16) | 69 (38 + 31) |
+| Bead per detik | 2,09 | 2,17 | 2,34 |
+| Bot kecepatan manusia (ikut `bd_chart_plan`, satu ketukan panah tiap 0,1 detik): bead tertangkap, objek gagal | 100%, 0 | 100%, 0 | 100%, 0 |
+| Bot sempurna | 1000 | 1500 | 2000 |
+| Diam di lane awal: game over pada | 32% lagu | 32% lagu | 22% lagu |
+| Diam di lane awal: skor | 20 | 63 | 51 |
+
+#### Keputusan dan penyimpangan dari rencana (dan kenapa)
+1. **Toleransi menurut span objek, bukan "1 untuk semua bead ribbon".** Rencana awal memberi toleransi 1 pada setiap bead ribbon. Tes pertama memperlihatkan bahwa dengan 3 lane, pemain yang berdiri diam di lane tengah mendapat skor penuh 1000 di Roses easy, karena ribbon yang berada di satu lane pun tetap tertangkap dari lane sebelahnya. Sekarang ribbon yang tetap di satu lane (span 0) butuh lane tepat, dan hanya ribbon yang benar-benar pindah lane (span 1 atau 2) ditangkap dari tengahnya. Argumennya tetap sama: tidak ada yang bisa mengikuti perpindahan lane tiap 80 ms. Chart catch dibuat ulang dengan pemeriksa kelayakan yang sama.
+2. **Health per objek, bukan per bead.** Rencana awal memulihkan +2 per bead dan memotong 6 per objek. Dengan ribbon yang rata-rata 5 sampai 6 bead, satu ribbon yang tertangkap memulihkan sepuluh kali lebih banyak daripada bead tunggal. Dengan model per bead itu, pemain yang berdiri diam tetap bisa bertahan di sebagian chart. Sekarang pemulihan +2 per objek yang tertangkap seluruhnya dan hukuman 15 per objek yang gagal: pemain yang diam kalah di semua 27 chart catch (9 lagu x 3 kesulitan), sedangkan bot kecepatan manusia menang tanpa satu pun objek gagal. Alat ukurnya adalah bot, bukan playtest manusia: kalau terlalu keras, kurangi `BC_HEALTH_PER_MISS`.
+3. **Combo dipertahankan** (keputusan pemilik): menghitung bead, bukan objek, dan pengali memakai combo *sebelum* bead itu.
+4. **Skor dalam bilangan bulat.** `1000 * multiplier * points / max_points` dihitung dengan `long long`, supaya skor sempurna persis sama dengan batasnya (versi `float` bisa menghasilkan 1999 pada chart dengan poin besar). Dipakai juga oleh Beat Dodge.
+5. **Lane:** easy 3, normal 4, hard 4 sesuai rencana. Chart catch hard tidak punya jeda minimum antar bead tunggal, yang membatasi hanya cek lane terjangkau (`BD_HUMAN_STEP_SEC` = 0,12 detik per lane).
+
+#### Ide berikutnya (belum dikerjakan)
+- [ ] Playtest manusia untuk mengatur `BC_HEALTH_PER_MISS` dan `BC_HEALTH_PER_CLEAN_OBJECT`.
+- [ ] Leaderboard per lagu (sekarang satu leaderboard per game).
+- [ ] Not panjang (hold): bead yang harus ditahan.
+
+### Pseudocode (untuk laporan)
+```
+PROSEDUR nilai_bead(state, chart, step)          (bead sampai di garis)
+    JIKA bead ini mulai objek baru MAKA objek_gagal <- salah
+    toleransi <- 0 JIKA objek bead ini tetap di satu lane, JIKA TIDAK 1
+    JIKA |lane pemain - lane bead| <= toleransi MAKA
+        poin <- poin + (10 JIKA bead tunggal, 5 JIKA bead ribbon) * (1 + min(combo / 10, 3))
+        combo <- combo + 1
+    JIKA TIDAK
+        combo <- 0
+        JIKA objek_gagal = salah MAKA
+            objek_gagal <- benar; health <- max(0, health - 15)
+            JIKA health = 0 MAKA game over
+    JIKA bead ini bead terakhir objeknya DAN objek_gagal = salah MAKA
+        health <- min(100, health + 2)
+AKHIR PROSEDUR
+
+PROSEDUR step(state, input, dt)
+    JIKA game over MAKA KEMBALI
+    majukan waktu, ketukan, dan lane pemain
+    SELAMA bead berikutnya sudah sampai di garis DAN belum game over
+        JIKA step itu berisi bead MAKA nilai_bead
+        pindah ke step berikutnya
+    JIKA belum game over DAN time >= end_time MAKA
+        menang; poin <- poin + 5 * health
+AKHIR PROSEDUR
+```
+
+### Flowchart (untuk laporan)
+```mermaid
+flowchart TD
+    A([Mulai]) --> B["pilih lagu dan kesulitan catch"]
+    B --> C{"loop masih jalan?"}
+    C -- tidak --> Z([Kembalikan skor])
+    C -- ya --> D["baca input, perbarui time dan ketukan"]
+    D --> E["pindah lane"]
+    E --> F{"ada bead yang sampai di garis?"}
+    F -- tidak --> J[gambar frame] --> C
+    F -- ya --> G{"jarak lane <= toleransi?"}
+    G -- ya --> H["tertangkap: poin x pengali combo, combo + 1"]
+    G -- tidak --> I["lolos: combo = 0, objek pertama gagal: health - 15"]
+    H --> K{"bead terakhir objek tanpa gagal?"}
+    K -- ya --> L["health + 2"]
+    K -- tidak --> M
+    L --> M{"health = 0?"}
+    I --> M
+    M -- ya --> Z
+    M -- tidak --> N{"lagu selesai?"}
+    N -- ya --> Z
+    N -- tidak --> F
+```
+
+### Konsep kuliah yang dipakai (untuk Bab I laporan)
+| Konsep (Pertemuan) | Di mana (file : fungsi) |
+|--------------------|-------------------------|
+| Struct (13) | `beat_catch_State`, `bd_Run`, `bd_Chart` |
+| Array (9) | `bd_Chart.lane[]` dan `link[]`: satu elemen per step |
+| Percabangan (5) | tertangkap atau lolos di `judge_bead`, bead terakhir objek |
+| Perulangan (6) | loop `while` yang menilai bead yang sudah tiba, di `beat_catch_step`; loop yang memutar ulang permainan sempurna di `reset_rules` |
+| Fungsi dan modularitas (10) | satu `bd_catch_tolerance` dipakai aturan dan pemeriksa chart; `award_bead` dan `award_finish` |
+| File handling (13) | memakai ulang `bd_song_load` dan `bd_songlist_load` |
+| Matematika (12) | pengali combo `1 + min(combo / 10, 3)`, normalisasi skor dengan bilangan bulat, nilai absolut `abs()` untuk jarak lane |

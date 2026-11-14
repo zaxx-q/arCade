@@ -139,7 +139,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Echo Maze     | `games/echo_maze/`     | Member 2                   | Mekanik inti jalan (generator rekursif, pulse sonar, line of sight)        |
 | Laser Mirrors | `games/laser_mirrors/` | Member 3                   | Mekanik inti jalan (level contoh, pelacakan sinar rekursif)                |
 | Ghost Loop    | `games/ghost_loop/`    | Member 4                   | Mekanik inti jalan (record/replay, saklar lantai, logic pintu)             |
-| Beat Dodge    | `games/beat_dodge/`    | Member 5                   | Mekanik inti jalan (beat clock, loader beatmap teks, audio click)          |
+| Beat Dodge & Catch | `games/beat_dodge/` | Member 5                | Jalan (dua mode, Dodge dan Catch, dipilih di layar pilih lagu; lagu dari MIDI, ribbon, close call, combo, health, musik sintesis, 3 kesulitan) |
 | Absorb & Grow | `games/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
 | Sort It       | `games/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
 | Sandbox       | `games/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
@@ -162,7 +162,7 @@ Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:
 
 ### Fase 3: Peningkatan Hub & Backlog
 
-- [ ] Beatmap tambahan untuk Beat Dodge (`assets/beatmaps/`).
+- [ ] Beatmap tambahan untuk Beat Dodge & Catch (`assets/beatmaps/`).
 - [ ] Level puzzle tambahan untuk Laser Mirrors dan Ghost Loop.
 - [ ] Elemen pasir tambahan (api, minyak, lava, asam - lihat `docs/SANDBOX.md`).
 - [ ] Game tambahan (opsional) dengan `cmake -DID=... -DTITLE=... -DOWNER=... -P tools/new_game.cmake`.
