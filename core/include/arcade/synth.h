@@ -11,7 +11,7 @@
 typedef struct SynthNote {
     float start, dur; /* seconds */
     uint8_t pitch;    /* MIDI note number, 69 = A4 = 440 Hz */
-    uint8_t voice;    /* 0 = bright lead, 1 = soft organ, 2 = thin bell, others fall back to voice 1 */
+    uint8_t voice;    /* 0 = bright lead, 1 = soft organ, 2 = thin bell, 3 = quiet backing, others: organ */
 } SynthNote;
 
 typedef struct SynthOptions {

@@ -84,14 +84,35 @@ float bd_song_seconds(const bd_Song *song, int chart) {
     return (BD_LEAD_BEATS + (chart_beats > melody_beats ? chart_beats : melody_beats) + 1.0f) * spb;
 }
 
-int bd_song_to_synth(const bd_Song *song, float delay, SynthNote *out) {
+int bd_song_kind_count(const bd_Song *song, bd_ChartKind kind) {
+    int n = 0;
+    for (int c = 0; c < song->chart_count; c++)
+        if (song->charts[c].kind == kind)
+            n++;
+    return n;
+}
+
+int bd_song_kind_chart(const bd_Song *song, bd_ChartKind kind, int nth) {
+    for (int c = 0; c < song->chart_count; c++)
+        if (song->charts[c].kind == kind && nth-- == 0)
+            return c;
+    return -1;
+}
+
+/* Voice of a note that has no bead: a quiet organ, so that what you hear loudly is what you see. */
+#define BD_BACKING_VOICE 3
+
+int bd_song_to_synth(const bd_Song *song, int chart, float delay, SynthNote *out) {
     float spb = 60.0f / (float)song->bpm;
+    const bd_Chart *c = &song->charts[arc_clampi(chart, 0, song->chart_count - 1)];
     int n = song->note_count < BD_MAX_NOTES ? song->note_count : BD_MAX_NOTES;
     for (int i = 0; i < n; i++) {
+        int step = bd_note_step(song->notes[i].start, song->steps);
+        bool lead = step < c->length && c->lane[step] >= 0;
         out[i].start = delay + (float)song->notes[i].start / (float)BD_CLOCKS_PER_BEAT * spb;
         out[i].dur = (float)song->notes[i].len / (float)BD_CLOCKS_PER_BEAT * spb;
         out[i].pitch = song->notes[i].pitch;
-        out[i].voice = song->notes[i].voice;
+        out[i].voice = lead ? 0 : BD_BACKING_VOICE;
     }
     return n;
 }
@@ -301,29 +322,63 @@ int bd_songlist_load(const char *dir, bd_SongList *out) {
 }
 
 /* ------------------------------------------------------------------ menu */
-void bd_menu_init(bd_Menu *m) {
+void bd_menu_init(bd_Menu *m, bd_ChartKind kind) {
     m->song = 0;
     m->chart = 0;
     m->chosen = false;
+    m->kind = kind;
+}
+
+/* The chart a song starts on: the second chart of the menu's kind ("normal") when there is more than one. */
+static int default_chart(const bd_Song *song, bd_ChartKind kind) {
+    int nth = bd_song_kind_count(song, kind) > 1 ? 1 : 0;
+    return bd_song_kind_chart(song, kind, nth);
+}
+
+void bd_menu_move_song(bd_Menu *m, const bd_SongList *list, int dir) {
+    for (int k = 1; k <= list->count; k++) { /* at most one full turn */
+        int i = ((m->song + dir * k) % list->count + list->count) % list->count;
+        if (bd_song_kind_count(&list->songs[i], m->kind) > 0) {
+            m->song = i;
+            m->chart = default_chart(&list->songs[i], m->kind);
+            return;
+        }
+    }
+}
+
+void bd_menu_pick_chart(bd_Menu *m, const bd_SongList *list, int chart) {
+    const bd_Song *song = &list->songs[m->song];
+    if (chart >= 0 && chart < song->chart_count && song->charts[chart].kind == m->kind)
+        m->chart = chart;
 }
 
 void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list) {
     if (list->count == 0)
         return;
-    int before = m->song;
+    m->song = arc_clampi(m->song, 0, list->count - 1);
+    if (bd_song_kind_count(&list->songs[m->song], m->kind) == 0)
+        bd_menu_move_song(m, list, 1); /* this song has no chart for this game: go to one that has */
     if (in->down_pressed)
-        m->song = (m->song + 1) % list->count;
+        bd_menu_move_song(m, list, 1);
     if (in->up_pressed)
-        m->song = (m->song + list->count - 1) % list->count;
-    if (m->song != before) /* a new song: start on the second chart (normal) when there is one */
-        m->chart = list->songs[m->song].chart_count > 1 ? 1 : 0;
-    int charts = list->songs[m->song].chart_count;
-    if (in->left_pressed)
-        m->chart = arc_maxi(0, m->chart - 1);
-    if (in->right_pressed)
-        m->chart = arc_mini(charts - 1, m->chart + 1);
-    m->chart = arc_clampi(m->chart, 0, charts - 1);
-    if (in->action_pressed)
+        bd_menu_move_song(m, list, -1);
+    const bd_Song *song = &list->songs[m->song];
+    int nth = 0; /* position of the current chart among the charts of this kind */
+    for (int c = 0; c < song->chart_count && c < m->chart; c++)
+        nth += song->charts[c].kind == m->kind ? 1 : 0;
+    if (m->chart < 0 || m->chart >= song->chart_count || song->charts[m->chart].kind != m->kind)
+        nth = -1; /* the chart is not of this kind (first call): pick the default below */
+    int count = bd_song_kind_count(song, m->kind);
+    if (nth < 0) {
+        m->chart = default_chart(song, m->kind);
+    } else {
+        if (in->left_pressed)
+            nth = arc_maxi(0, nth - 1);
+        if (in->right_pressed)
+            nth = arc_mini(count - 1, nth + 1);
+        m->chart = bd_song_kind_chart(song, m->kind, nth);
+    }
+    if (in->action_pressed && m->chart >= 0)
         m->chosen = true;
 }
 
@@ -497,11 +552,10 @@ void bd_run_sync(bd_Run *r, float clock_seconds) {
 }
 
 /* ------------------------------------------------------------------ Beat Dodge rules */
-/* All scoring numbers live in these two functions so the live game and the "perfect run" that defines
+/* All scoring numbers live in these three functions so the live game and the "perfect run" that defines
  * max_points can never disagree. */
-static int
-award_dodge(int combo) { /* points for one dodged obstacle; the longer the combo, the more (max x4) */
-    return 10 * arc_mini(combo, 4);
+static int award_object(bool close_call) { /* an object that ended without a hit */
+    return close_call ? 20 : 10;
 }
 
 static int award_finish(int lives) { /* bonus for surviving the whole song */
@@ -511,12 +565,15 @@ static int award_finish(int lives) { /* bonus for surviving the whole song */
 static void reset_rules(beat_dodge_State *s) { /* everything except the shared run, which bd_run_start did */
     const bd_Chart *c = &s->run.song.charts[s->run.chart];
     s->lives = BD_START_LIVES;
-    s->dodged = s->hits = s->combo = s->best_combo = s->points = 0;
+    s->dodged = s->hits = s->close_calls = s->points = 0;
     s->multiplier = bd_chart_multiplier(c->name);
-    int obstacles = bd_chart_beads(c);
+    s->obj_hit = s->obj_close = false;
+    s->close_flash = 0.0f;
+    /* a perfect run: every object a close call, no life lost. It is replayed through the same award functions
+     * as the real game. Humans land below it: the maximum is a ceiling, not a target. */
     s->max_points = award_finish(BD_START_LIVES);
-    for (int k = 1; k <= obstacles; k++) /* what a perfect run earns: every obstacle dodged, no hit */
-        s->max_points += award_dodge(k);
+    for (int k = 0; k < bd_chart_objects(c); k++)
+        s->max_points += award_object(true);
 }
 
 void beat_dodge_init(beat_dodge_State *s, unsigned seed) {
@@ -538,6 +595,47 @@ float beat_dodge_obstacle_y(const beat_dodge_State *s, int step) {
     return bd_run_obstacle_y(&s->run, step);
 }
 
+/* A close call: the player stood in a lane that the object touches (any of its beads) within
+ * BD_CLOSE_WINDOW_SEC before its first bead arrived. last_in_lane[] is the time the player last stood in a
+ * lane. */
+static bool is_close_call(const beat_dodge_State *s, const bd_Chart *c, int first) {
+    float arrival = bd_run_arrival(&s->run, first);
+    int step = first;
+    do {
+        if (arrival - s->run.last_in_lane[c->lane[step]] <= BD_CLOSE_WINDOW_SEC)
+            return true;
+        step = bd_chart_next_bead(c, step);
+    } while (step < c->length && c->link[step]);
+    return false;
+}
+
+/* Judges the bead of `step`, which has just reached the player line. */
+static void judge_bead(beat_dodge_State *s, const bd_Chart *c, int step) {
+    bd_Run *r = &s->run;
+    if (!c->link[step]) { /* a new object starts: forget the last one */
+        s->obj_hit = false;
+        s->obj_close = is_close_call(s, c, step);
+    }
+    if (!s->obj_hit && c->lane[step] == r->lane) { /* hit: one life per object, the rest of it is ignored */
+        s->obj_hit = true;
+        s->lives--;
+        s->hits++;
+        r->hit_flash = 0.35f;
+        if (s->lives <= 0)
+            r->over = true;
+    }
+    int next = bd_chart_next_bead(c, step);
+    bool last_of_object = next >= c->length || !c->link[next];
+    if (last_of_object && !s->obj_hit) { /* the object ended without a hit */
+        s->dodged++;
+        s->points += award_object(s->obj_close);
+        if (s->obj_close) {
+            s->close_calls++;
+            s->close_flash = 0.6f;
+        }
+    }
+}
+
 /* TODO(Member 5): drive `time` from a music stream clock instead of the fixed dt so the beat stays locked to
  * real audio on slow machines (beat_dodge_sync does this; the front-end calls it): see GAME.md
  * "Implementation steps". */
@@ -546,26 +644,13 @@ void beat_dodge_step(beat_dodge_State *s, const ArcadeInput *in, float dt) {
     if (r->over)
         return;
     bd_run_tick(r, in, dt);
+    s->close_flash = arc_maxf(0.0f, s->close_flash - dt);
 
-    /* resolve every obstacle that has now arrived at the player line */
+    /* resolve every bead that has now arrived at the player line */
     const bd_Chart *c = &r->song.charts[r->chart];
     while (r->next_hit < r->length && r->time >= bd_run_arrival(r, r->next_hit) && !r->over) {
-        int l = c->lane[r->next_hit];
-        if (l >= 0) {
-            if (l == r->lane) { /* hit */
-                s->lives--;
-                s->hits++;
-                s->combo = 0;
-                r->hit_flash = 0.35f;
-                if (s->lives <= 0)
-                    r->over = true;
-            } else { /* dodged */
-                s->dodged++;
-                s->combo++;
-                s->best_combo = arc_maxi(s->best_combo, s->combo);
-                s->points += award_dodge(s->combo);
-            }
-        }
+        if (c->lane[r->next_hit] >= 0)
+            judge_bead(s, c, r->next_hit);
         r->next_hit++;
     }
     if (!r->over && r->time >= r->end_time) { /* survived the whole song */

@@ -44,6 +44,9 @@ static float voice_wave(int voice, float phase, float *gain) {
     case 2: /* thin bell */
         *gain = 0.12f;
         return sinf(phase) + 0.5f * sinf(4.0f * phase) * 0.6f;
+    case 3: /* quiet backing: a soft, plain tone that stays behind the bright lead */
+        *gain = 0.06f;
+        return (sinf(phase) + 0.3f * sinf(2.0f * phase)) * 0.7f;
     default: /* soft organ */
         *gain = 0.19f;
         return (sinf(phase) + 0.45f * sinf(2.0f * phase) + 0.2f * sinf(3.0f * phase)) * 0.6f;
