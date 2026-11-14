@@ -301,6 +301,8 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 
 Catatan pengukuran: pembagi "rintangan per detik" adalah waktu rintangan terakhir (cocok dengan 1,10 / 1,62 / 2,29 di rencana; pembagi "dari yang pertama sampai yang terakhir" memberi angka 5% lebih tinggi). Onset memakai pembulatan setengah-ke-genap seperti `round()` di Python (`bd_note_step`), karena hanya itu yang menghasilkan tepat 311 burst. Jendela memakai batas inklusif; dua sel (normal dan hard 5 detik) selisih 1 poin dari rencana (44 dan 64). Tumpang tindih dua voice: 12% ketukan.
 
+**Hasil Fase 1: cek lane yang terjangkau (oracle).** Manusia model: `BD_HUMAN_STEP_SEC` = 0,12 detik per langkah lane. Dijalankan pada 27 chart yang dikirim sebelum ribbon (`midi2beatmap --metrics`): **27 dari 27 lolos** (9 per kesulitan), jadi 0,12 detik tidak perlu dirundingkan dengan pemilik. Baseline anti-camping: waktu terlama satu lane tanpa rintangan rata-rata 23,7 detik (easy), 19,1 (normal), 24,0 (hard); terlama 41,0 / 26,4 / 40,4 detik.
+
 ### Langkah dari design awal
 1. Audio asli: muat file `.ogg`/`.wav` dari `assets/` (raylib `LoadMusicStream`) dan gerakkan `beat_dodge_step` dari jam musik supaya beat tetap terkunci ke audio (sisakan fallback ke step tetap untuk run headless). *(Sebagian sudah ada: musik disintesis di memori dan `beat_dodge_sync` mengikuti jam audio. Yang belum: memuat file audio sungguhan.)*
 2. Editor beat map di dalam game (rekam ketukan saat lagu berjalan, simpan ke `ctx->data_dir` dengan format teks yang sama).

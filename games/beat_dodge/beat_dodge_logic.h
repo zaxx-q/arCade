@@ -14,7 +14,7 @@
 
 #define BD_MAX_LANES 5
 #define BD_MAX_STEPS 2048 /* characters in one chart */
-#define BD_MAX_CHARTS 3
+#define BD_MAX_CHARTS 6   /* 3 dodge + 3 catch charts */
 #define BD_MAX_NOTES 1536 /* melody notes in one song */
 #define BD_MAX_SONGS 16
 #define BD_CLOCKS_PER_BEAT 24 /* time unit of melody notes (the MIDI clock resolution) */
@@ -22,22 +22,35 @@
 #define BD_START_LIVES 3
 #define BD_TOP_Y 60.0f
 #define BD_PLAYER_Y 580.0f
+#define BD_HUMAN_STEP_SEC                                                                                    \
+    0.12f /* time a human needs per lane step (arrow-key taps) in the reachable-lane check */
 
-/* Song file format (text). Lines starting with '#' are comments.
+/* Vocabulary: a BEAD is one note on the chart (one step that has a lane). A RIBBON is a run of linked beads
+ * that is treated as one OBJECT (a lone note is a ribbon of one bead). Damage limits, spacing and scoring
+ * work per object; judging works per bead.
+ *
+ * Song file format (text, version 3). Lines starting with '#' are comments.
  *   title Bopeebo
  *   bpm 100
  *   steps 4              characters per beat in the charts (1..8, default 1)
- *   chart normal 3       starts a chart: name and number of lanes (2..5, default 3)
- *   ....0.1.2.1.         one character per step: '.' = rest, '0'..'4' = obstacle lane (lines are joined)
- *   melody               optional music, one note per line:  start length pitch voice
- *   0 12 63 0            start/length in 1/24 beats, MIDI pitch, voice 0..3
- * A file with only "bpm" and pattern lines (the first version of the format) is still valid: it becomes one
- * 3-lane chart named "normal" with 1 step per beat. */
+ *   chart normal 3       starts a dodge chart: name and number of lanes (2..5, default 3)
+ *   chart hard 4 catch   a third word "catch" makes it a Beat Catch chart ("dodge" is the default)
+ *   ....0.1.2.1.         one character per step: '.' = rest, '0'..'4' = a bead in that lane that starts a new
+ *                        object, 'a'..'e' = a bead in lane 0..4 that CONTINUES the object of the previous
+ * bead (rests may sit in between: fast songs have a rest step inside a run). Lines are joined. melody
+ * optional music, one note per line:  start length pitch voice 0 12 63 0            start/length in 1/24
+ * beats, MIDI pitch, voice 0..3 A file with only "bpm" and pattern lines (the first version of the format) is
+ * still valid: it becomes one 3-lane dodge chart named "normal" with 1 step per beat. Version 2 files (no
+ * letters, no "catch") are valid too. */
+typedef enum bd_ChartKind { BD_CHART_DODGE, BD_CHART_CATCH } bd_ChartKind;
+
 typedef struct bd_Chart {
     char name[12];
+    bd_ChartKind kind;
     int lanes;
-    int length;                /* steps */
-    int8_t lane[BD_MAX_STEPS]; /* -1 = rest, otherwise the lane of the obstacle */
+    int length;                 /* steps */
+    int8_t lane[BD_MAX_STEPS];  /* -1 = rest, otherwise the lane of the bead */
+    uint8_t link[BD_MAX_STEPS]; /* 1 = this bead continues the object of the previous bead (a ribbon) */
 } bd_Chart;
 
 typedef struct bd_Note {
@@ -58,7 +71,13 @@ typedef struct bd_Song {
 bool bd_song_load(const char *path, bd_Song *out); /* false if missing or invalid (out is untouched) */
 bool bd_song_save(const char *path, const bd_Song *song);
 void bd_song_default(bd_Song *out, unsigned seed); /* built-in generated practice song, always valid */
-int bd_chart_obstacles(const bd_Chart *chart);
+int bd_chart_beads(const bd_Chart *chart);         /* all beads */
+int bd_chart_objects(const bd_Chart *chart);       /* beads that start an object (ribbons and lone beads) */
+/* First step after `step` that holds a bead, or chart->length when there is none. */
+int bd_chart_next_bead(const bd_Chart *chart, int step);
+/* true when the bead at `step` belongs to an object of two or more beads (it continues one or is continued).
+ */
+bool bd_chart_in_ribbon(const bd_Chart *chart, int step);
 /* The chart step a melody note belongs to: its start (1/24 beat) rounded to the nearest step, halves going to
  * the even step like Python's round(). The converter, the metrics and the audio all use this ONE function, so
  * a note and the bead made from it always agree. */
@@ -68,6 +87,29 @@ float bd_song_seconds(const bd_Song *song, int chart); /* time at which the char
 /* Converts the melody to synth notes shifted by `delay` seconds; returns how many were written (<=
  * BD_MAX_NOTES). */
 int bd_song_to_synth(const bd_Song *song, float delay, SynthNote *out);
+
+/* ---- Reachable-lane check: the playability oracle. Model a human who needs BD_HUMAN_STEP_SEC per lane step
+ * (arrow-key taps; the number keys are a bonus we do not rely on). reach[] = the lanes the player could be
+ * standing in. Between two beads it grows by floor(dt / BD_HUMAN_STEP_SEC) lanes each way. At a bead: dodge
+ * removes the bead's lane; catch keeps only the lanes within the tolerance (0 for a lone bead, 1 for a bead
+ * inside a ribbon). A chart is playable if and only if reach never becomes empty. */
+typedef struct bd_Reach {
+    bool lane[BD_MAX_LANES];
+    int lanes;
+} bd_Reach;
+
+void bd_reach_start(bd_Reach *r, int lanes); /* the player starts in the middle lane */
+int bd_reach_steps(float seconds);           /* lane steps a human manages in `seconds` */
+void bd_reach_advance(bd_Reach *r, float seconds);
+void bd_reach_bead(bd_Reach *r, bd_ChartKind kind, int bead_lane, bool in_ribbon);
+bool bd_reach_empty(const bd_Reach *r);
+/* Walks the chart in arrival order. false = unplayable; *fail_step (may be NULL) is the step of the bead that
+ * empties reach. */
+bool bd_chart_playable(const bd_Song *song, int chart, int *fail_step);
+/* A path a human-speed player can follow: plan[step] = the lane to stand in when the bead of `step` is judged
+ * (-1 for steps without a bead). plan needs BD_MAX_STEPS entries. false when the chart is unplayable. Tests
+ * use it to build a bot that taps one lane step per BD_HUMAN_STEP_SEC. */
+bool bd_chart_plan(const bd_Song *song, int chart, int8_t *plan);
 
 /* The songs listed in <dir>/songs.txt (one file name per line, relative to dir). Missing/invalid files are
  * skipped. */
@@ -90,7 +132,7 @@ void bd_menu_step(bd_Menu *m, const ArcadeInput *in, const bd_SongList *list);
  * player stands in and the chart being played. Beat Dodge embeds it in beat_dodge_State and Beat Catch embeds
  * the same struct, so both games share one clock and one definition of "when does a bead arrive". */
 typedef struct bd_Run {
-    bd_Song song; /* private copy of the song being played (~16 KB: keep the owner `static`) */
+    bd_Song song; /* private copy of the song being played (~34 KB: keep the owner `static`) */
     int chart;    /* index of the chart being played */
     int lanes, length;
     float time;      /* seconds since the start; the first bead needs `lead` seconds to fall */

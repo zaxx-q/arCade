@@ -36,17 +36,22 @@ static void print_metrics_line(const char *label, const bd_Chart *c, const bd_Ch
            100.0f * m->same_lane, 100.0f * m->lazy_idle, 100.0f * m->empty5, 100.0f * m->empty10);
 }
 
-/* --metrics: load finished song files, print one line per chart and the average over all files per difficulty
- * name. The average is a plain mean over songs (the "before / after" tables in games/beat_dodge/GAME.md). */
+/* One row of the --metrics summary: all charts with the same kind and difficulty name. */
+typedef struct MetricsRow {
+    char label[24];
+    int charts, bursts, mismatched, unplayable;
+    double lanes, beads, per_second, covered, same_lane, lazy_idle, empty5, empty10, idle_sum;
+    float idle_max;
+} MetricsRow;
+
+/* --metrics: load finished song files, print one line per chart and the average over all files per kind and
+ * difficulty name. The average is a plain mean over songs (the "before / after" tables in
+ * games/beat_dodge/GAME.md); "mismatch" is pooled over all bursts. */
 static int run_metrics(int count, char **files) {
-    enum { MAX_KEYS = 8 };
-    char names[MAX_KEYS][12];
-    double sum[MAX_KEYS][9];
-    int songs[MAX_KEYS], pooled_bursts[MAX_KEYS], pooled_bad[MAX_KEYS], keys = 0;
-    memset(sum, 0, sizeof(sum));
-    memset(songs, 0, sizeof(songs));
-    memset(pooled_bursts, 0, sizeof(pooled_bursts));
-    memset(pooled_bad, 0, sizeof(pooled_bad));
+    enum { MAX_ROWS = 8 };
+    MetricsRow rows[MAX_ROWS];
+    int row_count = 0;
+    memset(rows, 0, sizeof(rows));
     double overlap = 0.0;
     int loaded = 0;
     for (int f = 0; f < count; f++) {
@@ -57,45 +62,53 @@ static int run_metrics(int count, char **files) {
         loaded++;
         overlap += bd_song_voice_overlap(&g_song);
         for (int c = 0; c < g_song.chart_count; c++) {
+            const bd_Chart *ch = &g_song.charts[c];
             bd_ChartMetrics m;
             bd_chart_metrics(&g_song, c, &m);
-            print_metrics_line(g_song.title, &g_song.charts[c], &m);
+            print_metrics_line(g_song.title, ch, &m);
+            char label[24];
+            snprintf(label, sizeof(label), "%s%s", ch->name, ch->kind == BD_CHART_CATCH ? " (catch)" : "");
             int k = 0;
-            while (k < keys && strcmp(names[k], g_song.charts[c].name) != 0)
+            while (k < row_count && strcmp(rows[k].label, label) != 0)
                 k++;
-            if (k == keys && keys < MAX_KEYS)
-                snprintf(names[keys++], sizeof(names[0]), "%s", g_song.charts[c].name);
-            if (k >= MAX_KEYS)
+            if (k == MAX_ROWS)
                 continue;
-            const double v[9] = {(double)g_song.charts[c].lanes,
-                                 m.per_second,
-                                 m.covered,
-                                 m.bursts > 0 ? (double)m.bursts_mismatched / (double)m.bursts : 0.0,
-                                 m.same_lane,
-                                 m.lazy_idle,
-                                 m.empty5,
-                                 m.empty10,
-                                 (double)m.beads};
-            for (int i = 0; i < 9; i++)
-                sum[k][i] += v[i];
-            songs[k]++;
-            pooled_bursts[k] += m.bursts;
-            pooled_bad[k] += m.bursts_mismatched;
+            if (k == row_count) {
+                snprintf(rows[k].label, sizeof(rows[k].label), "%s", label);
+                row_count++;
+            }
+            MetricsRow *r = &rows[k];
+            r->charts++;
+            r->lanes += ch->lanes;
+            r->beads += m.beads;
+            r->per_second += m.per_second;
+            r->covered += m.covered;
+            r->same_lane += m.same_lane;
+            r->lazy_idle += m.lazy_idle;
+            r->empty5 += m.empty5;
+            r->empty10 += m.empty10;
+            r->idle_sum += m.longest_idle;
+            r->idle_max = arc_maxf(r->idle_max, m.longest_idle);
+            r->bursts += m.bursts;
+            r->mismatched += m.bursts_mismatched;
+            r->unplayable += m.playable ? 0 : 1;
         }
     }
     printf("\naverage over %d song file(s):\n", loaded);
-    printf("  %-6s %5s %7s %8s %9s %10s %9s %9s %8s %8s\n", "chart", "lanes", "beads/s", "covered",
-           "mismatch", "same-lane", "lazy-idle", "empty-5s", "empty-10s", "bursts");
-    for (int k = 0; k < keys; k++) {
-        double n = (double)songs[k];
-        printf("  %-6s %5.0f %7.2f %7.0f%% %8.0f%% %9.0f%% %8.0f%% %8.0f%% %7.0f%% %8d\n", names[k],
-               sum[k][0] / n, sum[k][1] / n, 100.0 * sum[k][2] / n,
-               pooled_bursts[k] > 0 ? 100.0 * pooled_bad[k] / pooled_bursts[k] : 0.0, 100.0 * sum[k][4] / n,
-               100.0 * sum[k][5] / n, 100.0 * sum[k][6] / n, 100.0 * sum[k][7] / n, pooled_bursts[k]);
+    printf("  %-14s %5s %7s %8s %9s %9s %9s %8s %9s %10s %8s\n", "chart", "lanes", "beads/s", "covered",
+           "mismatch", "same-lane", "lazy-idle", "empty-5s", "empty-10s", "idle-lane", "playable");
+    for (int k = 0; k < row_count; k++) {
+        const MetricsRow *r = &rows[k];
+        double n = (double)r->charts;
+        printf("  %-14s %5.0f %7.2f %7.0f%% %8.0f%% %8.0f%% %8.0f%% %7.0f%% %8.0f%% %5.1f/%4.1fs %4d/%-3d\n",
+               r->label, r->lanes / n, r->per_second / n, 100.0 * r->covered / n,
+               r->bursts > 0 ? 100.0 * r->mismatched / r->bursts : 0.0, 100.0 * r->same_lane / n,
+               100.0 * r->lazy_idle / n, 100.0 * r->empty5 / n, 100.0 * r->empty10 / n, r->idle_sum / n,
+               (double)r->idle_max, r->charts - r->unplayable, r->charts);
     }
-    printf("  (mismatch = pooled over all bursts; the other columns are means over songs; voice overlap "
-           "%.0f%% of "
-           "beats)\n",
+    printf("  (mismatch = pooled over all bursts, the other columns are means over charts; idle-lane = "
+           "mean/max of "
+           "the longest time one lane has no bead; voice overlap %.0f%% of beats)\n",
            loaded > 0 ? 100.0 * overlap / loaded : 0.0);
     return 0;
 }
