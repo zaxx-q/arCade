@@ -1,7 +1,8 @@
 /* Catch mode of Beat Dodge & Catch - raylib front-end: the run loop and the drawing that is specific to
  * catching. All rules live in beat_catch_logic.c. The song select screen (with the Dodge/Catch switch), the
- * music and the playfield are shared with the dodge mode (beat_dodge_ui.h); here they are used with the "catch"
- * look: hollow rings and a cup. beat_dodge_game.c calls bd_ui_play_catch when the player chose catch. */
+ * music and the playfield are shared with the dodge mode (beat_dodge_ui.h); here they are used with the
+ * "catch" look: hollow rings and a cup. beat_dodge_game.c calls bd_ui_play_catch when the player chose catch.
+ */
 
 #include "arcade/gfx.h"
 #include "beat_catch_logic.h"

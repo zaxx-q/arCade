@@ -1,10 +1,10 @@
 /* Beat Dodge - PURE game logic (no raylib). Owner: Member 5
  * Hook: rhythm bullet-dodger. Obstacles come from a song chart and arrive at your line exactly on the beat.
  *
- * A SONG (bd_Song) has up to six CHARTS (easy / normal / hard for the dodge mode and for the catch mode, which shares
- * this module) and an optional MELODY that the built-in synthesizer plays. Songs live in assets/beatmaps/ as
- * text files (format below) and are listed in assets/beatmaps/songs.txt. tools/midi2beatmap converts MIDI
- * files into this format. */
+ * A SONG (bd_Song) has up to six CHARTS (easy / normal / hard for the dodge mode and for the catch mode,
+ * which shares this module) and an optional MELODY that the built-in synthesizer plays. Songs live in
+ * assets/beatmaps/ as text files (format below) and are listed in assets/beatmaps/songs.txt.
+ * tools/midi2beatmap converts MIDI files into this format. */
 #ifndef BEAT_DODGE_LOGIC_H
 #define BEAT_DODGE_LOGIC_H
 
@@ -144,8 +144,8 @@ typedef struct bd_SongList {
 int bd_songlist_load(const char *dir, bd_SongList *out);
 
 /* Song selection screen logic: Up/Down = song, Left/Right = difficulty, action = start. The menu only offers
- * the songs and charts of the mode it is in (kind: dodge charts or catch charts); the player switches the mode
- * with bd_menu_set_kind. m->chart is an index into song->charts. */
+ * the songs and charts of the mode it is in (kind: dodge charts or catch charts); the player switches the
+ * mode with bd_menu_set_kind. m->chart is an index into song->charts. */
 typedef struct bd_Menu {
     int song, chart;
     bool chosen;
@@ -159,7 +159,8 @@ void bd_menu_move_song(bd_Menu *m, const bd_SongList *list, int dir);
 /* Selects the chart `chart` of the current song when it is of the menu's kind. */
 void bd_menu_pick_chart(bd_Menu *m, const bd_SongList *list, int chart);
 /* Switches the mode (dodge <-> catch). The song and the difficulty stay the same: "normal" dodge becomes
- * "normal" catch. If the song has no chart of the new kind the menu moves on to the next song that has one. */
+ * "normal" catch. If the song has no chart of the new kind the menu moves on to the next song that has one.
+ */
 void bd_menu_set_kind(bd_Menu *m, const bd_SongList *list, bd_ChartKind kind);
 
 /* The part of a run that does not depend on the rules of a game mode: the clock, the beat, the lane the
