@@ -47,7 +47,7 @@ while (arcade_loop_running()) {          // false saat ESC, window ditutup, atau
 
 - `scores.txt` (di sebelah exe, atau `--data-dir`): satu baris `game|player|score|unix_time`; baris yang rusak dilewati.
 - `gritty_save_<nama>.dat` (di folder data yang sama): progres Gritty Golf per pemain, ditulis oleh engine yang disalin ke `games/gritty_golf/gg/` (checksum; file rusak diganti nama menjadi `.bad`).
-- `assets/beatmaps/*.txt`: file lagu (beat map) untuk Beat Dodge (formatnya didokumentasikan di `beat_dodge_logic.h`, lihat juga `docs/SONGS.md`).
+- `assets/beatmaps/*.txt`: file lagu (beat map) untuk Beat Dodge dan Beat Catch (formatnya didokumentasikan di `beat_dodge_logic.h`, lihat juga `docs/SONGS.md`).
 
 ## Versioning
 

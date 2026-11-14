@@ -66,10 +66,22 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/beat_dodge.png" width="380" alt="Screenshot Beat Dodge"/>
       </a>
       <p align="left">
-        Game ritme: rintangan jatuh lewat tiga atau empat lane dan sampai di bagian bawah tepat pada beat. Peta lagu disimpan di file teks biasa yang bisa kamu edit atau tambah sendiri.<br/>
+        Game ritme: rintangan dan ribbon jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. Satu objek hanya memakai satu nyawa, dan lolos tipis bernilai dua kali lipat. Lagunya dibuat dari MIDI dan dimainkan lewat synthesizer bawaan.<br/>
         <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane.
       </p>
     </td>
+    <td width="50%" align="center">
+      <h3><a href="games/beat_catch/GAME.md">Beat Catch</a></h3>
+      <a href="games/beat_catch/GAME.md">
+        <img src="docs/screenshots/beat_catch.png" width="380" alt="Screenshot Beat Catch"/>
+      </a>
+      <p align="left">
+        Kebalikan Beat Dodge: tangkap, jangan hindari. Berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo dan health. Memakai lagu yang sama dengan Beat Dodge, tetapi skor dan leaderboard-nya terpisah.<br/>
+        <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane.
+      </p>
+    </td>
+  </tr>
+  <tr>
     <td width="50%" align="center">
       <h3><a href="games/absorb_grow/GAME.md">Absorb & Grow</a></h3>
       <a href="games/absorb_grow/GAME.md">
@@ -80,8 +92,6 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
       </p>
     </td>
-  </tr>
-  <tr>
     <td width="50%" align="center">
       <h3><a href="games/sort_it/GAME.md">Sort It</a></h3>
       <a href="games/sort_it/GAME.md">

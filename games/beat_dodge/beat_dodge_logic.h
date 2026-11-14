@@ -30,21 +30,26 @@
 
 /* Vocabulary: a BEAD is one note on the chart (one step that has a lane). A RIBBON is a run of linked beads
  * that is treated as one OBJECT (a lone note is a ribbon of one bead). Damage limits, spacing and scoring
- * work per object; judging works per bead.
- *
- * Song file format (text, version 3). Lines starting with '#' are comments.
+ * work per object; judging works per bead. */
+
+/* clang-format off */
+/* Song file format (text, version 3). Lines starting with '#' are comments.
  *   title Bopeebo
  *   bpm 100
- *   steps 4              characters per beat in the charts (1..8, default 1)
+ *   steps 4              characters per beat in the charts (1..8, default 1); write it BEFORE the first chart
  *   chart normal 3       starts a dodge chart: name and number of lanes (2..5, default 3)
  *   chart hard 4 catch   a third word "catch" makes it a Beat Catch chart ("dodge" is the default)
- *   ....0.1.2.1.         one character per step: '.' = rest, '0'..'4' = a bead in that lane that starts a new
- *                        object, 'a'..'e' = a bead in lane 0..4 that CONTINUES the object of the previous
- * bead (rests may sit in between: fast songs have a rest step inside a run). Lines are joined. melody
- * optional music, one note per line:  start length pitch voice 0 12 63 0            start/length in 1/24
- * beats, MIDI pitch, voice 0..3 (3 = quiet backing) A file with only "bpm" and pattern lines (the first
- * version of the format) is still valid: it becomes one 3-lane dodge chart named "normal" with 1 step per
- * beat. Version 2 files (no letters, no "catch") are valid too. */
+ *   ....0.1.2.1.         one character per step, lines are joined:
+ *                          '.'        rest
+ *                          '0'..'4'   a bead in that lane that starts a new object
+ *                          'a'..'e'   a bead in lane 0..4 that CONTINUES the object of the previous bead
+ *                                     (rests may sit in between: fast songs have a rest step inside a run)
+ *   melody               optional music, one note per line:  start length pitch voice
+ *   0 12 63 0              start/length in 1/24 beats, MIDI pitch, voice 0..3 (3 = quiet backing)
+ * A file with only "bpm" and pattern lines (the first version of the format) is still valid: it becomes one
+ * 3-lane dodge chart named "normal" with 1 step per beat. Version 2 files (no letters, no "catch") are valid
+ * too. The parser is strict: one bad line rejects the whole file and leaves the output untouched. */
+/* clang-format on */
 typedef enum bd_ChartKind { BD_CHART_DODGE, BD_CHART_CATCH } bd_ChartKind;
 
 typedef struct bd_Chart {
