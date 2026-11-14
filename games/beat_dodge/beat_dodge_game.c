@@ -1,10 +1,13 @@
 /* Beat Dodge - raylib front-end: song select screen, music playback and drawing.
- * All rules live in beat_dodge_logic.c; the music is synthesised from the song's melody (core/synth). */
+ * All rules live in beat_dodge_logic.c; the music is synthesised from the song's melody (core/synth).
+ * The select screen, the music and the playfield are shared with Beat Catch (beat_dodge_ui.h), which is why
+ * they are not static. */
 #include <stdio.h>
 #include <string.h>
 
 #include "arcade/gfx.h"
 #include "beat_dodge_logic.h"
+#include "beat_dodge_ui.h"
 
 /* If the music sounds early/late compared with the falling obstacles on your machine, nudge this (seconds).
  */
@@ -31,6 +34,10 @@ static float lane_spacing(int lanes) {
 
 static float lane_x(int lanes, int lane) {
     return (float)ARC_SCREEN_W / 2.0f + ((float)lane - (float)(lanes - 1) / 2.0f) * lane_spacing(lanes);
+}
+
+float bd_ui_lane_x(int lanes, int lane) {
+    return lane_x(lanes, lane);
 }
 
 static const char *clock_text(float seconds) {
@@ -98,10 +105,10 @@ static void menu_mouse(bd_Menu *m, const ArcadeInput *in, const bd_SongList *lis
         m->chosen = true;
 }
 
-static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
+static void draw_select(const char *title, const bd_SongList *list, const bd_Menu *m, float t) {
     Vector2 mouse = GetMousePosition();
     gfx_backdrop(t);
-    gfx_text("Beat Dodge", 48, 22, 40, ARC_COL_CYAN);
+    gfx_text(title, 48, 22, 40, ARC_COL_CYAN);
     gfx_text("choose a song and a difficulty", 52, 76, 18, ARC_COL_DIM);
 
     int first = menu_first(m, list);
@@ -144,10 +151,13 @@ static void draw_select(const bd_SongList *list, const bd_Menu *m, float t) {
         for (int k = 0; k < ch->length; k++)
             if (ch->lane[k] >= 0 && !ch->link[k] && bd_chart_in_ribbon(ch, k))
                 ribbons++;
-        float per_sec = (float)objects / (secs > 5.0f ? secs - 5.0f : 1.0f);
+        /* Beat Dodge counts objects (one life each); Beat Catch judges every bead, so it shows the beads */
+        int shown = m->kind == BD_CHART_DODGE ? objects : bd_chart_beads(ch);
+        float per_sec = (float)shown / (secs > 5.0f ? secs - 5.0f : 1.0f);
         gfx_text(ch->name, 698, 262 + nth * 100, 26, sel ? ARC_COL_YELLOW : ARC_COL_TEXT);
-        gfx_text(TextFormat("%d lanes  |  %d obstacles, %d ribbons  |  %.1f/s  |  %s", ch->lanes, objects,
-                            ribbons, per_sec, clock_text(secs)),
+        gfx_text(TextFormat("%d lanes  |  %d %s, %d %s  |  %.1f/s  |  %s", ch->lanes, shown,
+                            m->kind == BD_CHART_DODGE ? "obstacles" : "notes", ribbons,
+                            ribbons == 1 ? "ribbon" : "ribbons", per_sec, clock_text(secs)),
                  698, 298 + nth * 100, 17, ARC_COL_DIM);
         gfx_text_right(TextFormat("score x%.1f", bd_chart_multiplier(ch->name)), 1188, 266 + nth * 100, 17,
                        ARC_COL_DIM);
@@ -169,25 +179,28 @@ typedef struct SongAudio {
     unsigned char *wav;
 } SongAudio;
 
+static SongAudio g_music; /* the one song that plays now */
+
 /* Renders the song's melody + drums into an in-memory WAV and starts playing it. The timeline matches the
  * game clock exactly: a melody note sounds at the moment its bead reaches the player line. Notes that have a
  * bead are the bright lead; all others are quiet backing (bd_song_to_synth). */
-static bool audio_start(SongAudio *a, const beat_dodge_State *s) {
+bool bd_ui_music_start(const bd_Run *run) {
+    SongAudio *a = &g_music;
     memset(a, 0, sizeof(*a));
-    if (!arcade_audio_ready() || s->run.song.note_count == 0)
+    if (!arcade_audio_ready() || run->song.note_count == 0)
         return false;
     static SynthNote notes[BD_MAX_NOTES];
-    int n = bd_song_to_synth(&s->run.song, s->run.chart, s->run.lead, notes);
-    size_t frames = synth_frames(s->run.end_time + 1.0f, SYNTH_RATE), bytes = synth_wav_bytes(frames);
+    int n = bd_song_to_synth(&run->song, run->chart, run->lead, notes);
+    size_t frames = synth_frames(run->end_time + 1.0f, SYNTH_RATE), bytes = synth_wav_bytes(frames);
     a->wav = (unsigned char *)MemAlloc((unsigned int)bytes);
     if (a->wav == NULL)
         return false;
     SynthOptions o;
     o.rate = SYNTH_RATE;
-    o.bpm = (float)s->run.song.bpm;
+    o.bpm = (float)run->song.bpm;
     o.drums = true;
-    o.drums_from = s->run.lead;
-    o.drums_to = s->run.end_time - s->run.spb;
+    o.drums_from = run->lead;
+    o.drums_to = run->end_time - run->spb;
     synth_render(notes, (size_t)n, &o, (int16_t *)(a->wav + 44),
                  frames); /* samples go right after the header */
     synth_wav_header(frames, SYNTH_RATE, a->wav);
@@ -204,7 +217,16 @@ static bool audio_start(SongAudio *a, const beat_dodge_State *s) {
     return true;
 }
 
-static void audio_stop(SongAudio *a) {
+float bd_ui_music_time(void) {
+    if (!g_music.ready)
+        return -1.0f;
+    UpdateMusicStream(g_music.music);
+    float mt = GetMusicTimePlayed(g_music.music);
+    return mt > 0.5f ? mt + BD_AUDIO_OFFSET_S : -1.0f;
+}
+
+void bd_ui_music_stop(void) {
+    SongAudio *a = &g_music;
     if (a->ready) {
         StopMusicStream(a->music);
         UnloadMusicStream(a->music);
@@ -236,42 +258,52 @@ static void ribbon_band(float x0, float y0, float x1, float y1, Color c) {
     DrawLineEx((Vector2){x0, y0}, (Vector2){x1, y1}, 5.0f, Fade(ARC_COL_TEXT, 0.8f));
 }
 
+/* One bead: a solid glowing disc to dodge, or a hollow ring to catch. */
+static void draw_bead(float x, float y, float radius, Color c, bd_UiStyle style) {
+    if (style == BD_UI_DODGE) {
+        gfx_glow_circle(x, y, radius, c);
+        return;
+    }
+    DrawCircle((int)x, (int)y, radius, Fade(c, 0.16f));
+    DrawRing((Vector2){x, y}, radius - 6.0f, radius, 0.0f, 360.0f, 28, c);
+}
+
 /* The beads that are still on their way, and the bands joining the beads of each ribbon. */
-static void draw_beads(const beat_dodge_State *s, const bd_Chart *chart) {
-    int lanes = s->run.lanes;
+static void draw_beads(const bd_Run *r, const bd_Chart *chart, bd_UiStyle style) {
+    int lanes = r->lanes;
     int prev = -1; /* the bead before i: the one a band to i starts at */
-    for (int i = 0; i < s->run.next_hit && i < s->run.length; i++)
+    for (int i = 0; i < r->next_hit && i < r->length; i++)
         if (chart->lane[i] >= 0)
             prev = i; /* beads that already passed (only the last one matters) */
-    for (int i = s->run.next_hit; i < s->run.length; i++) {
+    for (int i = r->next_hit; i < r->length; i++) {
         if (chart->lane[i] < 0)
             continue;
-        float y = beat_dodge_obstacle_y(s, i);
+        float y = bd_run_obstacle_y(r, i);
         if (chart->link[i] && prev >= 0)
-            ribbon_band(lane_x(lanes, chart->lane[prev]), beat_dodge_obstacle_y(s, prev),
+            ribbon_band(lane_x(lanes, chart->lane[prev]), bd_run_obstacle_y(r, prev),
                         lane_x(lanes, chart->lane[i]), y, lane_color(chart->lane[i]));
         if (y < BD_TOP_Y)
             break; /* later steps have not spawned yet */
         prev = i;
     }
-    for (int i = s->run.next_hit; i < s->run.length; i++) {
+    for (int i = r->next_hit; i < r->length; i++) {
         if (chart->lane[i] < 0)
             continue;
-        float y = beat_dodge_obstacle_y(s, i);
+        float y = bd_run_obstacle_y(r, i);
         if (y < BD_TOP_Y)
             break;
         /* the first bead of an object is a little bigger than the ones that follow it in a ribbon */
-        gfx_glow_circle(lane_x(lanes, chart->lane[i]), y, chart->link[i] ? 18.0f : 23.0f,
-                        lane_color(chart->lane[i]));
+        draw_bead(lane_x(lanes, chart->lane[i]), y, chart->link[i] ? 18.0f : 23.0f,
+                  lane_color(chart->lane[i]), style);
     }
 }
 
-static void draw_game(const beat_dodge_State *s, float t) {
+void bd_ui_draw_field(const bd_Run *run, bd_UiStyle style, float t, int pop_lane, float pop) {
     gfx_backdrop(t);
-    int lanes = s->run.lanes;
+    int lanes = run->lanes;
     float spacing = lane_spacing(lanes), w = spacing - 36.0f;
-    float phase = s->run.spb > 0.0f ? (s->run.time / s->run.spb) - (float)s->run.last_beat
-                                    : 0.0f; /* 0..1 within the beat */
+    float phase =
+        run->spb > 0.0f ? (run->time / run->spb) - (float)run->last_beat : 0.0f; /* 0..1 within the beat */
     for (int l = 0; l < lanes; l++) {
         float x = lane_x(lanes, l);
         Color c = lane_color(l);
@@ -282,11 +314,25 @@ static void draw_game(const beat_dodge_State *s, float t) {
         DrawCircleLines((int)x, (int)BD_PLAYER_Y, 32.0f, Fade(c, 0.35f));
         gfx_text_center(TextFormat("%d", l + 1), (int)x, (int)BD_PLAYER_Y + 48, 16, Fade(ARC_COL_DIM, 0.8f));
     }
-    const bd_Chart *chart = &s->run.song.charts[s->run.chart];
-    draw_beads(s, chart);
-    float px = lane_x(lanes, s->run.lane);
-    DrawTriangle((Vector2){px, BD_PLAYER_Y - 26}, (Vector2){px - 22, BD_PLAYER_Y + 20},
-                 (Vector2){px + 22, BD_PLAYER_Y + 20}, ARC_COL_TEXT);
+    draw_beads(run, &run->song.charts[run->chart], style);
+    if (pop > 0.0f && pop_lane >= 0 && pop_lane < lanes) /* a caught bead: a ring that grows and fades */
+        DrawRing((Vector2){lane_x(lanes, pop_lane), BD_PLAYER_Y}, 30.0f + 40.0f * (1.0f - pop),
+                 34.0f + 40.0f * (1.0f - pop), 0.0f, 360.0f, 32, Fade(lane_color(pop_lane), pop));
+    float px = lane_x(lanes, run->lane);
+    if (style == BD_UI_DODGE) {
+        DrawTriangle((Vector2){px, BD_PLAYER_Y - 26}, (Vector2){px - 22, BD_PLAYER_Y + 20},
+                     (Vector2){px + 22, BD_PLAYER_Y + 20}, ARC_COL_TEXT);
+    } else { /* a cup that opens upwards: raylib angles run clockwise from 3 o'clock, so 0..180 is the lower
+                half */
+        DrawRing((Vector2){px, BD_PLAYER_Y - 6.0f}, 20.0f, 28.0f, 0.0f, 180.0f, 24, ARC_COL_TEXT);
+        DrawRectangle((int)px - 28, (int)BD_PLAYER_Y - 10, 8, 8, ARC_COL_TEXT); /* the two rims */
+        DrawRectangle((int)px + 20, (int)BD_PLAYER_Y - 10, 8, 8, ARC_COL_TEXT);
+    }
+}
+
+static void draw_game(const beat_dodge_State *s, float t) {
+    bd_ui_draw_field(&s->run, BD_UI_DODGE, t, -1, 0.0f);
+    float px = lane_x(s->run.lanes, s->run.lane);
     if (s->run.hit_flash > 0.0f)
         DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_RED, s->run.hit_flash));
     for (int h = 0; h < s->lives; h++)
@@ -306,36 +352,26 @@ static void draw_game(const beat_dodge_State *s, float t) {
 }
 
 /* ------------------------------------------------------------------ play */
-static bd_SongList g_list; /* ~544 KB */
-static beat_dodge_State g_state;
-static bd_Menu g_menu;
-static bool g_menu_ready;
-
-/* Runs the song select screen. Returns false when the player backs out (ESC) or closes the window. */
-static bool select_song(const GameContext *ctx) {
-    if (!g_menu_ready) {
-        bd_menu_init(&g_menu, BD_CHART_DODGE);
-        g_menu_ready = true;
-    }
-    g_menu.chosen = false;
-    g_menu.song = arc_clampi(g_menu.song, 0, g_list.count - 1);
-    g_menu.chart = arc_clampi(g_menu.chart, 0, g_list.songs[g_menu.song].chart_count - 1);
+bool bd_ui_select_song(const GameContext *ctx, const char *title, bd_Menu *menu, const bd_SongList *list) {
+    menu->chosen = false;
+    menu->song = arc_clampi(menu->song, 0, list->count - 1);
+    menu->chart = arc_clampi(menu->chart, 0, list->songs[menu->song].chart_count - 1);
     ArcadeInput none;
     arcade_input_clear(&none);
-    bd_menu_step(&g_menu, &none, &g_list); /* moves to a song and chart of this game's kind if needed */
-    g_menu.chosen = false;
+    bd_menu_step(menu, &none, list); /* moves to a song and chart of this menu's kind if needed */
+    menu->chosen = false;
     arcade_loop_begin(ctx);
     float t = 0.0f;
     while (arcade_loop_running()) {
         ArcadeInput in;
         arcade_poll(&in);
-        bd_menu_step(&g_menu, &in, &g_list);
-        menu_mouse(&g_menu, &in, &g_list);
+        bd_menu_step(menu, &in, list);
+        menu_mouse(menu, &in, list);
         t += ARC_DT;
         BeginDrawing();
-        draw_select(&g_list, &g_menu, t);
+        draw_select(title, list, menu, t);
         arcade_frame_end();
-        if (g_menu.chosen)
+        if (menu->chosen)
             return true;
     }
     return false;
@@ -343,7 +379,8 @@ static bool select_song(const GameContext *ctx) {
 
 /* Smoke runs have no input, so they just draw the select screen for a moment (screenshot: <name>_select.png).
  */
-static void preview_select(const GameContext *ctx) {
+void bd_ui_preview_select(const GameContext *ctx, const char *title, bd_ChartKind kind,
+                          const bd_SongList *list) {
     char path[700];
     const char *shot = ctx->screenshot_path;
     const char *dot = shot != NULL ? strrchr(shot, '.') : NULL;
@@ -354,19 +391,25 @@ static void preview_select(const GameContext *ctx) {
     c.screenshot_path = path;
     c.max_frames = 30;
     bd_Menu m;
-    bd_menu_init(&m, BD_CHART_DODGE);
-    m.song = g_list.count > 1 ? 1 : 0;
-    m.chart = bd_song_kind_chart(&g_list.songs[m.song], BD_CHART_DODGE,
-                                 bd_song_kind_count(&g_list.songs[m.song], BD_CHART_DODGE) > 1 ? 1 : 0);
+    bd_menu_init(&m, kind);
+    m.song = list->count > 1 ? 1 : 0;
+    m.chart = bd_song_kind_chart(&list->songs[m.song], kind,
+                                 bd_song_kind_count(&list->songs[m.song], kind) > 1 ? 1 : 0);
     arcade_loop_begin(&c);
     float t = 0.0f;
     while (arcade_loop_running()) {
         t += ARC_DT;
         BeginDrawing();
-        draw_select(&g_list, &m, t);
+        draw_select(title, list, &m, t);
         arcade_frame_end();
     }
 }
+
+/* ------------------------------------------------------------------ play */
+static bd_SongList g_list; /* ~544 KB */
+static beat_dodge_State g_state;
+static bd_Menu g_menu;
+static bool g_menu_ready;
 
 static GameResult play(const GameContext *ctx) {
     char dir[700];
@@ -376,12 +419,16 @@ static GameResult play(const GameContext *ctx) {
     if (count == 0) { /* no song files found: play the built-in practice song */
         beat_dodge_init(&g_state, ctx->seed);
     } else if (ctx->headless) { /* smoke runs: no menu, no audio; the first real song on its hardest chart */
-        preview_select(ctx);
+        bd_ui_preview_select(ctx, "Beat Dodge", BD_CHART_DODGE, &g_list);
         const bd_Song *song = &g_list.songs[count > 1 ? 1 : 0];
         int hardest = bd_song_kind_chart(song, BD_CHART_DODGE, bd_song_kind_count(song, BD_CHART_DODGE) - 1);
         beat_dodge_use_song(&g_state, song, hardest);
     } else {
-        if (!select_song(ctx)) {
+        if (!g_menu_ready) {
+            bd_menu_init(&g_menu, BD_CHART_DODGE);
+            g_menu_ready = true;
+        }
+        if (!bd_ui_select_song(ctx, "Beat Dodge", &g_menu, &g_list)) {
             GameResult cancelled = {0, false};
             return cancelled;
         }
@@ -390,8 +437,7 @@ static GameResult play(const GameContext *ctx) {
     beat_dodge_State *s = &g_state;
 
     Sound tick = {0}; /* metronome for songs without music */
-    SongAudio music;
-    bool has_music = !ctx->headless && audio_start(&music, s);
+    bool has_music = !ctx->headless && bd_ui_music_start(&s->run);
     bool metronome = !ctx->headless && !has_music && arcade_audio_ready();
     if (metronome)
         tick = gfx_make_tone(880.0f, 0.06f, 0.4f);
@@ -402,10 +448,9 @@ static GameResult play(const GameContext *ctx) {
         ArcadeInput in;
         arcade_poll(&in);
         if (has_music) {
-            UpdateMusicStream(music.music);
-            float mt = GetMusicTimePlayed(music.music);
-            if (mt > 0.5f) /* follow the audio clock if the game falls far behind (slow machine) */
-                beat_dodge_sync(s, mt + BD_AUDIO_OFFSET_S);
+            float mt = bd_ui_music_time();
+            if (mt > 0.0f) /* follow the audio clock if the game falls far behind (slow machine) */
+                beat_dodge_sync(s, mt);
         }
         beat_dodge_step(s, &in, ARC_DT);
         if (metronome && s->run.beat_event)
@@ -421,7 +466,7 @@ static GameResult play(const GameContext *ctx) {
             break;
     }
     if (has_music)
-        audio_stop(&music);
+        bd_ui_music_stop();
     if (metronome)
         UnloadSound(tick);
     GameResult r;
