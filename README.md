@@ -14,8 +14,6 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 
 ## Game
 
-Hub hanya menampilkan game yang ada di folder `games/` (saat ini 4 game; Beat Dodge dan Beat Catch sudah digabung menjadi satu game). Game lainnya dipindahkan ke folder `deferred/` supaya cakupan tugas tetap kecil: kodenya tetap di-build, di-test, dan di-smoke-test seperti biasa, hanya tidak muncul di menu. Cara membuka arsip di hub dan cara memindahkan game ada di [docs/DEFERRED.md](docs/DEFERRED.md).
-
 <table>
   <tr>
     <td width="50%" align="center">
