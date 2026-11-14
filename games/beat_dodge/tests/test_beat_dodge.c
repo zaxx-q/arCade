@@ -346,6 +346,30 @@ static void test_reach_catch_unplayable_by_distance(void) {
     CHECK(!bd_chart_playable(&g_song, 0, NULL)); /* two LONE beads 0.136 s apart, 2 lanes away: no way */
 }
 
+static void test_object_span_and_catch_tolerance(void) {
+    make_chart(&g_song, 120, BD_CHART_CATCH, 4, "0.1a.b..2..3c.0bc");
+    const bd_Chart *c = &g_song.charts[0];
+    CHECK_EQ_INT(bd_chart_object_span(c, 0), 0);  /* a lone bead */
+    CHECK_EQ_INT(bd_chart_object_span(c, 2), 1);  /* lane 1 then 0: the ribbon touches lanes 0..1 */
+    CHECK_EQ_INT(bd_chart_object_span(c, 3), 1);  /* the same ribbon seen from its second bead */
+    CHECK_EQ_INT(bd_chart_object_span(c, 5), 1);  /* ... and from its third (after a rest) */
+    CHECK_EQ_INT(bd_chart_object_span(c, 4), 0);  /* a rest has no object */
+    CHECK_EQ_INT(bd_chart_object_span(c, 8), 0);  /* a lone bead in lane 2 */
+    CHECK_EQ_INT(bd_chart_object_span(c, 14), 2); /* lanes 0, 1, 2 */
+    CHECK_EQ_INT(bd_chart_object_span(c, 16), 2);
+    make_chart(&g_song, 120, BD_CHART_CATCH, 3, "0a.a");
+    CHECK_EQ_INT(bd_chart_object_span(&g_song.charts[0], 3), 0); /* a ribbon that stays in one lane */
+    CHECK_EQ_INT(bd_catch_tolerance(0), 0);
+    CHECK_EQ_INT(bd_catch_tolerance(1), 1);
+    CHECK_EQ_INT(bd_catch_tolerance(2), 1);
+    /* a ribbon in ONE lane needs that exact lane, a ribbon that changes lane is caught from its middle: at
+     * 220 BPM (steps of 0.068 s) the next bead, two lanes away, is only reachable from the second ribbon */
+    make_chart(&g_song, 220, BD_CHART_CATCH, 3, "........0a.2");
+    CHECK(!bd_chart_playable(&g_song, 0, NULL));
+    make_chart(&g_song, 220, BD_CHART_CATCH, 3, "........0b.2");
+    CHECK(bd_chart_playable(&g_song, 0, NULL));
+}
+
 static void test_plan_is_a_path_a_human_can_follow(void) {
     static int8_t plan[BD_MAX_STEPS];
     make_chart(&g_song, 120, BD_CHART_DODGE, 3, "....0.1.2.1ab.0...2.1.");
@@ -370,7 +394,8 @@ static void test_plan_is_a_path_a_human_can_follow(void) {
     CHECK(bd_chart_plan(&g_song, 0, plan));
     CHECK(abs(plan[6] - 0) == 0);
     CHECK_EQ_INT(plan[9], 3);
-    CHECK(abs(plan[13] - g_song.charts[0].lane[13]) <= 1); /* a ribbon bead: tolerance 1 */
+    CHECK(abs(plan[13] - g_song.charts[0].lane[13]) <=
+          1); /* a bead of a ribbon that changes lane: tolerance 1 */
     CHECK(abs(plan[16] - g_song.charts[0].lane[16]) <= 1);
     make_chart(&g_song, 220, BD_CHART_DODGE, 3, "..0bc....");
     CHECK(!bd_chart_plan(&g_song, 0, plan));
@@ -806,6 +831,7 @@ int main(void) {
     RUN(test_reach_dodge_playable);
     RUN(test_reach_dodge_unplayable_when_a_ribbon_covers_every_lane);
     RUN(test_reach_catch_unplayable_by_distance);
+    RUN(test_object_span_and_catch_tolerance);
     RUN(test_plan_is_a_path_a_human_can_follow);
     RUN(test_obstacles_arrive_exactly_on_the_beat);
     RUN(test_perfect_play_never_loses_a_life);
