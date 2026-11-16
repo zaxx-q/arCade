@@ -4,7 +4,7 @@
 
 #define LL_SPEED_BRAKE (ARC_TAU / 625.0)  /* rad per original tick: a lap takes 12.5 s */
 #define LL_SPEED_CRUISE (ARC_TAU / 250.0) /* 5 s   */
-#define LL_SPEED_ACCEL (ARC_TAU / 200.0)  /* 2 s   */
+#define LL_SPEED_ACCEL (ARC_TAU / 100.0)  /* 2 s   */
 #define LL_PATH_INSET 3.0f                /* balls run on a path 3 px inside the circle */
 #define LL_NEAR_EXTRA 16.0f               /* a near miss is 16 px beyond touching       */
 #define LL_WHOOSH_COOLDOWN 1.0f
