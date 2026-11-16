@@ -14,12 +14,26 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
     memset(&app->lb, 0, sizeof(app->lb));
     for (int i = 0; i < 9 && app->game_count > 0; i++)
         lb_add(&app->lb, app->games[i % app->game_count]->id, names[i % 7], 3200 - i * 290, 1700000000LL + i);
+    /* One game with separate tables (mode / song / difficulty), so the board screens have rows to show. */
+    static const char *const boards[] = {"Catch / Satin Panties / normal", "Dodge / Bopeebo / normal",
+                                         "Dodge / Bopeebo / hard", "Catch / Bopeebo / normal"};
+    for (int b = 0; b < 4; b++) {
+        char key[LB_GAME_LEN];
+        lb_board_key(key, sizeof(key), "beat_dodge", boards[b]);
+        for (int k = 0; k < 4; k++)
+            lb_add(&app->lb, key, names[(b + k) % 7], 1650 - b * 120 - k * 210, 1700001000LL + b * 10 + k);
+    }
     snprintf(app->player, sizeof(app->player), "Ana");
     app->selected = app->game_count > 1 ? 1 : 0;
     app->last_game = app->game_count > 0 ? app->games[0] : NULL;
     app->last_result.score = 1280;
     app->last_result.finished = true;
     app->last_rank = 1;
+    /* the result screen names the table when the game used one */
+    snprintf(app->last_board, sizeof(app->last_board), "%s",
+             app->last_game != NULL && strcmp(app->last_game->id, "beat_dodge") == 0
+                 ? "Dodge / Bopeebo / normal"
+                 : "");
 
     backdrop_init(opt->seed);
     for (int i = 0; i < 900; i++) /* 15 s of sand and water, so the screenshots show a settled scene */

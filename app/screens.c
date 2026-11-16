@@ -101,6 +101,16 @@ static void fit_text(const char *src, int size, int max_w, char *out, size_t cap
     }
 }
 
+/* Draws `text` inside a column max_w pixels wide. Text that is too wide is drawn a little smaller first, so a
+ * long board name keeps its last words (the difficulty); only if it is still too wide is it cut with "...".
+ */
+static void draw_in_column(const char *text, int x, int y, int size, int max_w, Color c) {
+    int drawn = gfx_text_width(text, size) > max_w ? size - 4 : size;
+    char cell[LB_GAME_LEN];
+    fit_text(text, drawn, max_w, cell, sizeof(cell));
+    gfx_text(cell, x, y + (size - drawn) / 2, drawn, c); /* the smaller text stays centred on the row */
+}
+
 /* ---------------------------------------------------------------- name entry */
 static void draw_name_view(const AppState *app, const char *buf, float t) {
     gfx_backdrop(t);
@@ -364,6 +374,8 @@ Screen screen_launch(AppState *app) {
     ctx.seed = (unsigned)time(NULL) + app->launch_counter++;
     ctx.data_dir = app->data_dir;
     ctx.assets_dir = app->assets_dir;
+    char board[GAME_BOARD_LEN] = ""; /* a game with one table per mode/level names this run's table in it */
+    ctx.board = board;
 
     arcade_flush_input(); /* consume the Enter/click that launched the game, or its first frame would see it
                              too */
@@ -377,12 +389,17 @@ Screen screen_launch(AppState *app) {
     app->last_game = g;
     app->last_result = r;
     app->last_rank = 0;
+    arc_strlcpy(app->last_board, board, sizeof(app->last_board));
     if (g->ranked) {
-        lb_add(&app->lb, g->id, app->player, r.score, (long long)time(NULL));
+        /* the score goes into the table of this mode/level ("beat_dodge:Dodge / Bopeebo / normal"), or into
+         * the game's one table ("echo_maze") when the game did not name a board */
+        char key[LB_GAME_LEN];
+        lb_board_key(key, sizeof(key), g->id, board);
+        lb_add(&app->lb, key, app->player, r.score, (long long)time(NULL));
         if (!lb_save(&app->lb, app->scores_path))
             fprintf(stderr, "warning: could not write %s\n", app->scores_path);
         ScoreEntry top[LB_MAX_ENTRIES];
-        int n = lb_top_for_game(&app->lb, g->id, top, LB_MAX_ENTRIES);
+        int n = lb_top_for_game(&app->lb, key, top, LB_MAX_ENTRIES); /* rank among THIS table only */
         for (int i = 0; i < n; i++)
             if (top[i].score <= r.score) {
                 app->last_rank = i + 1;
@@ -400,10 +417,18 @@ static void draw_result_view(const AppState *app, float t) {
     gfx_text_center(app->last_game->title, ARC_SCREEN_W / 2, 214, 30, ARC_COL_CYAN);
     gfx_text_center("Game over", ARC_SCREEN_W / 2, 262, 22, ARC_COL_DIM);
     gfx_text_center(TextFormat("%d", app->last_result.score), ARC_SCREEN_W / 2, 306, 80, ARC_COL_YELLOW);
+    bool boarded = app->last_board[0] != '\0'; /* the rank is within one mode/level, not the whole game */
     if (app->last_game->ranked && app->last_rank > 0)
-        gfx_text_center(app->last_rank == 1 ? "New high score!"
-                                            : TextFormat("rank #%d for this game", app->last_rank),
-                        ARC_SCREEN_W / 2, 410, 24, ARC_COL_GREEN);
+        gfx_text_center(
+            app->last_rank == 1
+                ? "New high score!"
+                : TextFormat(boarded ? "rank #%d on this board" : "rank #%d for this game", app->last_rank),
+            ARC_SCREEN_W / 2, 410, 24, ARC_COL_GREEN);
+    if (boarded) {
+        char label[GAME_BOARD_LEN];
+        fit_text(app->last_board, 18, 500, label, sizeof(label));
+        gfx_text_center(label, ARC_SCREEN_W / 2, 442, 18, ARC_COL_DIM);
+    }
     const Hint hints[] = {{"R", "play again"}, {"Enter", "menu"}, {"L", "leaderboard"}};
     draw_hint_row_centered(478, hints, (int)ARC_ARRAY_LEN(hints));
 }
@@ -430,11 +455,32 @@ Screen screen_result(AppState *app) {
 }
 
 /* ---------------------------------------------------------------- leaderboard */
-static void draw_leaderboard_view(AppState *app, int tab, bool searching, const char *query, float t) {
+/* A game with boards (Beat Dodge & Catch: one table per mode, song and difficulty) gets a second level: on
+ * its tab Up/Down step through "all boards" and then each table that has scores. `board` is 0 for "all
+ * boards", or 1.. for g_boards[board - 1]. Games without boards never show the selector. */
+static char g_boards[LB_MAX_BOARDS][LB_GAME_LEN]; /* 8 KB: static, like g_view */
+
+/* Lists the tables of the game on `tab` in g_boards and returns how many. Returns 0 (and the selector stays
+ * hidden) for the "all games" tab and for a game whose scores are all in one plain table. */
+static int tab_boards(const AppState *app, int tab) {
+    if (tab <= 0 || tab > app->game_count)
+        return 0;
+    int n = lb_boards_for_game(&app->lb, app->games[tab - 1]->id, g_boards, LB_MAX_BOARDS);
+    for (int i = 0; i < n; i++)
+        if (lb_key_board(g_boards[i])[0] != '\0')
+            return n;
+    return 0;
+}
+
+static void draw_leaderboard_view(AppState *app, int tab, int board, bool searching, const char *query,
+                                  float t) {
     /* build the rows to show */
     ScoreEntry rows[10];
     int n = 0;
     const char *heading;
+    char sub[GAME_BOARD_LEN + 24] = ""; /* small line under the heading: which board is shown */
+    int boards = 0;                     /* tables of this game (0 = no selector) */
+    bool one_table = false;             /* every row is from the same table: no need for a game column */
     if (searching || query[0] != '\0') {
         int idx[10];
         int found = lb_find_player(&app->lb, query, idx, 10);
@@ -448,25 +494,48 @@ static void draw_leaderboard_view(AppState *app, int tab, bool searching, const 
         memcpy(rows, g_view.items, (size_t)n * sizeof(ScoreEntry));
         heading = "all games";
     } else {
-        n = lb_top_for_game(&app->lb, app->games[tab - 1]->id, rows, 10);
-        heading = app->games[tab - 1]->title;
+        const GameDef *g = app->games[tab - 1];
+        heading = g->title;
+        boards = tab_boards(app, tab);
+        if (boards > 0 && board >= 1 && board <= boards) {
+            const char *name = lb_key_board(g_boards[board - 1]);
+            n = lb_top_for_game(&app->lb, g_boards[board - 1], rows, 10);
+            one_table = true;
+            snprintf(sub, sizeof(sub), "board %d/%d: %s", board, boards,
+                     name[0] != '\0' ? name : "older scores");
+        } else {
+            n = lb_top_for_all_boards(&app->lb, g->id, rows,
+                                      10); /* the same as before for games without boards */
+            if (boards > 0)
+                snprintf(sub, sizeof(sub), "all boards (%d)", boards);
+        }
     }
 
     gfx_backdrop(t);
     backdrop_draw(0.4f);
     draw_title("leaderboard");
     draw_panel((Rectangle){180, 120, 920, 520}, 0.93f);
-    gfx_text_center(heading, ARC_SCREEN_W / 2, 138, 28, ARC_COL_YELLOW);
+    gfx_text_center(heading, ARC_SCREEN_W / 2, 130, 28, ARC_COL_YELLOW);
+    if (sub[0] != '\0')
+        gfx_text_center(sub, ARC_SCREEN_W / 2, 166, 17, ARC_COL_CYAN);
     gfx_text("#", 220, 190, 18, ARC_COL_DIM);
     gfx_text("player", 270, 190, 18, ARC_COL_DIM);
-    gfx_text("game", 520, 190, 18, ARC_COL_DIM);
+    if (!one_table)
+        gfx_text(boards > 0 ? "board" : "game", 520, 190, 18, ARC_COL_DIM);
     gfx_text_right("score", 1060, 190, 18, ARC_COL_DIM);
     for (int i = 0; i < n; i++) {
         int y = 224 + i * 38;
         Color c = i == 0 ? ARC_COL_YELLOW : ARC_COL_TEXT;
         gfx_text(TextFormat("%d", i + 1), 220, y, 22, c);
         gfx_text(rows[i].player, 270, y, 22, c);
-        gfx_text(rows[i].game, 520, y, 22, ARC_COL_DIM);
+        if (!one_table) {
+            /* a plain game id, or "id:board" fitted so that it never runs into the score; on a game's own tab
+             * the board name alone is enough */
+            const char *shown = rows[i].game;
+            if (boards > 0) /* a game with boards: the board name, or "older scores" for the plain id */
+                shown = lb_key_board(shown)[0] != '\0' ? lb_key_board(shown) : "older scores";
+            draw_in_column(shown, 520, y, 22, 440, ARC_COL_DIM);
+        }
         gfx_text_right(TextFormat("%d", rows[i].score), 1060, y, 22, c);
     }
     if (n == 0)
@@ -475,13 +544,20 @@ static void draw_leaderboard_view(AppState *app, int tab, bool searching, const 
         gfx_text_center(TextFormat("find player: %s%s", query, searching ? "_" : ""), ARC_SCREEN_W / 2, 600,
                         20, ARC_COL_GREEN);
     else {
-        const Hint hints[] = {{"Left/Right", "switch game"}, {"F", "find player"}, {"Esc", "back"}};
-        draw_hint_row_centered(596, hints, (int)ARC_ARRAY_LEN(hints));
+        Hint hints[4];
+        int hn = 0;
+        hints[hn++] = (Hint){"Left/Right", "switch game"};
+        if (boards > 0)
+            hints[hn++] = (Hint){"Up/Down", "switch board"};
+        hints[hn++] = (Hint){"F", "find player"};
+        hints[hn++] = (Hint){"Esc", "back"};
+        draw_hint_row_centered(596, hints, hn);
     }
 }
 
 Screen screen_leaderboard(AppState *app) {
-    int tab = 0; /* 0 = all games, 1.. = one game from the registry */
+    int tab = 0;   /* 0 = all games, 1.. = one game from the registry */
+    int board = 0; /* on a game with boards: 0 = all boards, 1.. = one board (see tab_boards) */
     bool searching = false;
     char query[LB_NAME_LEN] = "";
     int qlen = 0;
@@ -502,10 +578,19 @@ Screen screen_leaderboard(AppState *app) {
         } else {
             if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
                 return SCR_MENU;
-            if (IsKeyPressed(KEY_RIGHT))
+            if (IsKeyPressed(KEY_RIGHT)) {
                 tab = (tab + 1) % (app->game_count + 1);
-            if (IsKeyPressed(KEY_LEFT))
+                board = 0; /* every game starts on "all boards" */
+            }
+            if (IsKeyPressed(KEY_LEFT)) {
                 tab = (tab + app->game_count) % (app->game_count + 1);
+                board = 0;
+            }
+            int boards = tab_boards(app, tab);
+            if (boards > 0 && IsKeyPressed(KEY_DOWN))
+                board = (board + 1) % (boards + 1);
+            if (boards > 0 && IsKeyPressed(KEY_UP))
+                board = (board + boards) % (boards + 1);
             if (IsKeyPressed(KEY_F) || IsKeyPressed(KEY_SLASH)) {
                 searching = true;
                 qlen = 0;
@@ -516,7 +601,7 @@ Screen screen_leaderboard(AppState *app) {
         backdrop_update(false, false, 0, 0);
 
         BeginDrawing();
-        draw_leaderboard_view(app, tab, searching, query, t);
+        draw_leaderboard_view(app, tab, board, searching, query, t);
         EndDrawing();
     }
     return SCR_QUIT;
@@ -524,8 +609,9 @@ Screen screen_leaderboard(AppState *app) {
 
 /* ---------------------------------------------------------------- previews (smoke runner / screenshots) */
 const char *screens_preview_name(int which) {
-    static const char *const names[PREVIEW_COUNT] = {"hub_name",        "hub_menu",   "hub_archive",
-                                                     "hub_archive_end", "hub_result", "hub_leaderboard"};
+    static const char *const names[PREVIEW_COUNT] = {
+        "hub_name",   "hub_menu",        "hub_archive",          "hub_archive_end",
+        "hub_result", "hub_leaderboard", "hub_leaderboard_board"};
     return (which >= 0 && which < PREVIEW_COUNT) ? names[which] : "hub_unknown";
 }
 
@@ -544,8 +630,15 @@ void screens_draw_preview(AppState *app, int which, float t) {
         draw_result_view(app, t);
         break;
     case PREVIEW_LEADERBOARD:
-        draw_leaderboard_view(app, 0, false, "", t);
+        draw_leaderboard_view(app, 0, 0, false, "", t);
         break;
+    case PREVIEW_LEADERBOARD_BOARD: {          /* the first game that has boards, on its second board */
+        int tab = app->game_count > 0 ? 1 : 0; /* tab 0 = all games, also what an empty registry shows */
+        while (tab > 0 && tab < app->game_count && tab_boards(app, tab) == 0)
+            tab++;
+        draw_leaderboard_view(app, tab, tab_boards(app, tab) > 1 ? 2 : 0, false, "", t);
+        break;
+    }
     default:
         break;
     }

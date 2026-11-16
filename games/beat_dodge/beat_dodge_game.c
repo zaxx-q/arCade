@@ -221,6 +221,12 @@ static void draw_select(const char *title, const bd_SongList *list, const bd_Men
         48, ARC_SCREEN_H - 36, 17, ARC_COL_DIM);
 }
 
+/* ------------------------------------------------------------------ high-score table */
+void bd_ui_report_board(const GameContext *ctx, const bd_Run *run) {
+    if (ctx->board != NULL)
+        bd_board_name(ctx->board, GAME_BOARD_LEN, &run->song, run->chart);
+}
+
 /* ------------------------------------------------------------------ music */
 typedef struct SongAudio {
     bool ready;
@@ -514,6 +520,7 @@ static GameResult play_dodge(const GameContext *ctx, const bd_Song *song, int ch
         bd_ui_music_stop();
     if (metronome)
         UnloadSound(tick);
+    bd_ui_report_board(ctx, &s->run);
     GameResult r;
     r.score = beat_dodge_score(s);
     r.finished = beat_dodge_is_over(s);

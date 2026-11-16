@@ -23,7 +23,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/beat_dodge_catch.png" width="188" alt="Screenshot Beat Dodge &amp; Catch (mode Catch)"/>
       </a>
       <p align="left">
-        Game ritme dengan dua mode yang dipilih lewat tombol besar DODGE / CATCH di layar pilih lagu. Lagunya dibuat dari file MIDI dan dimainkan lewat synthesizer bawaan; rintangan dan ribbon (rangkaian not cepat yang disambung jadi satu pita) jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. <b>Dodge:</b> hindari not. Satu objek hanya memakai satu nyawa, dan lolos tipis (close call) bernilai dua kali lipat. <b>Catch:</b> berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo supaya pengali skor naik sampai x4, dan jaga health.<br/>
+        Game ritme dengan dua mode yang dipilih lewat tombol DODGE / CATCH di layar pilih lagu. Lagunya dibuat dari file MIDI dan dimainkan lewat synthesizer bawaan; rintangan dan ribbon (rangkaian not cepat yang disambung jadi satu pita) jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. <b>Dodge:</b> hindari not. Satu objek hanya memakai satu nyawa, dan lolos tipis (close call) bernilai dua kali lipat. <b>Catch:</b> berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo supaya pengali skor naik sampai x4, dan jaga health.<br/>
         <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane. Di layar pilih lagu, tombol M atau klik DODGE / CATCH mengganti mode.
       </p>
     </td>
@@ -63,7 +63,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 </table>
 
 <details>
-  <summary><b>Game yang ditunda (13 game di <code>deferred/</code>)</b></summary>
+  <summary><b>Game yang archive (13 game di <code>deferred/</code>)</b></summary>
   <br/>
 
 <table>
@@ -214,12 +214,13 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 </table>
 
 </details>
+
 ---
 
 ## Sorotan
 
 - Background hub menjalankan simulasi falling-sand yang aktif.
-- Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search.
+- Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search. Game dengan beberapa mode atau level (Beat Dodge & Catch) punya papan skor terpisah per mode, lagu, dan kesulitan.
 - Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
 - Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
 - Game terdaftar otomatis dari folder di games/ (tampil di menu) dan deferred/ (ditunda, hanya lewat arsip); menambah atau memindahkan game tidak perlu mengubah file source hub yang sudah ada.
@@ -261,11 +262,9 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 | ----------------------- | ---------------------------------------------- |
 | Up / Down atau W / S    | Memilih game di menu (mouse dan scroll juga bisa) |
 | Enter atau klik         | Memulai game yang dipilih                      |
-| L                       | Membuka leaderboard                            |
+| L                       | Membuka leaderboard (Left / Right: ganti game, Up / Down: ganti papan skor game yang punya papan per mode/lagu) |
 | N                       | Mengganti nama pemain                          |
 | Esc                     | Keluar dari hub (di dalam game: kembali ke menu) |
-
-Di background menu, klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game yang ditunda (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
 
 Flag command line:
 
