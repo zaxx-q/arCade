@@ -4,6 +4,8 @@
 
 #include "arcade/common.h"
 
+#define GAME_BOARD_LEN 48 /* size of GameContext.board, NUL included */
+
 typedef struct GameContext {
     const char *player;          /* name for the leaderboard                                    */
     unsigned seed;               /* RNG seed (fixed in tests / smoke runs)                      */
@@ -12,6 +14,13 @@ typedef struct GameContext {
     const char *data_dir;        /* writable folder (scores, replays)                           */
     const char *assets_dir;      /* read-only assets folder                                     */
     const char *screenshot_path; /* NULL unless a smoke run wants periodic PNG snapshots        */
+    /* OPTIONAL OUTPUT, NULL when nobody listens (smoke runs, tests): a buffer of GAME_BOARD_LEN bytes, empty
+     * on entry. A game with several modes or levels writes the name of this run's high-score table into it
+     * before play() returns (e.g. "Dodge / Bopeebo / normal"); the hub then records and ranks the score in
+     * that table only (see leaderboard.h, "boards"). Left empty: one table for the whole game. Always check
+     * for NULL. A pointer to writable memory is fine in a const context: the game may fill the buffer, not
+     * re-point it. */
+    char *board;
 } GameContext;
 
 typedef struct GameResult {

@@ -23,6 +23,11 @@ bool bd_ui_select_song(const GameContext *ctx, const char *title, bd_Menu *menu,
 /* Plays one song in catch mode (beat_catch_game.c). Returns the score of the run like a GameDef play(). */
 GameResult bd_ui_play_catch(const GameContext *ctx, const bd_Song *song, int chart);
 
+/* Tells the hub which high-score table the run belongs to (ctx->board = "<Mode> / <song> / <difficulty>",
+ * see bd_board_name), so every mode, song and difficulty keeps its own scores. Both run loops call it when
+ * the run ends; it does nothing when nobody listens (ctx->board == NULL: smoke runs). */
+void bd_ui_report_board(const GameContext *ctx, const bd_Run *run);
+
 /* Smoke runs have no input: draws the select screen for a moment and writes <screenshot>_select.png. */
 void bd_ui_preview_select(const GameContext *ctx, const char *title, bd_ChartKind kind,
                           const bd_SongList *list);
