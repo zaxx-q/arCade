@@ -141,14 +141,18 @@ static void test_brake_and_accelerate_lap_lengths(void) {
 }
 
 static void test_hit_distances(void) {
-    CHECK_NEAR(loop_lap_hit_distance(60.0f), 52.0, 0.001);
-    CHECK_NEAR(loop_lap_hit_distance(48.0f), 46.0, 0.001);
-    CHECK_NEAR(loop_lap_hit_distance(36.0f), 40.0, 0.001);
+    /* the spec's 48 px enemy */
+    CHECK_NEAR(loop_lap_hit_distance(60.0f, LL_ENEMY_W), 52.0, 0.001);
+    CHECK_NEAR(loop_lap_hit_distance(48.0f, LL_ENEMY_W), 46.0, 0.001);
+    CHECK_NEAR(loop_lap_hit_distance(36.0f, LL_ENEMY_W), 40.0, 0.001);
+    /* the smallest and the largest random enemy: my_w / 2 + enemy_w / 2 - 2 */
+    CHECK_NEAR(loop_lap_hit_distance(48.0f, LL_ENEMY_W_MIN), 38.0, 0.001);
+    CHECK_NEAR(loop_lap_hit_distance(48.0f, LL_ENEMY_W_MAX), 54.0, 0.001);
 }
 
 /* Concentric circles of the same radius put both balls on the same path, so the ball distance is
  * 2 R sin(delta / 2): that lets the test place the enemy at an exact distance. */
-static bool collides_at(int mode, float dist) {
+static bool collides_at_size(int mode, float enemy_w, float dist) {
     loop_lap_State s;
     loop_lap_init_sized(&s, 1, 480, 800);
     s.c2x = s.c1x;
@@ -163,9 +167,14 @@ static bool collides_at(int mode, float dist) {
     s.my_a = target - speed;
     s.enemy_n = 1;
     s.ew[0] = 0.0; /* a standing enemy */
+    s.esize[0] = enemy_w;
     s.ea[0] = target + 2.0 * asin((double)dist / (2.0 * r));
     loop_lap_step(&s, &in, TICK);
     return s.over;
+}
+
+static bool collides_at(int mode, float dist) {
+    return collides_at_size(mode, LL_ENEMY_W, dist);
 }
 
 static void test_collision_thresholds(void) {
@@ -204,6 +213,125 @@ static void test_enemies_join_at_the_spec_laps(void) {
     s.my_a = (double)ARC_TAU - 0.001;
     loop_lap_step(&s, &in, TICK);
     CHECK_EQ_INT(s.enemy_n, LL_MAX_ENEMIES);
+}
+
+/* ---- every enemy gets its own random size ------------------------------------------------------- */
+
+/* Makes enemy `i` join by finishing a lap, the same way a real run does. */
+static void join_next_enemy(loop_lap_State *s) {
+    s->score = loop_lap_join_lap(s->enemy_n) - 1;
+    s->my_a = (double)ARC_TAU - 0.001;
+    ArcadeInput in = none();
+    loop_lap_step(s, &in, TICK);
+    CHECK(!s->over); /* a joining enemy is ~109 px from the player (3 o'clock), so it cannot crash at once */
+}
+
+static void test_enemy_sizes_are_random_within_the_range(void) {
+    float lo = 1.0e9f, hi = 0.0f, sum = 0.0f;
+    int count = 0;
+    for (unsigned seed = 1; seed <= 60; seed++) {
+        loop_lap_State s;
+        loop_lap_init(&s, seed);
+        for (int i = 0; i < LL_MAX_ENEMIES; i++) {
+            join_next_enemy(&s);
+            CHECK_EQ_INT(s.enemy_n, i + 1);
+            CHECK(s.esize[i] >= LL_ENEMY_W_MIN && s.esize[i] <= LL_ENEMY_W_MAX);
+            lo = s.esize[i] < lo ? s.esize[i] : lo;
+            hi = s.esize[i] > hi ? s.esize[i] : hi;
+            sum += s.esize[i];
+            count++;
+        }
+    }
+    CHECK(lo < 36.0f && hi > 60.0f);                 /* the whole range is really used */
+    CHECK_NEAR(sum / (float)count, LL_ENEMY_W, 1.5); /* mean 48 px: not harder on average */
+}
+
+static void test_enemies_of_one_run_differ_in_size(void) {
+    loop_lap_State s;
+    loop_lap_init(&s, 5);
+    for (int i = 0; i < LL_MAX_ENEMIES; i++)
+        join_next_enemy(&s);
+    int distinct = 0; /* enemies whose size differs by more than half a pixel from every earlier one */
+    for (int i = 0; i < LL_MAX_ENEMIES; i++) {
+        bool unique = true;
+        for (int j = 0; j < i; j++)
+            if (fabsf(s.esize[i] - s.esize[j]) <= 0.5f)
+                unique = false;
+        if (unique)
+            distinct++;
+    }
+    CHECK(distinct >= 6); /* 8 enemies, almost all different sizes */
+}
+
+/* Unused slots keep the default 48 px, so code (and tests) that raise enemy_n by hand see the spec's enemy.
+ */
+static void test_unused_slots_default_to_the_spec_size(void) {
+    loop_lap_State s;
+    loop_lap_init(&s, 3);
+    for (int i = 0; i < LL_MAX_ENEMIES; i++)
+        CHECK_NEAR(s.esize[i], 48.0, 0.0001);
+}
+
+/* The size is drawn after the angle and the speed, so those are exactly what they were before sizes existed.
+ */
+static void test_adding_sizes_did_not_change_angle_or_speed(void) {
+    for (unsigned seed = 1; seed <= 10; seed++) {
+        loop_lap_State s;
+        loop_lap_init(&s, seed);
+        join_next_enemy(&s);
+        Rng r;
+        rng_seed(&r, seed);
+        double angle = (double)rng_float(&r) * (double)ARC_TAU;
+        double speed = (double)rng_float(&r) * 0.03518584 + 0.00670206;
+        CHECK_NEAR(s.ew[0], speed, 1e-12);
+        CHECK_NEAR(s.ea[0], angle + speed, 1e-9); /* the joining step also moved it by one tick (k = 1) */
+    }
+}
+
+/* Same distance, different enemies: the big one touches, the small one does not. */
+static void test_collision_uses_the_enemys_own_size(void) {
+    /* cruise (48 px ball): hit when distance <= 24 + enemy / 2 - 2 */
+    CHECK(!collides_at_size(LL_CRUISE, 32.0f, 40.0f)); /* limit 38 */
+    CHECK(collides_at_size(LL_CRUISE, 64.0f, 40.0f));  /* limit 54 */
+    CHECK(collides_at_size(LL_CRUISE, 32.0f, 37.9f));
+    CHECK(!collides_at_size(LL_CRUISE, 32.0f, 38.1f));
+    CHECK(collides_at_size(LL_CRUISE, 64.0f, 53.9f));
+    CHECK(!collides_at_size(LL_CRUISE, 64.0f, 54.1f));
+    /* a small accelerating ball against the biggest enemy, and a big braking ball against the smallest */
+    CHECK(collides_at_size(LL_ACCEL, 64.0f, 47.9f)); /* 18 + 32 - 2 = 48 */
+    CHECK(!collides_at_size(LL_ACCEL, 64.0f, 48.1f));
+    CHECK(collides_at_size(LL_BRAKE, 32.0f, 43.9f)); /* 30 + 16 - 2 = 44 */
+    CHECK(!collides_at_size(LL_BRAKE, 32.0f, 44.1f));
+}
+
+static void test_near_miss_distance_uses_the_enemys_own_size(void) {
+    for (int big = 0; big < 2; big++) {
+        loop_lap_State s;
+        loop_lap_init_sized(&s, 1, 480, 800);
+        s.c2x = s.c1x;
+        s.c2y = s.c1y;
+        s.enemy_n = 1;
+        s.ew[0] = 0.0;
+        s.esize[0] = big ? 64.0f : 32.0f;
+        s.ea[0] = 1.0 + 2.0 * asin(66.0 / (2.0 * 177.0)); /* 66 px away */
+        s.my_a = 1.0 - ARC_TAU / 250.0;
+        ArcadeInput in = none();
+        loop_lap_step(&s, &in, TICK);
+        CHECK(!s.over);
+        /* cruise: near when <= 24 + enemy / 2 + 16 -> 56 for the small enemy, 72 for the big one */
+        CHECK_EQ_INT(s.whooshes, big ? 1 : 0);
+    }
+}
+
+static void test_same_seed_same_enemy_sizes(void) {
+    loop_lap_State a, b;
+    loop_lap_init(&a, 21);
+    loop_lap_init(&b, 21);
+    for (int i = 0; i < 4; i++) {
+        join_next_enemy(&a);
+        join_next_enemy(&b);
+        CHECK_NEAR(a.esize[i], b.esize[i], 0.0f);
+    }
 }
 
 static void test_enemy_speed_range(void) {
@@ -325,8 +453,10 @@ static void test_monkey_never_breaks_invariants(void) {
             CHECK(s.mode >= LL_BRAKE && s.mode <= LL_ACCEL);
             CHECK(isfinite(s.my_pos.x) && isfinite(s.my_pos.y));
             CHECK(s.my_a >= 0.0 && s.my_a <= (double)ARC_TAU + 0.1);
-            for (int j = 0; j < s.enemy_n; j++)
+            for (int j = 0; j < s.enemy_n; j++) {
                 CHECK(isfinite(s.enemy_pos[j].x) && isfinite(s.enemy_pos[j].y));
+                CHECK(s.esize[j] >= LL_ENEMY_W_MIN && s.esize[j] <= LL_ENEMY_W_MAX);
+            }
         }
     }
 }
@@ -342,6 +472,13 @@ int main(void) {
     RUN(test_hit_distances);
     RUN(test_collision_thresholds);
     RUN(test_enemies_join_at_the_spec_laps);
+    RUN(test_enemy_sizes_are_random_within_the_range);
+    RUN(test_enemies_of_one_run_differ_in_size);
+    RUN(test_unused_slots_default_to_the_spec_size);
+    RUN(test_adding_sizes_did_not_change_angle_or_speed);
+    RUN(test_collision_uses_the_enemys_own_size);
+    RUN(test_near_miss_distance_uses_the_enemys_own_size);
+    RUN(test_same_seed_same_enemy_sizes);
     RUN(test_enemy_speed_range);
     RUN(test_near_miss_whoosh_is_rate_limited);
     RUN(test_pause_with_p);

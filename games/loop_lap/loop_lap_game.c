@@ -59,7 +59,7 @@ static void draw_world(const loop_lap_State *s) {
     draw_flag(s);
     for (int i = 0; i < s->enemy_n; i++) {
         Vector2 p = to_screen(s->enemy_pos[i].x, s->enemy_pos[i].y);
-        gfx_glow_circle(p.x, p.y, LL_ENEMY_W / 2.0f, ARC_COL_MAGENTA);
+        gfx_glow_circle(p.x, p.y, s->esize[i] / 2.0f, ARC_COL_MAGENTA); /* each enemy has its own size */
     }
     Vector2 me = to_screen(s->my_pos.x, s->my_pos.y);
     gfx_glow_circle(me.x, me.y, s->my_w / 2.0f, ARC_COL_CYAN);
@@ -110,7 +110,9 @@ static GameResult play(const GameContext *ctx) {
                                        "or hold Space for go.",
                                        "",
                                        "Each lap is +1. Enemies join",
-                                       "on the lower circle. Don't touch."};
+                                       "on the lower circle, each with",
+                                       "its own speed and size.",
+                                       "Don't touch."};
     arcade_loop_begin(ctx);
     float t = 0.0f;
     while (arcade_loop_running()) {

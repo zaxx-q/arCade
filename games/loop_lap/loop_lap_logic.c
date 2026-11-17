@@ -23,8 +23,8 @@ int loop_lap_mode_from_input(const ArcadeInput *in, int w) {
     return brake ? LL_BRAKE : LL_CRUISE;
 }
 
-float loop_lap_hit_distance(float my_w) {
-    return my_w / 2.0f + LL_ENEMY_W / 2.0f - 2.0f;
+float loop_lap_hit_distance(float my_w, float enemy_w) {
+    return my_w / 2.0f + enemy_w / 2.0f - 2.0f;
 }
 
 int loop_lap_join_lap(int i) {
@@ -59,6 +59,7 @@ void loop_lap_init_sized(loop_lap_State *s, unsigned seed, int w, int h) {
     s->enemy_n = 0;
     for (int i = 0; i < LL_MAX_ENEMIES; i++) {
         s->ea[i] = s->ew[i] = 0.0;
+        s->esize[i] = LL_ENEMY_W;
         s->enemy_pos[i] = vec2(0.0f, 0.0f);
     }
     s->flash_t = 10.0f; /* no flash at the start */
@@ -77,6 +78,8 @@ static void new_enemy(loop_lap_State *s) {
     int i = s->enemy_n;
     s->ea[i] = (double)rng_float(&s->rng) * (double)ARC_TAU;
     s->ew[i] = (double)rng_float(&s->rng) * 0.03518584 + 0.00670206; /* always counter-clockwise */
+    /* drawn LAST, so a seed's angle and speed of every enemy are the same as before sizes existed */
+    s->esize[i] = rng_rangef(&s->rng, LL_ENEMY_W_MIN, LL_ENEMY_W_MAX);
     s->enemy_n++;
     s->joins++;
 }
@@ -125,12 +128,12 @@ void loop_lap_step(loop_lap_State *s, const ArcadeInput *in, float dt) {
 
     for (int i = 0; i < s->enemy_n; i++) {
         float d = vec2_dist(s->my_pos, s->enemy_pos[i]);
-        if (d <= loop_lap_hit_distance(s->my_w)) {
+        if (d <= loop_lap_hit_distance(s->my_w, s->esize[i])) {
             s->over = true;
             s->over_t = 0.0f;
             return;
         }
-        if (s->near_cd <= 0.0f && d <= s->my_w / 2.0f + LL_ENEMY_W / 2.0f + LL_NEAR_EXTRA) {
+        if (s->near_cd <= 0.0f && d <= s->my_w / 2.0f + s->esize[i] / 2.0f + LL_NEAR_EXTRA) {
             s->near_cd = LL_WHOOSH_COOLDOWN; /* at most one whoosh per second */
             s->whooshes++;
         }

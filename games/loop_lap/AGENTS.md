@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-12 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-14 -->
 
 # AGENTS.md - Loop Lap (`loop_lap`)
 
@@ -21,7 +21,7 @@ Loop Lap: control only speed (brake / cruise / accelerate) on a loop while enemi
 
 ## Code style & conventions
 - At most 8 enemies; they join at laps 1, 3, 8, 17, 31, 51, 78, 113. Angles are `double`; enemy angles are never wrapped.
-- Speeds are per original 50 Hz tick scaled by `k = dt * 50`; touching distance is `my_w/2 + 24 - 2` (52 / 46 / 40).
+- Speeds are per original 50 Hz tick scaled by `k = dt * 50`. Every enemy also gets its own diameter `esize[i]` (random 32..64 px, mean 48) when it joins, drawn AFTER its angle and speed so those keep their old random stream. Touching distance is `my_w/2 + esize[i]/2 - 2` (e.g. 52 / 46 / 40 for a 48 px enemy) and the near-miss whoosh uses the same size.
 - Held input maps to brake/cruise/accelerate by a pure function (accelerate wins); pause toggles with P and freezes the logic.
 - Portrait playfield: logic works in playfield-local coordinates (`arcade/playfield.h`); `loop_lap_init_sized(s, seed, w, h)` lets tests use 480 x 800 so the original spec vectors apply.
 - Per-tick constants of the original 50 Hz game are scaled by `k = dt * 50`.
