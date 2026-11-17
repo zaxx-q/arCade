@@ -55,7 +55,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/loop_lap.png" width="380" alt="Screenshot Loop Lap"/>
       </a>
       <p align="left">
-        Bolamu berlari sendiri di lingkaran atas. Atur kecepatan dengan rem dan gas supaya lolos dari musuh di lingkaran bawah yang tumpang tindih.<br/>
+        Bolamu berlari sendiri di lingkaran atas. Atur kecepatan dengan rem dan gas supaya lolos dari musuh di lingkaran bawah yang tumpang tindih. Tiap musuh punya kecepatan dan ukuran acak.<br/>
         <b>Kontrol:</b> Tahan mouse di kiri (rem) atau kanan (gas), atau A/D, panah, Spasi. P untuk jeda.
       </p>
     </td>
