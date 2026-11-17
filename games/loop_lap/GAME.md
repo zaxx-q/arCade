@@ -1,6 +1,6 @@
 # Loop Lap - design brief
 
-**Owner:** Leader  **Folder:** `games/loop_lap/`  **Created:** 2026-11-12  **Asal mekanik:** `g07_circlerace` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (rem/biasa/gas, musuh bergabung per lap, ukuran dan kecepatan musuh acak)
+**Owner:** Nadif & Baim  **Folder:** `games/loop_lap/`  **Created:** 2026-11-12  **Asal mekanik:** `g07_circlerace` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
 
 ## Hook
 Bolamu berlari sendiri mengitari lingkaran atas. Kamu hanya mengendalikan satu hal: kecepatan. Lepas untuk kecepatan biasa, tahan untuk mengerem (bola besar dan lambat), atau gas (bola kecil dan cepat). Di lingkaran bawah yang tumpang tindih dengan lingkaranmu, musuh-musuh berputar dengan kecepatan dan ukuran masing-masing. Setiap lap menambah satu poin, dan makin banyak lap, makin banyak musuh. Menyentuh satu musuh berarti selesai.

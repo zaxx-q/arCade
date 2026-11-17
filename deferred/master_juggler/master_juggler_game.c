@@ -1,6 +1,7 @@
 /* Master Juggler - raylib front-end: window loop and drawing ONLY. All rules live in
  * master_juggler_logic.c. */
 #include <stdio.h>
+#include <string.h>
 
 #include "arcade/gfx.h"
 #include "arcade/playfield.h"
@@ -16,6 +17,13 @@ static void draw_help(const char *title, const char *const *lines, int n) {
 static void draw_frame(void) {
     Rectangle r = {(float)ARC_PF_X, (float)ARC_PF_Y, (float)ARC_PF_W, (float)ARC_PF_H};
     DrawRectangleLinesEx(r, 2.0f, Fade(ARC_COL_CYAN, 0.5f));
+}
+
+/* <data_dir>/master_juggler_progress.txt (the hub's data folder may or may not end with a slash). */
+static void progress_path(const GameContext *ctx, char *out, size_t size) {
+    size_t n = strlen(ctx->data_dir);
+    bool slash = n == 0 || ctx->data_dir[n - 1] == '/' || ctx->data_dir[n - 1] == '\\';
+    snprintf(out, size, "%s%s%s", ctx->data_dir, slash ? "" : "/", MJ_PROGRESS_FILE);
 }
 
 static Color stage_color(int stage) {
@@ -64,9 +72,14 @@ static void draw_world(const master_juggler_State *s) {
         gfx_text_center(buf, ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 4 + 36, 18, ARC_COL_TEXT);
         gfx_text_center("click or Space to start", ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 2 - 10, 22,
                         ARC_COL_TEXT);
-        if (s->lives < MJ_LIVES) {
+        if (s->last_try_failed) { /* only right after a lost try, not for the rest of the run */
             gfx_text_center("a ball was lost: try again", ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 2 + 30, 18,
                             ARC_COL_RED);
+        } else if (s->fresh && s->resume_level > 1) { /* the first screen of a continued run */
+            gfx_text_center("continuing from your saved level", ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 2 + 30,
+                            18, ARC_COL_GREEN);
+            snprintf(buf, sizeof(buf), "Up / Down or wheel: start level (1-%d)", s->resume_level);
+            gfx_text_center(buf, ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 2 + 58, 16, ARC_COL_DIM);
         }
     }
     if (s->over)
@@ -95,6 +108,16 @@ static GameResult play(const GameContext *ctx) {
     static master_juggler_State s;
     master_juggler_init(&s, ctx->seed);
 
+    /* Continue where this player left off. Smoke runs and CI (headless) never touch the disk. */
+    bool persist = !ctx->headless && ctx->data_dir != NULL;
+    char progress_file[600] = "";
+    if (persist) {
+        progress_path(ctx, progress_file, sizeof(progress_file));
+        int saved = master_juggler_progress_load(progress_file, ctx->player);
+        if (saved > 1)
+            master_juggler_resume(&s, saved);
+    }
+
     bool audio = !ctx->headless && arcade_audio_ready();
     Sound throw_snd = {0}, bump = {0}, lose = {0}, win = {0}, life = {0};
     if (audio) {
@@ -114,7 +137,12 @@ static GameResult play(const GameContext *ctx) {
                                        "red, yellow, green, grey.",
                                        "",
                                        "A ball that falls = try lost.",
-                                       "3 lives. Score = best level."};
+                                       "3 lives. Score = best level.",
+                                       "",
+                                       "Your level is saved: next time",
+                                       "you continue from it. On the",
+                                       "first screen, Up / Down picks",
+                                       "a lower start level."};
     arcade_loop_begin(ctx);
     float t = 0.0f;
     while (arcade_loop_running()) {
@@ -156,6 +184,10 @@ static GameResult play(const GameContext *ctx) {
         UnloadSound(win);
         UnloadSound(life);
     }
+    /* Saved however the run ended (game over, ESC or closing the window) so progress is never lost. */
+    if (persist &&
+        !master_juggler_progress_save(progress_file, ctx->player, master_juggler_progress_level(&s)))
+        fprintf(stderr, "warning: could not write %s\n", progress_file);
     GameResult r;
     r.score = master_juggler_score(&s);
     r.finished = master_juggler_is_over(&s);

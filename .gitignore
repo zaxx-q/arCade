@@ -13,6 +13,7 @@ CMakeUserPresets.json
 scores.txt
 gritty_save_*.dat
 gritty_save_*.bad
+master_juggler_progress.txt
 # keep VS Code shared config, ignore the rest
 .vscode/*
 !.vscode/settings.json

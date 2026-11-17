@@ -2,7 +2,9 @@
  * A trampoline (a bar) follows the pointer. Balls are thrown up out of it; bounce them so none falls
  * off the bottom. Level N throws N balls and every ball must be bounced 3 * min(N, 3) times.
  * Losing every ball costs a life and repeats the level; at 0 lives the game is over.
- * Score = the highest level COMPLETED. Coordinates are playfield-local. */
+ * Score = the highest level COMPLETED. Coordinates are playfield-local.
+ * Progress is remembered per player: the next run offers to continue at the level reached (see
+ * master_juggler_resume and the master_juggler_progress_* file helpers). */
 #ifndef MASTER_JUGGLER_LOGIC_H
 #define MASTER_JUGGLER_LOGIC_H
 
@@ -17,6 +19,7 @@
 #define MJ_BAR_W 90.0f
 #define MJ_BALL_R 15.0f
 #define MJ_OVER_DELAY 1.2f /* seconds the front-end may show the last miss before is_over() */
+#define MJ_PROGRESS_FILE "master_juggler_progress.txt" /* lives in the game's data folder */
 
 /* Colour stage of a ball by progress (the front-end maps it to a colour). */
 #define MJ_STAGE_RED 0
@@ -33,10 +36,13 @@ typedef struct master_juggler_State {
     int level; /* 1..32, the level being played or about to be played */
     int best;  /* highest level completed = the score                 */
     int lives;
-    bool waiting;    /* at "click to start": no ball moves                  */
-    int nb, bl, mj;  /* balls launched, balls lost, min(level, 3)           */
-    float frmball;   /* launch clock, starts at -10 ticks                   */
-    bool first_lost; /* the first ball was lost: no more bouncing, all grey */
+    bool waiting;         /* at "click to start": no ball moves                  */
+    bool fresh;           /* no try has started yet: Up/Down may still pick the start level */
+    int resume_level;     /* highest level the player may start at (saved progress, 1 = from scratch) */
+    bool last_try_failed; /* the try that just ended cost a life: show "try again" (not after a won level) */
+    int nb, bl, mj;       /* balls launched, balls lost, min(level, 3)           */
+    float frmball;        /* launch clock, starts at -10 ticks                   */
+    bool first_lost;      /* the first ball was lost: no more bouncing, all grey */
     float x[MJ_MAX_BALLS], y[MJ_MAX_BALLS], spx[MJ_MAX_BALLS], spy[MJ_MAX_BALLS], alpha[MJ_MAX_BALLS];
     int bounces[MJ_MAX_BALLS];
     bool visible[MJ_MAX_BALLS];
@@ -52,6 +58,21 @@ void master_juggler_init_sized(master_juggler_State *s, unsigned seed, int w, in
 void master_juggler_step(master_juggler_State *s, const ArcadeInput *in, float dt);
 bool master_juggler_is_over(const master_juggler_State *s);
 int master_juggler_score(const master_juggler_State *s);
+
+/* Continue a saved run: starts at `level` (clamped to 1..MJ_MAX_LEVEL) and counts the levels below it as
+ * completed (score = level - 1). On the first "click to start" screen the player may still lower the
+ * start level with Up/Down or the mouse wheel, but never go above `level`. Call right after init. */
+void master_juggler_resume(master_juggler_State *s, int level);
+
+/* The level to save when the run ends (or is left with ESC): the higher of the saved level this run
+ * began with and the level reached now, so playing again from level 1 never loses progress. */
+int master_juggler_progress_level(const master_juggler_State *s);
+
+/* Saved progress: a text file with one "player|level" line per player (names are case-insensitive).
+ * load: that player's level, or 1 when the file or the player is missing. Bad lines are skipped.
+ * save: sets that player's level (clamped to 1..MJ_MAX_LEVEL) and rewrites the file; false on I/O error. */
+int master_juggler_progress_load(const char *path, const char *player);
+bool master_juggler_progress_save(const char *path, const char *player, int level);
 
 /* Colour stage 0..3 for a ball with `bounces` bounces on a level (yellow at mj, green at 2mj, grey at 3mj).
  */

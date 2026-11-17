@@ -162,8 +162,8 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/master_juggler.png" width="380" alt="Screenshot Master Juggler"/>
       </a>
       <p align="left">
-        Trampolin mengikuti mouse. Pantulkan semua bola berkali-kali sampai berubah warna; makin tinggi level, makin banyak bola. Tiga nyawa.<br/>
-        <b>Kontrol:</b> Mouse untuk menggeser trampolin (atau A/D), klik atau Spasi untuk memulai level.
+        Trampolin mengikuti mouse. Pantulkan semua bola berkali-kali sampai berubah warna; makin tinggi level, makin banyak bola. Tiga nyawa. Level terakhirmu disimpan, jadi lain kali kamu lanjut dari sana.<br/>
+        <b>Kontrol:</b> Mouse untuk menggeser trampolin (atau A/D), klik atau Spasi untuk memulai level. Di layar pertama, Atas/Bawah atau roda mouse memilih level awal.
       </p>
     </td>
     <td width="50%" align="center">
