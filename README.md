@@ -184,7 +184,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/spike_dart.png" width="380" alt="Screenshot Spike Dart"/>
       </a>
       <p align="left">
-        Lempar paku ke target yang berputar. Paku menancap lalu ikut berputar; jangan melempar saat paku lama sedang lewat di jalur lempar.<br/>
+        Lempar paku ke target yang berputar. Paku menancap lalu ikut berputar; kalah kalau paku yang kamu lempar menyentuh paku lama yang sedang lewat di jalur lempar.<br/>
         <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk melempar.
       </p>
     </td>

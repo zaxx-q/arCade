@@ -1,11 +1,11 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-12 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-14 -->
 
 # AGENTS.md - Spike Dart (`spike_dart`)
 
 Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
 
 ## Overview
-Spike Dart: throw spikes into a spinning target without hitting a stuck spike that is passing the launch lane; score = spikes stuck. Rules and status: `GAME.md`.
+Spike Dart: throw spikes into a spinning target without touching a stuck spike that is passing the launch lane; score = spikes stuck. Rules and status: `GAME.md`.
 
 ## Key Files
 - `spike_dart_logic.[ch]`: pure rules (no raylib), state struct, `init/init_sized/step/is_over/score`
@@ -21,8 +21,8 @@ Spike Dart: throw spikes into a spinning target without hitting a stuck spike th
 
 ## Code style & conventions
 - `0 <= stuck <= SD_MAX_SPIKES (64)`; the 64th stuck spike ends the game (`capped`). Arrays are never indexed past `stuck`.
-- Lane test replicates the original: x-distance only (`|x - spike_x| < 8`, `y > target_dn`), checked only while the flying spike's tip is below `target_dn + 68`.
-- Orbit uses real `dt` (pi/2 rad/s); flight uses `k = dt * 50`. A spike sticks when its tip crosses `target_dn` (never tunnels).
+- The hit box IS the drawn triangle: `spike_dart_shape` gives the 3 corners and the front-end draws exactly those. `spike_dart_would_touch` runs a separating-axis test against every stuck spike and only counts an overlap bigger than `SD_HIT_SLACK` (1.5 px). The original's centre-point x test (`|x - spike_x| < 8`) made 2 of 3 losses happen with the drawn spikes visibly apart, so do not bring it back.
+- Orbit uses real `dt` (pi/2 rad/s); flight uses `k = dt * 50` and is cut into sub-steps of at most 4 px, each one moving the ring a little and testing the pose, so the result is the same at any frame rate and nothing is jumped over. A spike arrives when its centre reaches the orbit radius; the landing pose is tested before it sticks. `spike_dart_lane_blocked` = would a spike at the landing pose touch.
 - Portrait playfield: logic works in playfield-local coordinates (`arcade/playfield.h`); `spike_dart_init_sized(s, seed, w, h)` lets tests use 480 x 800 so the original spec vectors apply.
 - Per-tick constants of the original 50 Hz game are scaled by `k = dt * 50`.
 - Logic never plays sound: it exposes event counters and the front-end compares them frame to frame.

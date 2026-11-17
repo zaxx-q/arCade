@@ -26,13 +26,14 @@ static Vector2 to_screen(float x, float y) {
     return v;
 }
 
-/* A spike is a thin triangle lying on a line toward the target centre; `a` is its orbit angle. */
+/* A spike is a thin triangle pointing at the target centre; `a` is its orbit angle. The three corners
+ * come from spike_dart_shape(): the very triangle the hit test uses, so what you see is what can hit you. */
 static void draw_spike(float cx, float cy, float a, Color c) {
-    float dx = cosf(a), dy = -sinf(a); /* unit vector from the spike's centre toward the target */
-    float hl = SD_SPIKE_LEN / 2.0f, hw = SD_SPIKE_W / 2.0f;
-    Vector2 tip = to_screen(cx + dx * hl, cy + dy * hl);
-    Vector2 b1 = to_screen(cx - dx * hl - dy * hw, cy - dy * hl + dx * hw);
-    Vector2 b2 = to_screen(cx - dx * hl + dy * hw, cy - dy * hl - dx * hw);
+    Vec2 t[3];
+    spike_dart_shape(cx, cy, a, t);
+    Vector2 tip = to_screen(t[0].x, t[0].y);
+    Vector2 b1 = to_screen(t[1].x, t[1].y);
+    Vector2 b2 = to_screen(t[2].x, t[2].y);
     DrawTriangle(tip, b1, b2, c); /* raylib culls the wrong winding, so draw both orders */
     DrawTriangle(tip, b2, b1, c);
 }
@@ -64,8 +65,8 @@ static void draw_right_gutter(const spike_dart_State *s) {
     gfx_text("SPIKES STUCK", 920, 64, 22, ARC_COL_CYAN);
     snprintf(buf, sizeof(buf), "%d / %d", s->stuck, SD_MAX_SPIKES);
     gfx_text(buf, 920, 100, 40, ARC_COL_YELLOW);
-    gfx_text("danger: the lane below", 920, 170, 18, ARC_COL_DIM);
-    gfx_text("the target (centre column)", 920, 200, 18, ARC_COL_DIM);
+    gfx_text("danger: a stuck spike", 920, 170, 18, ARC_COL_DIM);
+    gfx_text("below the target (centre)", 920, 200, 18, ARC_COL_DIM);
 }
 
 static GameResult play(const GameContext *ctx) {
@@ -82,9 +83,10 @@ static GameResult play(const GameContext *ctx) {
     int throws_seen = 0, sticks_seen = 0;
     bool lose_played = false;
 
-    static const char *const help[] = {
-        "Throw spikes at the target.", "Click, Space or any key.",  "Stuck spikes orbit around it.", "",
-        "Never throw while a stuck",   "spike is passing the lane", "straight below the target."};
+    static const char *const help[] = {"Throw spikes at the target.",   "Click, Space or any key.",
+                                       "Stuck spikes orbit around it.", "",
+                                       "Never throw while a stuck",     "spike is passing straight",
+                                       "below the target: if the two",  "spikes touch, you lose."};
     arcade_loop_begin(ctx);
     float t = 0.0f;
     while (arcade_loop_running()) {
