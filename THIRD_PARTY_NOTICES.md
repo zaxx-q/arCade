@@ -44,6 +44,33 @@ Selain yang tercantum di bawah, tidak ada aset yang disertakan: semua grafis gam
 
 Delapan game (`post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`) mengimplementasikan ulang mekanik permainan yang didokumentasikan di proyek saudara `simple-games` (spesifikasi aturan dan vektor uji). Tidak ada gambar, suara, font, teks, maupun kode dari proyek itu yang disalin: semua grafis digambar dengan bentuk raylib, semua suara disintesis lewat `gfx_make_tone()`, dan teks bantuan ditulis ulang. `simple-games` sendiri menyatakan bahwa ia dibangun dari hasil dekompilasi aplikasi pihak ketiga; apakah mekanik turunan itu boleh dirilis adalah keputusan pemilik repositori ini.
 
+## Synthwave City (game): `games/synthwave_city/`
+Port ke C99 dari *Synthwave City* oleh Kris E. Granholm (https://github.com/highsierralabs/Synthwave_City), lisensi MIT. Yang diterjemahkan adalah algoritmanya: pembangkit rencana kota (distrik, gedung, situs, jalur), RNG `mulberry32`/`hash32`, model terbang kamera dan drone tur, lalu lintas periodik, dan komposisi lagu; keluaran C dicocokkan dengan versi TypeScript-nya angka demi angka. Penggambar WebGL (shader, pantulan basah, bloom HDR) tidak dibawa: tampilannya ditulis ulang dengan rlgl, dan suaranya dirender oleh synthesizer bawaan arCade. Tidak ada gambar, font, atau berkas aset dari proyek itu yang disalin. Teks lisensi di bawah ini sengaja dibiarkan dalam bahasa Inggris asli, karena itulah teks yang mengikat secara hukum, dan harus menyertai bagian turunan ini di setiap distribusi.
+
+```
+MIT License
+
+Copyright (c) 2026 Kris E. Granholm
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Poiret One (font): `assets/fonts/PoiretOne-Regular.ttf`
 Copyright (c) 2011, Denis Masharov. SIL Open Font License 1.1: teks lengkapnya ada di `assets/fonts/OFL.txt` dan harus menyertai font ini di setiap distribusi (paket rilis sudah menyertakan `assets/`).
 

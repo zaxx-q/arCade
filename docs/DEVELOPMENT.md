@@ -142,7 +142,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 
 | Pengecekan                   | Perintah                                                             | Hasil yang diharapkan                          |
 | ---------------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
-| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 27 test)            |
+| Unit test logic murni        | `ctest --preset logic`                                               | semua test lolos (saat ini 31 test)            |
 | Aturan kontrak & portabilitas | `bash tools/check_repo.sh`                                          | `check_repo: OK (18 games)`                     |
 | Cek format                   | `bash tools/format.sh --check`                                       | `format: OK`                                   |
 | Perhitungan versi            | `bash tools/tests/test_next_version.sh`                              | `21 passed, 0 failed`                          |
@@ -174,6 +174,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 - [x] Matriks CI otomatis (Linux gcc/clang, Windows MinGW, Windows MSVC, AddressSanitizer, cppcheck, smoke run headless).
 - [x] Pipeline rilis otomatis dengan packaging lintas platform dan artifact screenshot (`v0.1.1`).
 - [x] Port 8 game dari proyek saudara `simple-games` (hanya aturan, tanpa aset): `post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`, lengkap dengan unit test, front-end, dan `GAME.md`.
+- [x] Port `synthwave_city` dari proyek web Synthwave_City (MIT, Kris E. Granholm): rencana kota dan lagu dicocokkan angka demi angka dengan versi TypeScript, tampilan 3D rlgl tanpa shader, lengkap dengan unit test, front-end, dan `GAME.md`.
 
 ### Fase 2: Polish Game & Mekanik (Sedang Berjalan)
 
@@ -195,6 +196,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | A Different Color | `games/different_color/` | Leader                     | Jalan (dua papan warna acak, timer 30 detik)                               |
 | Spike Dart    | `deferred/spike_dart/`    | Leader                     | Jalan (lempar paku, orbit, hitbox = segitiga yang digambar, batas 64)      |
 | Loop Lap      | `games/loop_lap/`      | Leader                     | Jalan (rem/biasa/gas, musuh bergabung per lap, ukuran & kecepatan acak)    |
+| Synthwave City | `games/synthwave_city/` | Leader                    | Jalan (terbang bebas atau tur di kota neon prosedural; port C dari Synthwave_City, MIT) |
 | Tower Stacker | `deferred/tower_stacker/` | Leader                     | Jalan (langkah 5 px, potong, scroll, bar dari kiri/kanan acak, zoom akhir, tap untuk lanjut) |
 | New Star      | `deferred/new_star/`      | Leader                     | Jalan (layar gelap, bintang baru, batas waktu dari bintang ke-10)          |
 | Gritty Golf   | `games/gritty_golf/`   | zaxx-q (upstream), integrasi ke arCade | Jalan (25 level, progres tersimpan; engine disalin ke `gg/`, lihat `gg/VENDORED.md`) |

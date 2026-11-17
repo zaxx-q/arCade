@@ -21,6 +21,7 @@ Tugasnya membutuhkan: source code, video demo, dan laporan (satu PDF). Repositor
 | different_color | Leader | |
 | spike_dart | Leader | |
 | loop_lap | Leader | |
+| synthwave_city (port dari Synthwave_City karya Kris E. Granholm, MIT; sebutkan sumbernya di Daftar Pustaka) | Leader | |
 | tower_stacker | Leader | |
 | new_star | Leader | |
 | gritty_golf (integrasi engine upstream karya zaxx-q; sebutkan sumbernya di Daftar Pustaka) | isi nama | |

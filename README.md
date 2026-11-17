@@ -60,6 +60,18 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       </p>
     </td>
   </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3><a href="games/synthwave_city/GAME.md">Synthwave City</a></h3>
+      <a href="games/synthwave_city/GAME.md">
+        <img src="docs/screenshots/synthwave_city.png" width="380" alt="Screenshot Synthwave City"/>
+      </a>
+      <p align="left">
+        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Port C dari <a href="https://github.com/highsierralabs/Synthwave_City">Synthwave City</a> karya Kris E. Granholm (MIT), dengan tampilan 3D raylib biasa. Skor = kilometer yang ditempuh; tidak ada game over.<br/>
+        <b>Kontrol:</b> WASD atau panah untuk terbang, tahan klik kiri dan seret untuk melihat sekeliling, klik kanan untuk dorongan, roda mouse untuk skala kecepatan, Spasi tur otomatis, 1-6 titik pandang, T ganti suasana, M bisukan musik.
+      </p>
+    </td>
+  </tr>
 </table>
 
 <details>

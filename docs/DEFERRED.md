@@ -6,7 +6,7 @@ Lingkup tugas hanya membutuhkan sebagian kecil dari game yang sudah dibuat. Dari
 
 | Folder | Tampil di menu hub? | Dibangun, di-test, di-smoke-test? | Isi saat ini |
 | --- | --- | --- | --- |
-| `games/<id>/` | Ya | Ya | `beat_catch`, `beat_dodge`, `different_color`, `gritty_golf`, `loop_lap` |
+| `games/<id>/` | Ya | Ya | `beat_dodge`, `different_color`, `gritty_golf`, `loop_lap`, `synthwave_city` |
 | `deferred/<id>/` | Tidak (hanya setelah arsip dibuka) | Ya | 13 game lainnya |
 
 Struktur folder, `GameDef`, aturan di `games/AGENTS.md`, dan pengecekan `tools/check_repo.sh` sama persis untuk keduanya. `GameDef` tidak tahu ia berada di folder yang mana; keputusan itu dibuat CMake saat registry dibuat (lihat [ARCHITECTURE.md](./ARCHITECTURE.md), bagian "Registry game otomatis").

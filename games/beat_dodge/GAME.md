@@ -1,6 +1,6 @@
 # Beat Dodge & Catch - design brief
 
-**Owner:** Hakim & Januar  **Folder:** `games/beat_dodge/`  **Status:** jalan: dua mode (Dodge dan Catch) yang dipilih dengan tombol besar di layar pilih lagu, 9 lagu dari MIDI, 3 kesulitan per mode, ribbon; mode Dodge: satu nyawa per objek dan skor "close call"; mode Catch: combo dan health; musik hasil sintesis (synthesised)
+**Owner:** Member 5  **Folder:** `games/beat_dodge/`  **Status:** jalan: dua mode (Dodge dan Catch) yang dipilih dengan tombol besar di layar pilih lagu, 9 lagu dari MIDI, 3 kesulitan per mode, ribbon; mode Dodge: satu nyawa per objek dan skor "close call"; mode Catch: combo dan health; musik hasil sintesis (synthesised)
 
 ## Hook
 Rhythm game dengan dua mode yang dipilih di layar pilih lagu lewat tombol besar **DODGE** / **CATCH** (satu game dan lagu yang sama, tetapi setiap mode, lagu, dan tingkat kesulitan punya papan skor sendiri). Bagian ini menjelaskan mode **Dodge**; mode **Catch** (kebalikannya: tangkap, jangan hindari) dijelaskan di bagian "Mode Catch" di bawah.
