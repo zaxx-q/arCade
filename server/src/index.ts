@@ -11,6 +11,7 @@
 import type { Env, RateLimiter } from "./env";
 import {
   MAX_BODY,
+  MAX_REGISTRATIONS_PER_HOUR,
   bearerToken,
   errBody,
   hashToken,
@@ -92,10 +93,15 @@ const TOP_SQL = `
 const COUNT_SQL = "SELECT COUNT(*) AS players FROM scores WHERE board = ?1";
 
 async function register(env: Env, ip: string, now: number): Promise<Response> {
-  if (await limited(env.RL_REGISTER, ip)) return tooMany();
+  if (await limited(env.RL_REGISTER, ip)) return tooMany(); // best effort (see wrangler.jsonc) ...
+  const seconds = Math.floor(now / 1000);
+  const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM installs WHERE created_at > ?1")
+    .bind(seconds - 3600)
+    .first<{ n: number }>();
+  if ((recent?.n ?? 0) >= MAX_REGISTRATIONS_PER_HOUR) return tooMany(); // ... and this one is exact
   const token = newToken();
   await env.DB.prepare("INSERT INTO installs (token_hash, created_at) VALUES (?1, ?2)")
-    .bind(await hashToken(token), Math.floor(now / 1000))
+    .bind(await hashToken(token), seconds)
     .run();
   return reply(200, registerOk(token));
 }

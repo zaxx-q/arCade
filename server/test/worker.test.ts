@@ -2,7 +2,7 @@ import type { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
 import server, { handle } from "../src/index";
 import type { Env, RateLimiter } from "../src/env";
-import { TOP_MAX, hashToken } from "../src/protocol";
+import { MAX_REGISTRATIONS_PER_HOUR, TOP_MAX, hashToken } from "../src/protocol";
 import { freshDatabase } from "./d1-shim";
 
 class Limiter implements RateLimiter {
@@ -100,6 +100,34 @@ describe("register", () => {
     expect(r.headers.get("retry-after")).toBe("30");
     expect(rows("SELECT * FROM installs").length).toBe(0);
     expect(rl.register.keys).toEqual([IP]);
+  });
+
+  // The Workers limiter is only best effort across connections; this cap is counted in D1 and exact.
+  const seedInstalls = (count: number, secondsAgo: number): void => {
+    const at = Math.floor(clock / 1000) - secondsAgo;
+    for (let i = 0; i < count; i++)
+      db.query("INSERT INTO installs (token_hash, created_at) VALUES (?, ?)").run(`seed${secondsAgo}-${i}`, at);
+  };
+  const installCount = (): number => rows("SELECT COUNT(*) AS n FROM installs")[0]!.n as number;
+
+  test("the whole server accepts only so many new installs an hour, and a refusal writes nothing", async () => {
+    seedInstalls(MAX_REGISTRATIONS_PER_HOUR, 60);
+    const r = await call("POST", "/v1/register");
+    expect(r.status).toBe(429);
+    expect(r.text).toBe("err|rate_limited\n");
+    expect(installCount()).toBe(MAX_REGISTRATIONS_PER_HOUR);
+  });
+
+  test("the cap is exact: one below it still gets in, and that was the last one", async () => {
+    seedInstalls(MAX_REGISTRATIONS_PER_HOUR - 1, 60);
+    expect((await call("POST", "/v1/register")).status).toBe(200);
+    expect((await call("POST", "/v1/register")).status).toBe(429);
+    expect(installCount()).toBe(MAX_REGISTRATIONS_PER_HOUR);
+  });
+
+  test("only the last hour counts", async () => {
+    seedInstalls(MAX_REGISTRATIONS_PER_HOUR, 3700);
+    expect((await call("POST", "/v1/register")).status).toBe(200);
   });
 });
 

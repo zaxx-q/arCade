@@ -2,7 +2,7 @@
 // D1 is SQLite too; what differs (network, replicas) is not what these tests are about. The end-to-end
 // script (test/e2e.ts) checks the real thing.
 import { Database } from "bun:sqlite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import type { D1Database, D1PreparedStatement, D1Result } from "../src/env";
 
 type Params = never[]; // bun's bind types are stricter than D1's `unknown`
@@ -38,9 +38,11 @@ export function d1FromSqlite(db: Database): D1Database {
   };
 }
 
-/** An empty in-memory database with the real migration applied. */
+/** An empty in-memory database with every migration applied, in file-name order (as wrangler does). */
 export function freshDatabase(): { db: Database; d1: D1Database } {
   const db = new Database(":memory:");
-  db.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+  const dir = new URL("../migrations/", import.meta.url);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort())
+    db.exec(readFileSync(new URL(file, dir), "utf8"));
   return { db, d1: d1FromSqlite(db) };
 }
