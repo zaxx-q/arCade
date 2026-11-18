@@ -135,17 +135,67 @@ void lb_sort(Leaderboard *lb, LbSort order) {
     insertion_sort(lb->items, lb->count, order);
 }
 
-int lb_top_for_game(const Leaderboard *lb, const char *game, ScoreEntry *out, int max) {
+/* ---- boards ---- */
+void lb_board_key(char *out, size_t size, const char *game, const char *board) {
+    char raw[LB_GAME_LEN + 64]; /* long enough for any board: sanitize() below cuts it to `size` anyway */
+    if (board != NULL && board[0] != '\0')
+        snprintf(raw, sizeof(raw), "%s:%s", game, board);
+    else
+        arc_strlcpy(raw, game, sizeof(raw));
+    sanitize(out, size, raw);
+}
+
+const char *lb_key_board(const char *key) {
+    const char *colon = strchr(key, ':'); /* game ids never contain ':', so the first one ends the id */
+    return colon != NULL ? colon + 1 : "";
+}
+
+bool lb_key_in_game(const char *key, const char *game) {
+    size_t n = strlen(game);
+    /* the id must end right there: "beat_dodge2" is another game, "beat_dodge:Dodge..." is a board */
+    return strncmp(key, game, n) == 0 && (key[n] == '\0' || key[n] == ':');
+}
+
+int lb_boards_for_game(const Leaderboard *lb, const char *game, char keys[][LB_GAME_LEN], int max) {
+    int n = 0;
+    for (int i = 0; i < lb->count && n < max; i++) {
+        if (!lb_key_in_game(lb->items[i].game, game))
+            continue;
+        bool known = false; /* linear search: has this table been listed already? */
+        for (int k = 0; k < n && !known; k++)
+            known = strcmp(keys[k], lb->items[i].game) == 0;
+        if (!known)
+            arc_strlcpy(keys[n++], lb->items[i].game, LB_GAME_LEN);
+    }
+    for (int i = 1; i < n; i++) { /* insertion sort A-Z */
+        char key[LB_GAME_LEN];
+        arc_strlcpy(key, keys[i], sizeof(key));
+        int j = i - 1;
+        while (j >= 0 && arc_stricmp(key, keys[j]) < 0) {
+            arc_strlcpy(keys[j + 1], keys[j], LB_GAME_LEN);
+            j--;
+        }
+        arc_strlcpy(keys[j + 1], key, LB_GAME_LEN);
+    }
+    return n;
+}
+
+/* Does the entry belong to the table asked for? Either exactly this key, or (whole_game) any table of it. */
+static bool in_table(const ScoreEntry *e, const char *game, bool whole_game) {
+    return whole_game ? lb_key_in_game(e->game, game) : strcmp(e->game, game) == 0;
+}
+
+static int top_matching(const Leaderboard *lb, const char *game, bool whole_game, ScoreEntry *out, int max) {
     int n = 0;
     for (int i = 0; i < lb->count && n < max; i++)
-        if (strcmp(lb->items[i].game, game) == 0)
+        if (in_table(&lb->items[i], game, whole_game))
             out[n++] = lb->items[i];
     /* the copy above stops at max, so gather ALL matches first when more exist */
     if (n == max) {
         ScoreEntry all[LB_MAX_ENTRIES];
         int m = 0;
         for (int i = 0; i < lb->count; i++)
-            if (strcmp(lb->items[i].game, game) == 0)
+            if (in_table(&lb->items[i], game, whole_game))
                 all[m++] = lb->items[i];
         insertion_sort(all, m, LB_SORT_SCORE_DESC);
         n = m < max ? m : max;
@@ -154,6 +204,14 @@ int lb_top_for_game(const Leaderboard *lb, const char *game, ScoreEntry *out, in
     }
     insertion_sort(out, n, LB_SORT_SCORE_DESC);
     return n;
+}
+
+int lb_top_for_game(const Leaderboard *lb, const char *game, ScoreEntry *out, int max) {
+    return top_matching(lb, game, false, out, max);
+}
+
+int lb_top_for_all_boards(const Leaderboard *lb, const char *game, ScoreEntry *out, int max) {
+    return top_matching(lb, game, true, out, max);
 }
 
 int lb_find_player(const Leaderboard *lb, const char *needle, int *out_idx, int max) {

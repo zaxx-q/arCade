@@ -98,6 +98,13 @@ float bd_song_seconds(const bd_Song *song, int chart); /* time at which the char
  * lead. */
 int bd_song_to_synth(const bd_Song *song, int chart, float delay, SynthNote *out);
 
+/* The name of the high-score table of one chart: "<Mode> / <song title> / <difficulty>", e.g. "Catch /
+ * Bopeebo / hard". Every mode, song and difficulty has its own table (the hub stores a score under
+ * "beat_dodge:<this name>"). It always fits in `size` (GAME_BOARD_LEN): a long title is shortened, never the
+ * mode or the difficulty, so two charts cannot end up in one table because of the cut. `chart` is an index
+ * into song->charts; an invalid one gives "". */
+void bd_board_name(char *out, size_t size, const bd_Song *song, int chart);
+
 /* Charts of one kind: how many a song has, and the index of the nth one (-1 when there is none). */
 int bd_song_kind_count(const bd_Song *song, bd_ChartKind kind);
 int bd_song_kind_chart(const bd_Song *song, bd_ChartKind kind, int nth);

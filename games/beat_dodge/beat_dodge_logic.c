@@ -84,6 +84,22 @@ float bd_song_seconds(const bd_Song *song, int chart) {
     return (BD_LEAD_BEATS + (chart_beats > melody_beats ? chart_beats : melody_beats) + 1.0f) * spb;
 }
 
+void bd_board_name(char *out, size_t size, const bd_Song *song, int chart) {
+    out[0] = '\0';
+    if (chart < 0 || chart >= song->chart_count)
+        return;
+    const bd_Chart *c = &song->charts[chart];
+    const char *mode = c->kind == BD_CHART_CATCH ? "Catch" : "Dodge";
+    /* "<mode> / " + title + " / <difficulty>": the title gets whatever room is left */
+    size_t fixed = strlen(mode) + 3 + 3 + strlen(c->name);
+    size_t room = size > fixed + 1 ? size - fixed - 1 : 0;
+    char title[sizeof(song->title)];
+    arc_strlcpy(title, song->title, sizeof(title));
+    if (strlen(title) > room)
+        title[room] = '\0';
+    snprintf(out, size, "%s / %s / %s", mode, title, c->name);
+}
+
 int bd_song_kind_count(const bd_Song *song, bd_ChartKind kind) {
     int n = 0;
     for (int c = 0; c < song->chart_count; c++)

@@ -13,7 +13,7 @@ Panahnya tidak pernah berbalik: **kode murni tidak pernah meng-include raylib**.
 
 ## Kontrak game (`core/include/arcade/game.h`)
 
-Setiap game mengekspor satu `const GameDef game_<id>_def` yang berisi `play(const GameContext*)`. Hub memanggil `play`, yang menjalankan seluruh game loop dan mengembalikan `GameResult {score, finished}`. Game `ranked` dengan `finished == true` ditulis ke `scores.txt`.
+Setiap game mengekspor satu `const GameDef game_<id>_def` yang berisi `play(const GameContext*)`. Hub memanggil `play`, yang menjalankan seluruh game loop dan mengembalikan `GameResult {score, finished}`. Game `ranked` dengan `finished == true` ditulis ke `scores.txt`. Game yang punya beberapa mode atau level boleh mengisi `GameContext.board` (opsional, bisa `NULL`) dengan nama papan skor run itu, misalnya `Dodge / Bopeebo / normal`; hub lalu menyimpan dan meranking skornya hanya di papan itu (kunci `<id>:<papan>`, lihat "papan" di `leaderboard.h`). Game yang tidak mengisinya tetap satu papan per game, seperti sebelumnya.
 
 Di dalam `play`, setiap game mengikuti loop yang sama:
 
@@ -47,7 +47,7 @@ Menu hub hanya menampilkan `g_arcade_games`. Isi `g_arcade_deferred` baru ikut t
 
 ## File data
 
-- `scores.txt` (di sebelah exe, atau `--data-dir`): satu baris `game|player|score|unix_time`; baris yang rusak dilewati.
+- `scores.txt` (di sebelah exe, atau `--data-dir`): satu baris `game|player|score|unix_time`; baris yang rusak dilewati. Kolom `game` adalah id game polos (`echo_maze`) atau kunci papan `<id>:<papan>` (`beat_dodge:Catch / Bopeebo / hard`); formatnya sama, kolomnya hanya boleh sampai 63 karakter (`LB_GAME_LEN`).
 - `gritty_save_<nama>.dat` (di folder data yang sama): progres Gritty Golf per pemain, ditulis oleh engine yang disalin ke `games/gritty_golf/gg/` (checksum; file rusak diganti nama menjadi `.bad`).
 - `assets/beatmaps/*.txt`: file lagu (beat map) untuk Beat Dodge & Catch (formatnya didokumentasikan di `beat_dodge_logic.h`, lihat juga `docs/SONGS.md`).
 

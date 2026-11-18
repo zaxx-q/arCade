@@ -87,6 +87,7 @@ GameResult bd_ui_play_catch(const GameContext *ctx, const bd_Song *song, int cha
         UnloadSound(tick);
     if (oops.frameCount > 0)
         UnloadSound(oops);
+    bd_ui_report_board(ctx, &s->run);
     GameResult r;
     r.score = beat_catch_score(s);
     r.finished = beat_catch_is_over(s);
