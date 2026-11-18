@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-12 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-14 -->
 
 # AGENTS.md - Tower Stacker (`tower_stacker`)
 
@@ -22,7 +22,8 @@ Tower Stacker: drop a sliding bar onto a tower; overhang is cut off, a perfect l
 ## Code style & conventions
 - D6 exception: the bar moves in whole 5 px steps on a 50 Hz sub-clock, so `bar_x` is always congruent to `base_x` (mod 5) and a perfect is reachable. Everything else uses `k = dt * 50` or plain `dt`.
 - `0 <= score <= TS_MAX_FLOORS (1023)`; reaching 1023 ends the game. Floors store x/width rounded half up; windows only on floors >= 31 px wide.
-- Game over reveal: 0.8 s for towers under 10 floors, 2.5 s (zoom-to-fit as a pure function of `over_t`) for 10+ floors.
+- Every new bar enters from a random side (50/50): from the left moving right, or from the right moving left. Both start x values stay congruent to `base_x` (mod 5), so a perfect is reachable from either side.
+- Game over: the reveal lasts 0.8 s for towers under 10 floors, 2.5 s (zoom-to-fit as a pure function of `over_t`) for 10+ floors, then the finished tower STAYS on screen. `tower_stacker_can_continue` is true from the end of the reveal and the front-end shows its prompt; the next tap/key sets `done`, and `tower_stacker_is_over` is true only then. Taps during the reveal are ignored. ESC while the tower is on show still counts the score (`finished = s.over`).
 - Portrait playfield: logic works in playfield-local coordinates (`arcade/playfield.h`); `tower_stacker_init_sized(s, seed, w, h)` lets tests use 480 x 800 so the original spec vectors apply.
 - Per-tick constants of the original 50 Hz game are scaled by `k = dt * 50`.
 - Logic never plays sound: it exposes event counters and the front-end compares them frame to frame.

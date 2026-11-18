@@ -9,6 +9,12 @@ static ArcadeInput none(void) {
     return in;
 }
 
+static ArcadeInput tap(void) {
+    ArcadeInput in = none();
+    in.fire_pressed = true;
+    return in;
+}
+
 static tower_stacker_State *fresh(unsigned seed) {
     static tower_stacker_State s;
     tower_stacker_init_sized(&s, seed, 480, 800);
@@ -96,11 +102,12 @@ static void test_no_overlap_ends_the_game(void) {
     CHECK(s->over);
     CHECK_EQ_INT(s->state, TS_MISSED);
     CHECK_EQ_INT(s->score, 0);
-    CHECK(!tower_stacker_is_over(s)); /* the short reveal is running */
+    CHECK(!tower_stacker_can_continue(s)); /* the short reveal is running */
     ArcadeInput in = none();
-    for (int i = 0; i < 60 && !tower_stacker_is_over(s); i++)
+    for (int i = 0; i < 60 && !tower_stacker_can_continue(s); i++)
         tower_stacker_step(s, &in, ARC_DT);
-    CHECK(tower_stacker_is_over(s));
+    CHECK(tower_stacker_can_continue(s));
+    CHECK(!tower_stacker_is_over(s)); /* the game waits for the player, it does not close by itself */
     /* d = 238 still overlaps by 1 px: not a miss */
     tower_stacker_State *t = fresh(5);
     drop_at(t, 120.0f + 238.0f);
@@ -279,12 +286,12 @@ static void test_zoom_to_fit_after_a_tall_game(void) {
     CHECK_NEAR(top, 160.0, 0.5);
     CHECK_NEAR(h, 58.18, 0.05);
     CHECK_NEAR(top + 11.0 * h, 800.0, 0.6); /* all 11 floors end exactly at the bottom */
-    CHECK(tower_stacker_is_over(s));        /* the long reveal is done after 2.5 s */
+    CHECK(tower_stacker_can_continue(s));   /* the long reveal is done after 2.5 s */
     /* a short tower has neither the zoom nor the long delay */
     tower_stacker_State *t = fresh(16);
     drop_at(t, 361.0f);
     tower_stacker_step(t, &in, 0.9f);
-    CHECK(tower_stacker_is_over(t));
+    CHECK(tower_stacker_can_continue(t));
     tower_stacker_zoom(t, &top, &h);
     CHECK_NEAR(h, 40.0, 0.001);
 }
@@ -299,10 +306,10 @@ static void test_long_reveal_for_tall_towers(void) {
     ArcadeInput in = none();
     for (int i = 0; i < 120; i++) /* 2.4 s */
         tower_stacker_step(s, &in, TICK);
-    CHECK(!tower_stacker_is_over(s));
+    CHECK(!tower_stacker_can_continue(s));
     for (int i = 0; i < 10; i++)
         tower_stacker_step(s, &in, TICK);
-    CHECK(tower_stacker_is_over(s));
+    CHECK(tower_stacker_can_continue(s));
 }
 
 /* A scripted player that drops at once every time ends the game by itself: the tower narrows
@@ -311,14 +318,210 @@ static void test_dropping_at_once_ends_the_game(void) {
     tower_stacker_State s;
     tower_stacker_init(&s, 1);
     int frames = 0;
-    while (!tower_stacker_is_over(&s) && frames++ < 60 * 120) {
+    while (!s.over && frames++ < 60 * 120) {
         ArcadeInput in = none();
         if (s.state == TS_SLIDING)
             in.fire_pressed = true;
         tower_stacker_step(&s, &in, ARC_DT);
     }
-    CHECK(tower_stacker_is_over(&s));
+    CHECK(s.over);
     CHECK(tower_stacker_score(&s) >= 1);
+}
+
+/* ---- the bar enters from a random side ------------------------------------------------------- */
+
+/* Checks the start position of the bar that was just created: which side, and the mod-5 alignment. */
+static bool start_is_valid(const tower_stacker_State *s) {
+    float r = fmodf(fabsf(s->bar_x - s->base_x), 5.0f);
+    if (!(r < 0.001f || r > 4.999f))
+        return false; /* must stay congruent to the floor edge, or a perfect is unreachable */
+    float right_edge = (float)s->w - s->bar_w;
+    if (s->bar_spx > 0.0f) /* from the left */
+        return s->bar_x >= 0.0f && s->bar_x < 5.0f;
+    return s->bar_x <= right_edge && s->bar_x > right_edge - 5.0f; /* from the right */
+}
+
+static void test_bars_enter_from_both_sides(void) {
+    int left = 0, right = 0;
+    for (unsigned seed = 1; seed <= 40; seed++) {
+        tower_stacker_State *s = fresh(seed);
+        CHECK(start_is_valid(s));
+        if (s->bar_spx > 0.0f)
+            left++;
+        else
+            right++;
+    }
+    CHECK(left >= 8 && right >= 8); /* a fair coin: neither side is ever starved over 40 bars */
+}
+
+/* After cuts the tower is narrower and off-centre: the right-hand start must follow the new width. */
+static void test_every_new_bar_starts_aligned_on_either_side(void) {
+    int left = 0, right = 0;
+    for (unsigned seed = 1; seed <= 20; seed++) {
+        tower_stacker_State *s = fresh(seed);
+        for (int i = 0; i < 12 && !s->over; i++) {
+            float off = (i % 2 == 0) ? 25.0f : -25.0f; /* alternate right and left cuts */
+            drop_at(s, s->base_x + off);
+            wait_for_new_bar(s);
+            if (s->over)
+                break;
+            CHECK(start_is_valid(s));
+            if (s->bar_spx > 0.0f)
+                left++;
+            else
+                right++;
+        }
+    }
+    CHECK(left >= 20 && right >= 20);
+}
+
+/* A bar that starts at the right edge moves left, bounces off the left wall and keeps its alignment. */
+static void test_a_right_start_moves_left_and_bounces(void) {
+    tower_stacker_State *s = fresh(1);
+    s->bar_spx = -5.0f; /* force a right start for a known position */
+    s->bar_x = (float)s->w - s->bar_w;
+    ArcadeInput in = none();
+    float first = s->bar_x;
+    tower_stacker_step(s, &in, TICK);
+    CHECK_NEAR(s->bar_x, first - 5.0, 0.001);
+    bool went_right_again = false;
+    for (int i = 0; i < 400; i++) {
+        float before = s->bar_x;
+        tower_stacker_step(s, &in, TICK);
+        if (s->bar_x > before)
+            went_right_again = true;
+        float r = fmodf(fabsf(s->bar_x - s->base_x), 5.0f);
+        CHECK(r < 0.001f || r > 4.999f);
+    }
+    CHECK(went_right_again);
+}
+
+/* The 15-perfect scripted run of the 60 Hz test, repeated over many seeds so that both entry sides
+ * are exercised: a perfect landing is reachable whichever side the bar comes from. */
+static void test_perfects_are_reachable_from_both_sides(void) {
+    int left = 0, right = 0;
+    for (unsigned seed = 1; seed <= 8; seed++) {
+        tower_stacker_State s;
+        tower_stacker_init(&s, seed);
+        int prev = -1, frames = 0;
+        while (s.score < 12 && !s.over && frames++ < 60 * 600) {
+            if (s.state == TS_SLIDING && prev != TS_SLIDING) { /* a new bar just entered */
+                if (s.bar_spx > 0.0f)
+                    left++;
+                else
+                    right++;
+            }
+            prev = s.state;
+            ArcadeInput in = none();
+            if (s.state == TS_SLIDING && fabsf(s.bar_x - s.base_x) < 1.0f)
+                in.fire_pressed = true;
+            tower_stacker_step(&s, &in, ARC_DT);
+        }
+        CHECK_EQ_INT(s.score, 12);
+        CHECK_EQ_INT(s.perfects, 12);
+        CHECK_EQ_INT(s.cuts, 0);
+    }
+    CHECK(left >= 10 && right >= 10);
+}
+
+/* ---- after the game: look at the tower, tap to continue ------------------------------------------ */
+
+static void test_a_short_tower_waits_for_a_tap(void) {
+    tower_stacker_State *s = fresh(18);
+    drop_at(s, 361.0f); /* miss at once: 0 floors */
+    CHECK(s->over);
+    ArcadeInput in = tap();
+    tower_stacker_step(s, &in, 0.1f); /* a tap during the reveal (0.8 s) is ignored */
+    CHECK(!tower_stacker_can_continue(s));
+    CHECK(!tower_stacker_is_over(s));
+    in = none();
+    for (int i = 0; i < 600; i++) /* 10 s of doing nothing: the tower stays on screen */
+        tower_stacker_step(s, &in, ARC_DT);
+    CHECK(tower_stacker_can_continue(s));
+    CHECK(!tower_stacker_is_over(s));
+    in = tap();
+    tower_stacker_step(s, &in, ARC_DT);
+    CHECK(tower_stacker_is_over(s));
+    CHECK(!tower_stacker_can_continue(s)); /* the prompt is gone once the player has continued */
+}
+
+static void test_a_tall_tower_zooms_then_waits_for_a_tap(void) {
+    tower_stacker_State *s = fresh(19);
+    for (int i = 0; i < 10; i++) {
+        drop_at(s, s->base_x);
+        wait_for_new_bar(s);
+    }
+    drop_at(s, 361.0f);
+    CHECK(s->over);
+    ArcadeInput in = tap();
+    for (int i = 0; i < 100; i++) /* tapping all through the 2.5 s zoom does not skip it */
+        tower_stacker_step(s, &in, TICK);
+    CHECK(!tower_stacker_is_over(s));
+    CHECK(!tower_stacker_can_continue(s));
+    in = none();
+    for (int i = 0; i < 30; i++)
+        tower_stacker_step(s, &in, TICK); /* the zoom is over now (2.5 s) */
+    CHECK(tower_stacker_can_continue(s));
+    float top, h;
+    tower_stacker_zoom(s, &top, &h);
+    CHECK_NEAR(h, 58.18, 0.05);
+    for (int i = 0; i < 500; i++) /* and it stays zoomed out as long as the player looks */
+        tower_stacker_step(s, &in, TICK);
+    float top2, h2;
+    tower_stacker_zoom(s, &top2, &h2);
+    CHECK_NEAR(top2, top, 0.001);
+    CHECK_NEAR(h2, h, 0.001);
+    CHECK(!tower_stacker_is_over(s));
+    in = none();
+    in.typed = 'x'; /* any key continues, not only the mouse */
+    tower_stacker_step(s, &in, TICK);
+    CHECK(tower_stacker_is_over(s));
+    CHECK_EQ_INT(tower_stacker_score(s), 10); /* the score is the tower you were looking at */
+}
+
+static void test_every_drop_input_can_continue(void) {
+    for (int k = 0; k < 4; k++) {
+        tower_stacker_State *s = fresh(20);
+        drop_at(s, 361.0f);
+        ArcadeInput in = none();
+        tower_stacker_step(s, &in, 1.0f); /* reveal done */
+        CHECK(tower_stacker_can_continue(s));
+        in = none();
+        if (k == 0)
+            in.fire_pressed = true;
+        else if (k == 1)
+            in.action_pressed = true;
+        else if (k == 2)
+            in.left_pressed = true;
+        else
+            in.typed = 'z';
+        tower_stacker_step(s, &in, ARC_DT);
+        CHECK(tower_stacker_is_over(s));
+    }
+}
+
+static void test_a_full_tower_also_waits_for_a_tap(void) {
+    tower_stacker_State *s = fresh(15);
+    s->score = TS_MAX_FLOORS;
+    drop_at(s, s->base_x); /* the array is full */
+    CHECK(s->over && s->capped);
+    ArcadeInput in = none();
+    tower_stacker_step(s, &in, 3.0f);
+    CHECK(tower_stacker_can_continue(s));
+    CHECK(!tower_stacker_is_over(s));
+    in = tap();
+    tower_stacker_step(s, &in, ARC_DT);
+    CHECK(tower_stacker_is_over(s));
+}
+
+static void test_no_tap_before_the_game_ends_closes_it(void) {
+    tower_stacker_State *s = fresh(21);
+    ArcadeInput in = tap();
+    for (int i = 0; i < 20; i++)
+        tower_stacker_step(s, &in, ARC_DT); /* ordinary play: taps only drop bars */
+    CHECK(!s->over);
+    CHECK(!tower_stacker_is_over(s));
+    CHECK(!tower_stacker_can_continue(s));
 }
 
 static void test_same_seed_same_result(void) {
@@ -377,6 +580,15 @@ int main(void) {
     RUN(test_zoom_to_fit_after_a_tall_game);
     RUN(test_long_reveal_for_tall_towers);
     RUN(test_dropping_at_once_ends_the_game);
+    RUN(test_bars_enter_from_both_sides);
+    RUN(test_every_new_bar_starts_aligned_on_either_side);
+    RUN(test_a_right_start_moves_left_and_bounces);
+    RUN(test_perfects_are_reachable_from_both_sides);
+    RUN(test_a_short_tower_waits_for_a_tap);
+    RUN(test_a_tall_tower_zooms_then_waits_for_a_tap);
+    RUN(test_every_drop_input_can_continue);
+    RUN(test_a_full_tower_also_waits_for_a_tap);
+    RUN(test_no_tap_before_the_game_ends_closes_it);
     RUN(test_same_seed_same_result);
     RUN(test_monkey_never_breaks_invariants);
     return TEST_SUMMARY();

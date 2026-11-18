@@ -1,83 +1,124 @@
 # Tower Stacker - design brief
 
-**Owner:** Leader  **Folder:** `deferred/tower_stacker/`  **Created:** 2026-11-12  **Asal mekanik:** `g08_stack2d` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)
+**Owner:** Leader  **Folder:** `deferred/tower_stacker/`  **Created:** 2026-11-12  **Asal mekanik:** `g08_stack2d` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (bar dari kiri/kanan acak, tower scroll, zoom akhir, tap untuk lanjut)
 
 ## Hook
-Satu batang bergeser kiri-kanan di atas menara. Jatuhkan tepat waktu: yang menjorok dipotong, jadi menara makin sempit. Landasan sempurna menjaga lebar penuh.
+Satu batang meluncur bolak-balik di atas menara. Tekan satu tombol untuk menjatuhkannya: bagian yang menjorok keluar dari lantai di bawahnya dipotong dan jatuh pudar, sisanya menjadi lantai baru, jadi menara makin sempit. Landasan yang pas sempurna menjaga lebar penuh. Meleset sepenuhnya berarti selesai, lalu kamu bisa melihat menara yang sudah kamu bangun sebelum lanjut.
 
 ## Penjelasan sederhana
-Sebuah batang bergeser bolak-balik di bagian atas layar. Tekan untuk menjatuhkannya ke menara. Bagian batang yang melewati tepi menara dipotong (jatuh dan memudar), sisanya menjadi lantai baru, sehingga menara makin sempit. Kalau kamu mendarat tepat di tepi (selisih kurang dari 1 px) itu "perfect": lebar penuh dipertahankan. Kalau batang sama sekali tidak menyentuh menara, game selesai.
+Bayangkan menumpuk papan di atas papan. Papan baru selalu selebar lantai teratas, dan ia berjalan ke kiri-kanan di atasnya. Kamu menjatuhkannya kapan saja. Kalau papan itu jatuh tepat di atas lantai, lebarnya utuh. Kalau agak bergeser, bagian yang melewati tepi lantai terpotong, sehingga lantai berikutnya lebih sempit sebesar geseran itu. Makin sering meleset sedikit, makin kecil papan yang tersisa. Skor adalah jumlah lantai yang berhasil ditumpuk di atas lantai dasar.
 
-Di balik layar, `tower_stacker_step()` menggeser batang dengan langkah tetap 5 px per tick, menunggu perintah jatuh, lalu membandingkan posisi batang dengan lantai teratas. Selisih `d` menentukan apakah perfect, dipotong, atau meleset. Seperti menumpuk kartu: tiap kali sedikit melenceng, alasnya menyempit.
+Bar tidak selalu datang dari sisi yang sama. Setiap bar baru memilih acak (50/50) apakah ia muncul dari **kiri** (bergerak ke kanan) atau dari **kanan** (bergerak ke kiri), jadi kamu tidak bisa menghafal ritmenya.
 
-Kalau cuma punya 1 menit: tekan tepat saat batang berada di atas menara, supaya potongannya kecil atau nol; tiap lantai +1.
+Setelah game berakhir, layar tidak langsung pindah ke papan skor. Menara yang sudah jadi tetap tampil (kalau tingginya 10 lantai atau lebih, kamera zoom-out dulu supaya seluruh menara muat), dan sebuah tulisan berkedip meminta **klik atau tombol apa saja untuk lanjut**. Game baru benar-benar selesai pada tap itu.
+
+Ada satu hal yang membuat game ini adil: bar bergerak dengan langkah bulat 5 px pada jam 50 Hz (bukan menurut `dt`), dan posisi awalnya dipilih supaya `bar_x` selalu punya sisa bagi 5 yang sama dengan tepi kiri lantai di bawahnya. Akibatnya ada saat di mana bar tepat di atas lantai (selisih 0), jadi landasan sempurna selalu bisa dicapai, dari kiri maupun dari kanan.
+
+Aturan ada di `tower_stacker_logic.c` (tanpa raylib, bisa di-test di terminal). `tower_stacker_game.c` hanya membaca input, menggambar, dan memutar bunyi.
+
+**Kalau cuma punya 1 menit:** `land` adalah jantung game (meleset / sempurna / potong); `new_bar` memilih sisi masuk dan menjaga keselarasan mod 5; `tower_stacker_step` menjalankan jam 5 px dan, setelah game berakhir, menunggu tap (`can_continue`).
 
 ## Kontrol
-Klik mouse, Spasi, atau tombol apa saja (huruf, panah): jatuhkan batang. Hanya satu kali per batang; tekan lagi saat batang jatuh atau memudar tidak berpengaruh.
+Klik kiri, Spasi, Enter, tombol karakter apa saja, atau panah menjatuhkan bar. Setelah game berakhir, input yang sama menutup layar menara (hanya setelah tulisan "click / any key to continue" muncul). Esc keluar kapan saja; kalau game sudah berakhir, skornya tetap dihitung.
 
 ## Aturan dan skor
-- Lantai awal selebar `w/2` di tengah; tinggi lantai `(int)(h/20)`; batang bergeser 5 px per tick asli dan memantul di dinding.
-- Jatuhkan: batang berhenti di x tetap dan jatuh `speed_y` px per tick sampai bagian bawahnya mencapai garis pendaratan `base_y`.
-- Pendaratan: `d = |bar_x - base_x|`. `d >= base_w - 1`: **meleset, game selesai**. `d < 1`: perfect, lebar tetap. Selain itu `base_w -= d` dan potongan selebar `d` jatuh pelan dan memudar 0.5 detik.
-- Jika batang di kanan menara, lantai baru mulai di `bar_x` dan potongan di ujung kanan; jika di kiri atau sama, `base_x` tetap dan potongan di `bar_x`.
-- Garis pendaratan naik satu lantai per poin hanya sampai lantai 9; mulai lantai 10 menara bergeser turun 1 px per tick.
-- Tiga nada "bagian hilang" menurut `d < 10`, `d < 30`, selain itu; lantai penuh 1023 mengakhiri game.
-- Setelah selesai: jeda 0.8 detik (menara pendek) atau animasi zoom 2.5 detik (skor >= 10).
-- **Skor = jumlah lantai di atas lantai dasar.**
+Skor = jumlah lantai di atas lantai dasar. Game berakhir kalau bar mendarat tanpa menyentuh lantai atas sama sekali, atau kalau lantai ke-1023 tercapai (batas array, ditampilkan sebagai "TOWER COMPLETE!").
+
+Detail dari kode (`land`, `d = |bar_x - base_x|`, selisih tepi kiri bar dan lantai):
+- `d >= base_w - 1`: tidak ada tumpang tindih, `TS_MISSED`, game berakhir.
+- `d < 1`: **sempurna**. Lebar tetap, `perfects++`, bar baru langsung muncul.
+- selain itu: **potong**. `base_w -= d`; potongan selebar `d` menjadi bar yang jatuh pelan dan memudar selama 0,5 detik (`TS_FADING`). Kalau bar ada di kanan lantai, lantai baru mulai di `bar_x` dan potongan duduk di ujung kanannya; kalau di kiri, `base_x` tetap dan potongan tetap di `bar_x`.
+- Kelas nada potong (`last_cut_class`): `d < 10` kelas 0, `d < 30` kelas 1, selain itu kelas 2.
+- Tiap pendaratan yang tidak meleset menambah `score` dan memanggil `record_floor` (menyimpan `bases_x[]`, `bases_w[]` dengan pembulatan ke atas, dan melempar jendela).
+- Jendela: tiap lantai punya sampai 3 jendela kuning; tiap jendela muncul dengan peluang 50% hanya kalau lantai selebar 31 px atau lebih, di `x` acak antara `bases_x + 10` dan `bases_x + bases_w - 20`. Hanya hiasan.
+- Sampai lantai ke-9 menara "naik" (garis pendaratan `base_y` naik satu lantai per poin). Dari `TS_SCROLL_FLOORS` (10) garis pendaratan berhenti naik dan menara turun 1 px per tick (`base_y_move`) sampai puncaknya mencapai garis itu.
+- Setelah game berakhir: jeda `TS_OVER_DELAY_SHORT` (0,8 detik) untuk menara di bawah 10 lantai, atau zoom-out `TS_ZOOM_TIME` (2,5 detik) untuk 10 lantai ke atas. Sesudahnya `tower_stacker_can_continue` bernilai `true` sampai pemain menekan sesuatu.
+
+Meleset hanya mungkin kalau menara sudah cukup sempit. Bar tidak boleh keluar lapangan, jadi di lantai dasar (lebar 240, tepi kiri 120) selisih terbesar yang mungkin hanya 120 px, kurang dari `base_w - 1`. Test memaksa `bar_x` langsung untuk menguji meleset.
 
 ## Cara kerja per frame
-1. `arcade_poll()` mengisi `ArcadeInput`.
-2. `tower_stacker_step()`: jika batang bergeser dan ada tombol, batang membeku dan mulai jatuh.
-3. Batang bergeser: sub-jam 50 Hz (`bar_acc += dt * 50`) menjalankan langkah 5 px utuh dan memantul di dinding.
-4. Batang jatuh `bar_spy * k` per frame; jika `bar_y >= base_y`, `land()` membandingkan `d` dan memotong atau selesai.
-5. Setelah lantai 10, `base_y_move` turun 1 px per tick; potongan memudar selama 0.5 detik lalu batang baru muncul.
-6. Front-end menggambar menara dari array lantai (dengan `tower_stacker_zoom()` saat selesai) dan membandingkan `perfects`, `cuts` untuk suara.
+1. `arcade_poll(&in)` mengisi `ArcadeInput`. Yang dihitung sebagai "jatuhkan atau lanjut" (`drop_requested`): `fire_pressed`, `action_pressed`, `typed`, dan tombol arah `*_pressed`.
+2. `tower_stacker_step(&s, &in, ARC_DT)`:
+   1. Kalau `over` sudah `true`: `over_t += dt`; kalau `tower_stacker_can_continue` dan ada `drop_requested`, `done = true`. Lalu keluar. Tap sebelum jeda selesai diabaikan.
+   2. Kalau `state == TS_SLIDING` dan ada `drop_requested`: `state = TS_FALLING`, `bar_spx = 0` (x dibekukan), `bar_spy = speed_y`. Ini hanya terjadi sekali per bar.
+   3. `k = dt * 50`. Kalau masih `TS_SLIDING`: `bar_acc += k`; selama `bar_acc >= 1`, panggil `slide_tick` (geser 5 px, pantul di dinding). Jadi bar bergerak dalam langkah 5 px pada jam 50 Hz, berapa pun frame rate-nya.
+   4. `bar_y += bar_spy * k` (jatuh).
+   5. Kalau `score >= 10` dan `base_y_move < base_y`: `base_y_move += k` (menara scroll turun).
+   6. Kalau `TS_FADING`: `bar_alpha -= dt / 0.5`; saat `<= 0`, `new_bar`; lalu keluar.
+   7. Kalau `TS_FALLING` dan `bar_y >= base_y`: `land`.
+3. `land` memutuskan meleset / sempurna / potong (lihat Aturan), lalu `record_floor` dan `new_bar` (setelah memudar kalau ada potongan).
+4. `new_bar` mengatur bar berikutnya: lebar `base_w`, dan dengan peluang 50% (`rng_chance`) mulai dari kanan (`bar_x = base_x + 5 * floor((w - bar_w - base_x) / 5)`, `bar_spx = -5`) atau dari kiri (`bar_x = base_x mod 5`, `bar_spx = +5`).
+5. Front-end: bandingkan `perfects` dan `cuts` dengan frame lalu untuk memutar bunyi, gambar dunia (menara, bar, angka skor pudar, "MISSED!", dan tulisan lanjut yang berkedip selama `can_continue`), panel bantuan dan panel lantai.
+6. Kalau `tower_stacker_is_over(&s)` (yaitu `done`): loop berhenti. `GameResult.finished = s.over`, jadi Esc sesudah game berakhir tetap menyimpan skor.
 
 ## Peta file
 | File | Isinya | Edit di sini kalau ... |
-|---|---|---|
-| `tower_stacker_logic.h` | struct `tower_stacker_State` dan fungsi publik (`init`, `init_sized`, `step`, `is_over`, `score`) | menambah field state atau fungsi publik |
-| `tower_stacker_logic.c` | semua aturan game (tanpa raylib) | mengubah aturan atau angka keseimbangan |
-| `tower_stacker_game.c` | loop raylib, menggambar, suara, `GameDef` (judul, kontrol di menu, urutan, ranked) | mengubah tampilan, suara, atau teks di menu |
-| `tests/test_tower_stacker.c` | unit test (hanya logic) | menambah atau mengubah aturan |
-| `CMakeLists.txt` | mendaftarkan game lewat `arcade_add_game(...)` | menambah file `.c` atau test baru |
-| `GAME.md` | dokumen ini | aturan atau kode berubah |
-| `AGENTS.md` | instruksi untuk AI agent (tidak diterjemahkan) | jarang; ikuti aturan di file itu |
+|------|--------|------------------------|
+| `tower_stacker_logic.h` | Konstanta `TS_*`, struct `tower_stacker_State`, fungsi publik (`can_continue`, `zoom`) | menambah field state atau mengubah ukuran array |
+| `tower_stacker_logic.c` | `new_bar`, `land`, `record_floor`, `slide_tick`, `tower_stacker_step`, `tower_stacker_zoom`, `can_continue` | mengubah aturan potong, sisi masuk bar, atau alur setelah game berakhir |
+| `tower_stacker_game.c` | Loop raylib, menggambar menara/bar/panel, bunyi, tulisan lanjut, `game_tower_stacker_def` | mengubah tampilan, teks, atau bunyi |
+| `tests/test_tower_stacker.c` | 29 unit test (hanya logic) | menambah atau mengubah aturan |
+| `CMakeLists.txt` | Mendaftarkan game ke build | menambah file `.c` atau test baru |
+| `core/include/arcade/playfield.h` | Lapangan potret 480 x 684 yang dipakai bersama | jarang |
+| `GAME.md` | Dokumen ini | aturan atau kode berubah |
+| `AGENTS.md` | Instruksi untuk AI agent (tidak diterjemahkan) | jarang; ikuti aturan di file itu |
 
 ## Data penting (struct)
+`tower_stacker_State`: seluruh keadaan game. Koordinat lokal lapangan, y membesar ke bawah.
+
 | Field | Tipe | Artinya |
-|---|---|---|
-| `w`, `h`, `base_w0`, `base_h0`, `base_x0`, `bar_y0`, `speed_x`, `speed_y` | int, float | konstanta turunan dari ukuran lapangan |
-| `base_x`, `base_w`, `base_h` | float | lantai teratas: tepi kiri, lebar, tinggi |
-| `base_y`, `base_y_move` | float | garis pendaratan dan posisi gambar puncak menara (bergeser setelah lantai 9) |
-| `score` | int | lantai di atas dasar |
-| `bases_x[]`, `bases_w[]` | int[1024] | posisi dan lebar tiap lantai (dibulatkan setengah ke atas) |
-| `window[][3]` | int[1024][3] | x tiap jendela (0 = tidak ada) |
-| `state` | int | `TS_SLIDING`, `TS_FALLING`, `TS_FADING`, `TS_MISSED` |
-| `bar_x`, `bar_y`, `bar_w`, `bar_h`, `bar_spx`, `bar_spy`, `bar_alpha` | float | batang (atau potongan yang memudar); `bar_y` adalah tepi bawah |
-| `bar_acc` | float | sub-jam 50 Hz untuk langkah 5 px |
-| `over`, `capped`, `over_t` | bool, float | status akhir dan waktu sejak akhir (zoom) |
-| `perfects`, `cuts`, `landings`, `last_cut_class`, `last_cut_d` | int, float | penghitung kejadian untuk suara |
+|-------|------|---------|
+| `w`, `h` | `int` | ukuran lapangan (480 x 684 di game; 480 x 800 di test supaya angka spesifikasi berlaku) |
+| `base_w0`, `base_h0`, `base_x0` | `float` | lebar awal (`w/2`), tinggi lantai (`(int)(h/20)`), x awal (`(w - base_w0)/2`) |
+| `bar_y0`, `speed_x`, `speed_y` | `float` | tinggi bar menunggu (`h/4`), kecepatan samping 5 px/tick, kecepatan jatuh (bar sampai ke menara dalam 50 tick = 1 detik) |
+| `base_x`, `base_w`, `base_h` | `float` | tepi kiri, lebar, dan tinggi lantai teratas |
+| `base_y`, `base_y_move` | `float` | garis pendaratan (puncak lantai teratas, berhenti naik setelah lantai 9) dan tempat puncak menara digambar sekarang (scroll turun) |
+| `score` | `int` | lantai di atas lantai dasar |
+| `bases_x[]`, `bases_w[]` | `int` | tepi kiri dan lebar tiap lantai, dibulatkan ke atas (1024 elemen) |
+| `window[][TS_WINDOWS]` | `int` | x tiap jendela per lantai; 0 = tidak ada |
+| `state` | `int` | `TS_SLIDING`, `TS_FALLING`, `TS_FADING`, atau `TS_MISSED` |
+| `bar_x`, `bar_y` | `float` | tepi kiri dan tepi **bawah** bar (atau potongan yang memudar) |
+| `bar_w`, `bar_h` | `float` | ukuran bar |
+| `bar_spx`, `bar_spy` | `float` | kecepatan: x per tick (+5, -5, atau 0), y per tick |
+| `bar_alpha`, `bar_acc` | `float` | transparansi potongan; sub-jam 50 Hz untuk langkah 5 px |
+| `over`, `capped` | `bool` | game berakhir; berakhir karena lantai penuh (1023) |
+| `done` | `bool` | pemain sudah menekan lanjut setelah game berakhir (inilah arti `is_over`) |
+| `over_t` | `float` | detik sejak game berakhir (menggerakkan zoom dan jeda) |
+| `perfects`, `cuts`, `landings` | `int` | penghitung kejadian untuk bunyi |
+| `last_cut_class`, `last_cut_d` | `int`, `float` | kelas nada dan besar potongan terakhir |
+| `rng` | `Rng` | pengacak deterministik: jendela dan sisi masuk bar |
 
 ## Fungsi-fungsi penting
 | Fungsi | Tugas | Dipanggil dari |
-|---|---|---|
-| `tower_stacker_zoom` | posisi atas dan tinggi lantai saat zoom setelah game over | front-end, tes |
-| `record_floor` | mencatat lantai baru dan melempar jendela acak | `init_sized`, `land` |
-| `new_bar` | batang baru, mulai di `base_x mod 5` | `init_sized`, `land`, `step` |
-| `land` | perfect, potong, atau meleset; batas 1023 lantai | `step` |
-| `slide_tick` | satu langkah 5 px dan pantulan dinding | `step` |
-| `tower_stacker_step` | jatuhkan, geser, jatuh, scroll, pudar | `play()` |
+|--------|-------|----------------|
+| `tower_stacker_init(s, seed)` / `_init_sized(s, seed, w, h)` | Mengosongkan state, menghitung konstanta dari ukuran lapangan, mencatat lantai 0, membuat bar pertama | `play()`, test |
+| `tower_stacker_step(s, in, dt)` | Satu langkah logic (lihat "Cara kerja per frame") | `play()` tiap frame, test |
+| `tower_stacker_is_over(s)` | `true` hanya setelah pemain menekan lanjut (`done`) | `play()` untuk menghentikan loop |
+| `tower_stacker_can_continue(s)` | `true` dari akhir jeda sampai tap: saatnya menampilkan tulisan lanjut | `tower_stacker_step`, `play()`, test |
+| `tower_stacker_score(s)` | Jumlah lantai | `play()` |
+| `tower_stacker_zoom(s, &top, &h)` | Posisi atas dan tinggi lantai saat zoom-to-fit; fungsi murni dari `over_t` | `play()`, test |
+| `new_bar(s)` (static) | Membuat bar berikutnya, sisi masuk acak, keselarasan mod 5 | `init`, `land`, `step` |
+| `land(s)` (static) | Meleset, sempurna, atau potong; menambah skor | `tower_stacker_step` |
+| `record_floor(s)` (static) | Menyimpan lantai baru dan melempar jendela | `init`, `land` |
+| `slide_tick(s)` (static) | Satu langkah 5 px lalu pantul di dinding | `tower_stacker_step` |
+| `drop_requested(in)` (static) | Apakah ada input yang berarti "jatuhkan" atau "lanjut" | `tower_stacker_step` |
+| `reveal_time(s)` (static) | 0,8 atau 2,5 detik, tergantung tinggi menara | `can_continue` |
 
 ## Angka yang bisa diutak-atik
 | Konstanta | Nilai sekarang | File | Efek kalau diubah |
-|---|---|---|---|
-| `TS_BAR_SPEED_X` | 5 px per tick | `tower_stacker_logic.c` | kecepatan geser (jangan diubah tanpa menjaga perfect tetap bisa dicapai) |
-| `TS_SCROLL_FLOORS` | 10 | `tower_stacker_logic.h` | lantai tempat menara mulai bergeser turun |
-| `TS_MAX_FLOORS` | 1023 | `tower_stacker_logic.h` | batas array dan akhir game |
-| `TS_ZOOM_TIME` | 2.5 s | `tower_stacker_logic.h` | lama zoom dan jeda tampil untuk menara tinggi |
-| `TS_OVER_DELAY_SHORT` | 0.8 s | `tower_stacker_logic.h` | jeda tampil untuk menara pendek |
-| angka `h / 20`, `0.25`, `0.5 s` | di `init_sized`, `step` | `tower_stacker_logic.c` | tinggi lantai, tinggi garis batang, lama pudar |
+|-----------|----------------|------|-------------------|
+| `TS_BAR_SPEED_X` | `5` px per tick 50 Hz | `tower_stacker_logic.c` | kecepatan bar (jaga tetap bilangan bulat supaya keselarasan mod 5 tetap berlaku) |
+| `TS_SCROLL_FLOORS` | `10` | `tower_stacker_logic.h` | lantai tempat menara mulai scroll dan zoom akhir aktif |
+| `TS_ZOOM_TIME` | `2.5` detik | `tower_stacker_logic.h` | lama zoom-out sebelum tulisan lanjut muncul (10+ lantai) |
+| `TS_OVER_DELAY_SHORT` | `0.8` detik | `tower_stacker_logic.h` | jeda sebelum tulisan lanjut untuk menara pendek |
+| `TS_MAX_FLOORS` | `1023` | `tower_stacker_logic.h` | batas lantai; array berukuran `TS_MAX_FLOORS + 1` |
+| `TS_WINDOWS` | `3` | `tower_stacker_logic.h` | jumlah maksimum jendela per lantai |
+| peluang sisi kanan (angka langsung di `new_bar`) | `0.5` | `tower_stacker_logic.c` | seberapa sering bar datang dari kanan (0 = selalu kiri, 1 = selalu kanan) |
+| batas sempurna (angka langsung di `land`) | `d < 1` | `tower_stacker_logic.c` | seberapa ketat landasan sempurna |
+| batas kelas nada potong (angka langsung di `land`) | `10` dan `30` | `tower_stacker_logic.c` | nada mana yang diputar |
+| lama memudar (angka langsung di `step`) | `0.5` detik | `tower_stacker_logic.c` | lama potongan jatuh sebelum bar baru muncul |
+| lebar awal, tinggi lantai, tinggi bar | `w/2`, `h/20`, `h/4` | `tower_stacker_logic.c` | tampilan dan kesulitan awal |
+| nada bunyi (di `play`) | potong 523/392/262 Hz, sempurna 1047 Hz, kalah 110 Hz | `tower_stacker_game.c` | hanya bunyi |
 
 ## Cara menjalankan dan menguji
 ```bash
@@ -90,73 +131,120 @@ cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade
 # smoke run headless: jalankan game 300 frame dan simpan screenshot PNG
 cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke tower_stacker --frames 300 --out smoke-out
 ```
+Catatan: smoke run memakai input monkey acak, jadi game cepat berakhir dan monkey menekan lanjut. Untuk melihat layar menara, mainkan sendiri.
 
 | Test | Menjaga aturan apa |
-|---|---|
-| `test_spec_constants_at_480x800` | BASEW 240, BASEH 40, BASEX 120, BARY 200, SPEEDY 11.2, lantai 0 di y 760 |
-| `test_cut_on_the_right_drop_at_150`, `test_cut_on_the_left_drop_at_105` | d = 30 menjadi lebar 210 dan potongan di x 360; d = 15 menjadi 225 |
-| `test_perfect_at_120_4_keeps_the_full_width` | d = 0.4 perfect, lebar 240 |
-| `test_no_overlap_ends_the_game` | x = 361 selesai; x = 358 masih menyentuh 1 px |
-| `test_cut_class_boundaries` | 9.9, 10, 29.9, 30 memilih nada yang benar |
-| `test_tower_scrolls_from_floor_10` | garis di 400 selamanya; lantai 10 mulai di 360 dan turun 40 px dalam 40 tick |
-| `test_bar_stays_aligned_mod_5_at_60hz`, `test_alignment_survives_cuts_and_random_play` | x batang selalu sama dengan `base_x` modulo 5 (1000 frame di 60 fps; 20 seed acak) |
-| `test_scripted_player_gets_perfects_at_60hz` | pemain yang mengetuk tepat waktu mendapat 15 perfect di 60 fps |
-| `test_fade_takes_half_a_second_and_blocks_a_second_drop`, `test_drop_only_once_per_bar` | pudar 0.5 detik; satu jatuhan per batang |
-| `test_windows_follow_the_rules` | jendela di dalam lantai; lantai di bawah 31 px tanpa jendela |
-| `test_floor_cap_ends_the_game` | lantai 1023 mengakhiri game |
-| `test_zoom_to_fit_after_a_tall_game`, `test_long_reveal_for_tall_towers` | hfit 58.18, puncak di 160; jeda 2.5 detik; menara pendek 0.8 detik |
-| `test_dropping_at_once_ends_the_game`, `test_same_seed_same_result`, `test_monkey_never_breaks_invariants` | pemain tanpa menunggu kalah sendiri; deterministik; 20 seed x 5000 frame |
+|------|--------------------|
+| `test_init_is_sane` | Awal game: belum selesai, skor 0, tinggi lantai 34 di lapangan 684, bar sedang bergeser |
+| `test_spec_constants_at_480x800` | Konstanta turunan di 480 x 800: 240, 40, 120, 200, kecepatan jatuh 11,2, lantai dasar di y = 760 |
+| `test_cut_on_the_right_drop_at_150` | Bar di kanan (d = 30): lebar 210, lantai baru mulai di 150, potongan 30 px di x = 360, kelas nada 2 |
+| `test_cut_on_the_left_drop_at_105` | Bar di kiri (d = 15): lebar 225, `base_x` tidak berubah, potongan di `bar_x`, kelas nada 1 |
+| `test_perfect_at_120_4_keeps_the_full_width` | d = 0,4 dihitung sempurna: lebar penuh, bar baru tanpa potongan |
+| `test_no_overlap_ends_the_game` | d = 241 meleset dan game berakhir; menunggu tanpa tap tidak menutupnya; d = 238 masih tumpang tindih |
+| `test_cut_class_boundaries` | Batas kelas nada: 9,9 kelas 0; 10 dan 29,9 kelas 1; 30 kelas 2 |
+| `test_tower_scrolls_from_floor_10` | Garis pendaratan berhenti naik di y = 400 dan menara scroll turun 40 px dalam 40 tick |
+| `test_bar_stays_aligned_mod_5_at_60hz` | Selisih `bar_x` dan `base_x` selalu kelipatan 5 selama 1000 frame 60 Hz |
+| `test_alignment_survives_cuts_and_random_play` | Keselarasan mod 5 bertahan lewat potongan dan input monkey (20 seed) |
+| `test_scripted_player_gets_perfects_at_60hz` | Pemain skrip yang menekan saat bar tepat di atas menara mendapat 15 sempurna di 60 Hz |
+| `test_fade_takes_half_a_second_and_blocks_a_second_drop` | Potongan memudar sekitar 0,5 detik; tap saat memudar tidak berpengaruh; bar baru memakai lebar baru |
+| `test_drop_only_once_per_bar` | Menekan berkali-kali tidak menggandakan kecepatan jatuh |
+| `test_windows_follow_the_rules` | Jendela hanya di lantai 31 px ke atas dan di dalam rentang x yang benar |
+| `test_floor_cap_ends_the_game` | Lantai ke-1023 mengakhiri game dengan `capped`, array tidak terlewati |
+| `test_zoom_to_fit_after_a_tall_game` | Setelah 10+ lantai: zoom berakhir dengan atas = 160, tinggi 58,18, dan semua lantai pas sampai dasar |
+| `test_long_reveal_for_tall_towers` | Tulisan lanjut baru muncul setelah 2,5 detik untuk menara tinggi |
+| `test_dropping_at_once_ends_the_game` | Pemain yang menjatuhkan bar terus-menerus pasti berakhir dengan skor >= 1 |
+| `test_bars_enter_from_both_sides` | Dari 40 seed, tiap sisi muncul minimal 8 kali dan posisi awal sah (kiri: 0..4; kanan: di ujung kanan; selaras mod 5) |
+| `test_every_new_bar_starts_aligned_on_either_side` | Setelah potongan kiri dan kanan bergantian, posisi awal tiap bar baru tetap sah dan kedua sisi terpakai |
+| `test_a_right_start_moves_left_and_bounces` | Bar dari kanan bergerak ke kiri 5 px per tick, memantul di dinding kiri, tetap selaras |
+| `test_perfects_are_reachable_from_both_sides` | Pemain skrip mendapat 12 sempurna berturut-turut di 8 seed, dengan bar dari kedua sisi |
+| `test_a_short_tower_waits_for_a_tap` | Menara pendek: tap saat jeda diabaikan, 10 detik tanpa input tidak menutup, satu tap menutup dan tulisan hilang |
+| `test_a_tall_tower_zooms_then_waits_for_a_tap` | Menara 10 lantai: tap terus-menerus selama zoom tidak melompatinya, zoom bertahan lama, tombol huruf pun melanjutkan, skor tetap 10 |
+| `test_every_drop_input_can_continue` | Klik, aksi, tombol arah, dan karakter semuanya bisa melanjutkan |
+| `test_a_full_tower_also_waits_for_a_tap` | Menara penuh (1023) juga menunggu tap |
+| `test_no_tap_before_the_game_ends_closes_it` | Tap saat bermain hanya menjatuhkan bar, tidak pernah menutup game |
+| `test_same_seed_same_result` | Seed sama dan input sama menghasilkan hasil yang sama |
+| `test_monkey_never_breaks_invariants` | Input acak: skor, array, dan state selalu valid |
 
 ## Jebakan dan hal yang perlu diingat
-- PENGECUALIAN dari aturan `k = dt * 50`: batang bergeser langkah 5 px utuh pada sub-jam 50 Hz. Dengan `k = 0.833` langkah menjadi 4.17 px dan perfect sering mustahil karena sisa x modulo 5 berubah. Akibatnya di 60 fps gerak batang sedikit tersendat; ini diterima.
-- Posisi mulai batang adalah `base_x mod 5`, jadi `bar_x` selalu sama dengan `base_x` modulo 5, termasuk setelah potongan (potongan selalu kelipatan 5 dari selisih x).
-- Jatuhnya batang (`speed_y`), scroll menara, dan pudar memakai `k` atau `dt` biasa; pendaratan bisa melewati garis sampai kurang dari 8 px di 60 fps, tidak memengaruhi hasil.
-- Penyimpangan dari simple-games: batas 1023 lantai mengakhiri game; zoom dibuat fungsi dari `over_t` (bukan animasi bertahap); jeda tampil 0.8 detik untuk menara pendek.
-- Penyimpangan: gradasi oranye latar dan sprite batang tidak dipakai; lantai berupa persegi panjang neon dengan jendela kuning dari array `window`.
-- Lantai dan jendela dibulatkan setengah ke atas seperti spesifikasi (`(int)(x + 0.5)`); jendela dipilih hanya jika lebar lantai >= 31.
+- **`tower_stacker_is_over` berarti "pemain sudah menekan lanjut", bukan "game berakhir".** Untuk "game berakhir" pakai `s.over`. Test yang ingin tahu apakah layar menara sudah tampil memakai `can_continue`.
+- **Esc sesudah game berakhir tetap menyimpan skor** (`finished = s.over`). Kalau tidak, pemain yang menekan Esc untuk keluar dari layar menara akan kehilangan skornya.
+- Tap saat jeda (0,8 atau 2,5 detik) sengaja diabaikan supaya tap beruntun dari kebiasaan menjatuhkan bar tidak langsung menutup layar. Tidak ada perlindungan tambahan: tap pertama setelah jeda langsung menutup.
+- Bar boleh menjorok sampai 4 px melewati dinding sebelum berbalik (`slide_tick` tidak memotong posisi). Front-end memakai scissor sehingga tidak terlihat.
+- Langkah bar 5 px terjadi pada jam 50 Hz, jadi di layar 60 Hz gerakannya sedikit tersendat. Itu harga yang dibayar supaya landasan sempurna selalu bisa dicapai.
+- Sisi masuk bar memakai `rng` yang sama dengan jendela, jadi urutan angka acak untuk seed tertentu berubah dibanding versi sebelum sisi acak ditambahkan (jendela lantai tidak sama persis).
+- `bases_x[]` dan `bases_w[]` dibulatkan ke atas, tetapi aturan memakai nilai `float` (`base_x`, `base_w`). Array itu hanya untuk menggambar.
+- Hampir semua fungsi `static`; yang publik hanya yang dipakai front-end dan test.
+- Game ini `ranked = true`, `order = 160`.
 
 ## Langkah implementasi (Implementation steps)
-1. Aturan sudah ada di `tower_stacker_State` dan `tower_stacker_step()` (hanya di logic). Konstanta ditulis sebagai `#define` di `tower_stacker_logic.c`.
-2. Setiap aturan punya unit test di `tests/test_tower_stacker.c`; tes memakai `tower_stacker_init_sized(480, 800)` supaya vektor uji spesifikasi asli berlaku apa adanya.
-3. Tampilan ada di `tower_stacker_game.c`: panel 480 x 684 di tengah, aturan di gutter kiri, statistik di gutter kanan. Suara dibuat dari `gfx_make_tone()`.
-4. Kalau menambah aturan: tulis tesnya dulu, lalu ubah logic, lalu perbarui bagian Jebakan dan tabel di dokumen ini.
+Daftar ini adalah pengembangan dari v1.
+
+1. Skip zoom: tap saat zoom berjalan melompat ke tampilan akhir (sekarang tap saat jeda sengaja diabaikan).
+2. Tampilkan ringkasan di layar menara: jumlah sempurna, jumlah potongan, dan lebar akhir (datanya sudah ada: `perfects`, `cuts`, `base_w`).
+3. Mode "tanpa dinding": bar masuk dari luar layar sehingga tidak ada overshoot 4 px.
+4. Gerakan 60 Hz yang halus: interpolasi posisi gambar antara dua langkah 5 px tanpa mengubah posisi logika.
+5. Tingkat kesulitan: kecepatan bar naik tiap 10 lantai (hati-hati: tetap kelipatan bilangan bulat supaya mod 5 aman).
 
 ## Pseudocode (untuk laporan)
 ```
-PROSEDUR step(s, input, dt)
-    JIKA over MAKA over_t += dt; KEMBALI
-    JIKA bergeser DAN ada tombol MAKA berhenti di x itu dan mulai jatuh
-    JIKA bergeser MAKA sub-jam += dt * 50; ULANGI tiap 1: x += 5, pantul di dinding
-    y += kecepatan_jatuh * dt * 50
-    JIKA score >= 10 DAN puncak < garis MAKA puncak += dt * 50
-    JIKA memudar MAKA alpha -= dt / 0.5; JIKA 0 MAKA batang baru; KEMBALI
-    JIKA jatuh DAN y >= garis MAKA
-        d = |x - base_x|
-        JIKA d >= lebar - 1 MAKA over = benar SELAIN ITU JIKA d < 1 MAKA perfect SELAIN ITU potong
-        score += 1; catat lantai
-AKHIR PROSEDUR
+PROSEDUR new_bar()
+    bar.lebar <- base_w
+    JIKA acak(0..1) < 0.5 MAKA            // dari kanan
+        bar.x <- base_x + 5 * lantai((w - bar.lebar - base_x) / 5)
+        bar.kecepatan <- -5
+    JIKA TIDAK                              // dari kiri
+        bar.x <- base_x - 5 * (base_x div 5)
+        bar.kecepatan <- +5
+
+PROSEDUR land()
+    d <- |bar.x - base_x|
+    JIKA d >= base_w - 1 MAKA meleset; game berakhir; selesai
+    JIKA d < 1 MAKA sempurna; bar baru
+    JIKA TIDAK potong: base_w <- base_w - d; potongan memudar
+    JIKA score = 1023 MAKA game berakhir (penuh); selesai
+    score <- score + 1; catat lantai
+
+PROSEDUR step(input, dt)
+    JIKA game sudah berakhir MAKA
+        waktu_akhir <- waktu_akhir + dt
+        JIKA sudah_boleh_lanjut DAN ada input MAKA selesai <- benar
+        KEMBALI
+    JIKA bar bergeser DAN ada input MAKA bar jatuh
+    JIKA bar bergeser MAKA ulangi tiap 1/50 detik: geser 5 px, pantul di dinding
+    gerakkan bar jatuh; scroll menara; urus potongan yang memudar
+    JIKA bar jatuh DAN sampai di menara MAKA land()
 ```
 
 ## Flowchart (untuk laporan)
 ```mermaid
 flowchart TD
-    A([Mulai]) --> B["init state dengan seed"]
+    A([Mulai]) --> B["init: lantai dasar, bar pertama dari sisi acak"]
     B --> C{"loop masih jalan?"}
     C -- tidak --> Z([Kembalikan skor])
     C -- ya --> D[baca input]
-    D --> E["tower_stacker_step: geser batang, jatuh, cek pendaratan"]
-    E --> F[gambar frame dan mainkan suara]
-    F --> G{"game over?"}
-    G -- tidak --> C
-    G -- ya --> Z
+    D --> E{"game sudah berakhir?"}
+    E -- ya --> F{"jeda selesai dan ada input?"}
+    F -- ya --> Z
+    F -- tidak --> L[gambar menara; tulisan lanjut kalau boleh] --> C
+    E -- tidak --> G{"bar bergeser dan ada input?"}
+    G -- ya --> H[bar jatuh]
+    G -- tidak --> I[geser 5 px per tick 50 Hz]
+    H --> J{"sampai di menara?"}
+    I --> L
+    J -- tidak --> L
+    J -- ya --> K{"selisih d"}
+    K -- "d >= lebar - 1" --> M[meleset: game berakhir] --> L
+    K -- "d < 1" --> N[sempurna: bar baru] --> L
+    K -- selain itu --> O[potong: lebar berkurang, lantai baru] --> L
 ```
 
-## Konsep kuliah yang dipakai (untuk Bab I laporan)
+## Konsep kuliah yang dipakai
 | Konsep (Pertemuan) | Di mana (file : fungsi) |
-|---|---|
+|--------------------|-------------------------|
 | Struct (13) | `tower_stacker_logic.h` : `tower_stacker_State` |
-| Array 1 dan 2 dimensi (9-10) | `tower_stacker_logic.h` : `bases_x[]`, `bases_w[]`, `window[][3]` |
-| Perulangan (6-7) | `tower_stacker_logic.c` : sub-jam `while (bar_acc >= 1)`; front-end menggambar tiap lantai |
-| Percabangan (5) | `tower_stacker_logic.c` : `land` (meleset, perfect, potong kiri atau kanan) |
-| Fungsi (11) | `tower_stacker_logic.c` : `record_floor`, `new_bar`, `slide_tick`, `tower_stacker_zoom` |
-| Pointer (12) | `tower_stacker_zoom(..., float *top_y, float *floor_h)` mengisi dua hasil |
+| Array 1 dan 2 dimensi (9) | `tower_stacker_logic.h` : `bases_x[]`, `bases_w[]`, `window[][TS_WINDOWS]` |
+| Perulangan (6) | `tower_stacker_logic.c` : sub-jam `while (bar_acc >= 1)`, loop jendela di `record_floor`; front-end menggambar tiap lantai |
+| Percabangan (5) | `land` (meleset, sempurna, potong kiri atau kanan), `new_bar` (sisi masuk) |
+| Prosedur, fungsi (11) | `record_floor`, `new_bar`, `slide_tick`, `can_continue`, `tower_stacker_zoom` |
+| Pointer (10) | `tower_stacker_zoom(..., float *top_y, float *floor_h)` mengisi dua hasil; setiap parameter `tower_stacker_State *s` |
+| Fungsi matematika (12) | `floorf` untuk titik awal bar dari kanan, `fabsf`, `arc_clampf` pada zoom |
