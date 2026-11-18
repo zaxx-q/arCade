@@ -1,0 +1,29 @@
+// Cloudflare Worker + D1 for the arCade online leaderboard. The wire format is specified in
+// core/include/arcade/lbnet.h (the C client); src/protocol.ts is its server side.
+// Requires wrangler >= 4.36 (the "ratelimits" binding).
+{
+  "name": "arcade-leaderboard",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "arcade-leaderboard",
+      // placeholder: `wrangler d1 create arcade-leaderboard` prints the real id (local dev works with any id)
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Abuse limits. Cloudflare counts per location and approximately: this stops floods, it is not a strict quota.
+  // namespace_id only has to be unique within the Cloudflare account.
+  "ratelimits": [
+    { "name": "RL_REGISTER", "namespace_id": "7101", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_INSTALL", "namespace_id": "7102", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_SCORES_IP", "namespace_id": "7103", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_READ", "namespace_id": "7104", "simple": { "limit": 60, "period": 60 } }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "arcade-leaderboard-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "e2e": "bun run test/e2e.ts",
+    "db:local": "wrangler d1 migrations apply arcade-leaderboard --local",
+    "db:remote": "wrangler d1 migrations apply arcade-leaderboard --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}
