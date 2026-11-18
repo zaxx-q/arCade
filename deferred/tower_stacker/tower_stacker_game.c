@@ -53,7 +53,7 @@ static void draw_bar(const tower_stacker_State *s) {
     DrawRectangleLinesEx(r, 2.0f, Fade(BLACK, 0.4f));
 }
 
-static void draw_world(const tower_stacker_State *s) {
+static void draw_world(const tower_stacker_State *s, float t) {
     DrawRectangle(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H, Fade(ARC_COL_PANEL, 0.92f));
     BeginScissorMode(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
     char buf[16];
@@ -65,10 +65,15 @@ static void draw_world(const tower_stacker_State *s) {
     bool zooming = s->over && s->score >= TS_SCROLL_FLOORS && s->over_t > 0.0f;
     if (!zooming) /* during the zoom the bar is not part of the picture */
         draw_bar(s);
-    if (s->over)
+    if (s->over) {
         gfx_text_center(s->capped ? "TOWER COMPLETE!" : "MISSED!", ARC_PF_X + s->w / 2, ARC_PF_Y + 16, 28,
                         s->capped ? ARC_COL_GREEN : ARC_COL_RED);
-    else if (s->score == 0 && s->state == TS_SLIDING)
+        if (tower_stacker_can_continue(s)) { /* the reveal is done: the player decides when to leave */
+            float pulse = 0.65f + 0.35f * sinf(t * 4.0f);
+            gfx_text_center("click / any key to continue", ARC_PF_X + s->w / 2, ARC_PF_Y + 54, 18,
+                            Fade(ARC_COL_TEXT, pulse));
+        }
+    } else if (s->score == 0 && s->state == TS_SLIDING)
         gfx_text_center("click / Space / any key: drop", ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 2 - 150, 18,
                         ARC_COL_TEXT);
     EndScissorMode();
@@ -100,7 +105,8 @@ static GameResult play(const GameContext *ctx) {
     int perfects_seen = 0, cuts_seen = 0;
     bool lose_played = false;
 
-    static const char *const help[] = {"A bar slides left and right.",
+    static const char *const help[] = {"A bar slides left and right,",
+                                       "entering from either side.",
                                        "Click, Space or any key",
                                        "drops it on the tower.",
                                        "",
@@ -109,7 +115,9 @@ static GameResult play(const GameContext *ctx) {
                                        "A perfect landing keeps",
                                        "the full width.",
                                        "",
-                                       "Miss the tower = game over."};
+                                       "Miss the tower = game over.",
+                                       "Then look at your tower and",
+                                       "click to continue."};
     arcade_loop_begin(ctx);
     float t = 0.0f;
     while (arcade_loop_running()) {
@@ -130,7 +138,7 @@ static GameResult play(const GameContext *ctx) {
         }
         BeginDrawing();
         gfx_backdrop(t);
-        draw_world(&s);
+        draw_world(&s, t);
         draw_frame();
         draw_help("HOW TO PLAY", help, (int)ARC_ARRAY_LEN(help));
         draw_right_gutter(&s);
@@ -147,7 +155,8 @@ static GameResult play(const GameContext *ctx) {
     }
     GameResult r;
     r.score = tower_stacker_score(&s);
-    r.finished = tower_stacker_is_over(&s);
+    /* ESC while the finished tower is on show still counts: the game was already over */
+    r.finished = s.over;
     return r;
 }
 

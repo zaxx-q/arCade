@@ -194,8 +194,8 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/tower_stacker.png" width="380" alt="Screenshot Tower Stacker"/>
       </a>
       <p align="left">
-        Satu batang bergeser di atas menara. Jatuhkan tepat waktu: bagian yang menjorok dipotong, jadi menara makin sempit. Landasan sempurna menjaga lebar penuh.<br/>
-        <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk menjatuhkan batang.
+        Satu batang bergeser di atas menara. Jatuhkan tepat waktu: bagian yang menjorok dipotong, jadi menara makin sempit. Landasan sempurna menjaga lebar penuh. Batang datang dari kiri atau kanan secara acak. Setelah kalah, kamu bisa melihat menaramu dulu.<br/>
+        <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk menjatuhkan batang, dan untuk lanjut setelah game selesai.
       </p>
     </td>
   </tr>

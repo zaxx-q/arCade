@@ -2,10 +2,14 @@
  * A bar slides left and right above a tower. Drop it: the overhang is cut off (it falls away and
  * fades) and the rest becomes the new top floor, so the tower gets narrower. A perfect landing
  * keeps the full width. Missing the tower completely ends the game. Score = floors stacked.
+ * Every new bar enters from a random side (left or right).
+ * After the game ends the finished tower stays on screen (zoomed out when it is tall) until the
+ * player taps: is_over() only turns true on that tap.
  * Coordinates are playfield-local (y grows downward).
  *
  * D6 EXCEPTION: the bar moves in whole 5 px steps on a 50 Hz sub-clock (not scaled by dt), so its x
- * always has the same remainder (mod 5) as the floor edge below it and a perfect is always reachable. */
+ * always has the same remainder (mod 5) as the floor edge below it and a perfect is always reachable
+ * (from either side). */
 #ifndef TOWER_STACKER_LOGIC_H
 #define TOWER_STACKER_LOGIC_H
 
@@ -18,7 +22,7 @@
 #define TS_WINDOWS 3             /* up to 3 random windows per floor                          */
 #define TS_SCROLL_FLOORS 10      /* from this floor on the tower scrolls instead of rising    */
 #define TS_ZOOM_TIME 2.5f        /* seconds of the zoom-to-fit after a game over with >= 10 floors */
-#define TS_OVER_DELAY_SHORT 0.8f /* reveal delay when the tower is short                      */
+#define TS_OVER_DELAY_SHORT 0.8f /* seconds before the "continue" prompt when the tower is short  */
 
 /* What the bar is doing. */
 #define TS_SLIDING 0 /* moving sideways, waiting for the drop                */
@@ -46,7 +50,8 @@ typedef struct tower_stacker_State {
     float bar_alpha;
     float bar_acc; /* 50 Hz sub-clock for the 5 px steps                                    */
     bool over, capped;
-    float over_t;
+    bool done;                    /* the player tapped "continue" after the game ended: is_over() */
+    float over_t;                 /* seconds since the game ended (drives the zoom)                */
     int perfects, cuts, landings; /* event counters for sound                                              */
     int last_cut_class;           /* 0: d < 10, 1: d < 30, 2: else (which "lost part" tone to play)        */
     float last_cut_d;
@@ -56,8 +61,13 @@ typedef struct tower_stacker_State {
 void tower_stacker_init(tower_stacker_State *s, unsigned seed);
 void tower_stacker_init_sized(tower_stacker_State *s, unsigned seed, int w, int h);
 void tower_stacker_step(tower_stacker_State *s, const ArcadeInput *in, float dt);
-bool tower_stacker_is_over(const tower_stacker_State *s);
+bool tower_stacker_is_over(const tower_stacker_State *s); /* true only after the player's tap */
 int tower_stacker_score(const tower_stacker_State *s);
+
+/* True while the finished tower is on show and a tap will close the game: from the end of the reveal
+ * (TS_ZOOM_TIME for 10+ floors, else TS_OVER_DELAY_SHORT) until the tap. The front-end shows its
+ * "click to continue" prompt exactly while this is true. */
+bool tower_stacker_can_continue(const tower_stacker_State *s);
 
 /* Zoom-to-fit after a game over with >= 10 floors: top y and floor height at `over_t` seconds.
  * With fewer floors (or over_t = 0) it returns the normal drawing: top = base_y_move, height = base_h. */

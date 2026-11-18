@@ -43,14 +43,24 @@ static void record_floor(tower_stacker_State *s) {
     }
 }
 
+/* Starts the next bar above the tower. It enters from the left (moving right) or from the right (moving
+ * left), chosen at random. Both start x values keep the same remainder (mod 5) as the floor edge below,
+ * so the 5 px steps can land exactly on the tower's left edge from either side. */
 static void new_bar(tower_stacker_State *s) {
     s->state = TS_SLIDING;
     s->bar_w = s->base_w;
     s->bar_h = s->base_h0;
-    s->bar_spx = TS_BAR_SPEED_X;
     s->bar_spy = 0.0f;
-    /* start at base_x mod 5 so the 5 px steps can land exactly on the tower's left edge */
-    s->bar_x = s->base_x - TS_BAR_SPEED_X * (float)(int)(s->base_x / TS_BAR_SPEED_X);
+    if (rng_chance(&s->rng, 0.5f)) {
+        /* from the right: the largest x that still fits the court and is base_x + a multiple of 5 */
+        float room = ((float)s->w - s->bar_w) - s->base_x;
+        s->bar_x = s->base_x + TS_BAR_SPEED_X * floorf(room / TS_BAR_SPEED_X);
+        s->bar_spx = -TS_BAR_SPEED_X;
+    } else {
+        /* from the left: the smallest x >= 0 with the same remainder as base_x */
+        s->bar_x = s->base_x - TS_BAR_SPEED_X * (float)(int)(s->base_x / TS_BAR_SPEED_X);
+        s->bar_spx = TS_BAR_SPEED_X;
+    }
     s->bar_y = s->bar_y0;
     s->bar_alpha = 1.0f;
     s->bar_acc = 0.0f;
@@ -71,7 +81,7 @@ void tower_stacker_init_sized(tower_stacker_State *s, unsigned seed, int w, int 
     s->base_h = s->base_h0;
     s->base_y = (float)h;
     s->score = 0;
-    s->over = s->capped = false;
+    s->over = s->capped = s->done = false;
     s->over_t = 0.0f;
     s->perfects = s->cuts = s->landings = 0;
     s->last_cut_class = 0;
@@ -138,8 +148,10 @@ static void slide_tick(tower_stacker_State *s) {
 }
 
 void tower_stacker_step(tower_stacker_State *s, const ArcadeInput *in, float dt) {
-    if (s->over) {
+    if (s->over) { /* the finished tower stays on show until the player taps */
         s->over_t += dt;
+        if (tower_stacker_can_continue(s) && drop_requested(in))
+            s->done = true;
         return;
     }
     if (s->state == TS_SLIDING && drop_requested(in)) { /* once per bar: freeze x, start falling */
@@ -168,11 +180,18 @@ void tower_stacker_step(tower_stacker_State *s, const ArcadeInput *in, float dt)
         land(s);
 }
 
+/* How long the reveal lasts before the player may leave: the zoom for a tall tower, a short pause otherwise.
+ */
+static float reveal_time(const tower_stacker_State *s) {
+    return s->score >= TS_SCROLL_FLOORS ? TS_ZOOM_TIME : TS_OVER_DELAY_SHORT;
+}
+
+bool tower_stacker_can_continue(const tower_stacker_State *s) {
+    return s->over && !s->done && s->over_t >= reveal_time(s);
+}
+
 bool tower_stacker_is_over(const tower_stacker_State *s) {
-    if (!s->over)
-        return false;
-    float delay = s->score >= TS_SCROLL_FLOORS ? TS_ZOOM_TIME : TS_OVER_DELAY_SHORT;
-    return s->over_t >= delay;
+    return s->done;
 }
 
 int tower_stacker_score(const tower_stacker_State *s) {
