@@ -12,7 +12,7 @@ Shared library for every game and arCade. Two parts: **pure C** (`core/src`, hea
 | `include/arcade/input.h`, `src/input.c` | `ArcadeInput`, reproducible `ArcadeMonkey` |
 | `include/arcade/rng.h` | deterministic PCG32 |
 | `include/arcade/playfield.h` | header-only portrait playfield (480 x 684 under the HUD): `ARC_PF_*`, `arc_pf_from_screen`, `arc_pf_to_screen`, `arc_pf_contains` |
-| `include/arcade/leaderboard.h` | text-file scores, insertion sort, linear + binary search |
+| `include/arcade/leaderboard.h` | text-file scores, insertion sort, linear + binary search; "boards": one table per mode/level stored as the key `<game id>:<board>` (`lb_board_key`, `lb_boards_for_game`, `lb_top_for_all_boards`) |
 | `include/arcade/sandbox.h`, `src/sandbox.c` | falling-sand engine (hub background + `deferred/sandbox`) |
 | `include/arcade/vault.h`, `src/vault.c` | the hub's "vault": a stone basin in the sandbox that opens when it is full (unlocks the deferred games; pure, no window) |
 | `include/arcade/sortlib.h` | bubble/selection/insertion sort with swap counters |

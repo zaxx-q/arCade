@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arcade/game.h"
+#include "arcade/leaderboard.h"
 #include "arcade/str.h"
 #include "arcade_test.h"
 #include "beat_dodge_convert.h"
@@ -818,6 +820,79 @@ static void test_monkey_is_safe(void) {
     }
 }
 
+/* ------------------------------------------------------------------ one high-score table per chart */
+static void test_board_name_has_mode_song_and_difficulty(void) {
+    char name[GAME_BOARD_LEN];
+    bd_song_default(&g_song, 1); /* "Practice", one dodge chart named "normal" */
+    bd_board_name(name, sizeof(name), &g_song, 0);
+    CHECK_STR_EQ(name, "Dodge / Practice / normal");
+    g_song.charts[0].kind = BD_CHART_CATCH;
+    bd_board_name(name, sizeof(name), &g_song, 0);
+    CHECK_STR_EQ(name, "Catch / Practice / normal"); /* the same chart in the other mode: another table */
+    arc_strlcpy(g_song.charts[0].name, "hard", sizeof(g_song.charts[0].name));
+    bd_board_name(name, sizeof(name), &g_song, 0);
+    CHECK_STR_EQ(name, "Catch / Practice / hard"); /* ... and another difficulty too */
+    bd_board_name(name, sizeof(name), &g_song, 1); /* a chart that does not exist: no table */
+    CHECK_STR_EQ(name, "");
+    bd_board_name(name, sizeof(name), &g_song, -1);
+    CHECK_STR_EQ(name, "");
+}
+
+static void test_a_long_title_is_cut_but_never_the_mode_or_the_difficulty(void) {
+    char name[GAME_BOARD_LEN], other[GAME_BOARD_LEN];
+    bd_song_default(&g_song, 1);
+    memset(g_song.title, 'T', sizeof(g_song.title) - 1); /* the longest title a song can have */
+    g_song.title[sizeof(g_song.title) - 1] = '\0';
+    g_song.charts[0].kind = BD_CHART_CATCH;
+    arc_strlcpy(g_song.charts[0].name, "normal", sizeof(g_song.charts[0].name));
+    bd_board_name(name, sizeof(name), &g_song, 0);
+    CHECK(strlen(name) < GAME_BOARD_LEN);
+    CHECK(strncmp(name, "Catch / T", 9) == 0);
+    CHECK(strcmp(name + strlen(name) - 9, " / normal") == 0);
+    arc_strlcpy(g_song.charts[0].name, "hard", sizeof(g_song.charts[0].name));
+    bd_board_name(other, sizeof(other), &g_song, 0);
+    CHECK(strcmp(name, other) != 0); /* the cut title must not make two difficulties share a table */
+}
+
+static void test_every_shipped_chart_has_its_own_table(void) {
+    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    CHECK(n >= 1);
+    static char names[BD_MAX_SONGS * BD_MAX_CHARTS][LB_GAME_LEN];
+    int count = 0;
+    for (int i = 0; i < n; i++)
+        for (int c = 0; c < g_list.songs[i].chart_count; c++) {
+            char board[GAME_BOARD_LEN];
+            bd_board_name(board, sizeof(board), &g_list.songs[i], c);
+            CHECK(board[0] != '\0');
+            lb_board_key(names[count], LB_GAME_LEN, "beat_dodge", board);
+            CHECK_EQ_INT(strlen(names[count]), strlen("beat_dodge:") + strlen(board)); /* nothing was cut */
+            for (int k = 0; k < count; k++)
+                CHECK(strcmp(names[k], names[count]) != 0); /* no two charts share a table */
+            count++;
+        }
+    CHECK(count >= 6); /* at least one song with 3 dodge + 3 catch charts */
+}
+
+static void test_scores_of_two_charts_are_ranked_apart(void) {
+    /* the hub's job, replayed with the same calls: record under the key, rank in that table only */
+    static Leaderboard lb;
+    char board[GAME_BOARD_LEN], key_dodge[LB_GAME_LEN], key_catch[LB_GAME_LEN];
+    bd_song_default(&g_song, 1);
+    bd_board_name(board, sizeof(board), &g_song, 0);
+    lb_board_key(key_dodge, sizeof(key_dodge), "beat_dodge", board);
+    g_song.charts[0].kind = BD_CHART_CATCH;
+    bd_board_name(board, sizeof(board), &g_song, 0);
+    lb_board_key(key_catch, sizeof(key_catch), "beat_dodge", board);
+    lb_init(&lb);
+    lb_add(&lb, key_dodge, "ana", 1800, 1);
+    lb_add(&lb, key_catch, "ana", 300, 2); /* a low catch score is still the best catch score */
+    ScoreEntry top[4];
+    CHECK_EQ_INT(lb_top_for_game(&lb, key_catch, top, 4), 1);
+    CHECK_EQ_INT(top[0].score, 300);
+    CHECK_EQ_INT(lb_top_for_game(&lb, key_dodge, top, 4), 1);
+    CHECK_EQ_INT(top[0].score, 1800);
+}
+
 int main(void) {
     RUN(test_default_song_is_valid);
     RUN(test_parser_v2);
@@ -852,6 +927,10 @@ int main(void) {
     RUN(test_menu);
     RUN(test_menu_only_offers_charts_of_its_own_kind);
     RUN(test_every_shipped_song_is_playable);
+    RUN(test_board_name_has_mode_song_and_difficulty);
+    RUN(test_a_long_title_is_cut_but_never_the_mode_or_the_difficulty);
+    RUN(test_every_shipped_chart_has_its_own_table);
+    RUN(test_scores_of_two_charts_are_ranked_apart);
     RUN(test_monkey_is_safe);
     return TEST_SUMMARY();
 }
