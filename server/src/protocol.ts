@@ -9,6 +9,15 @@ export const TOP_MAX = 50; // LBN_TOP_MAX
 export const MAX_BODY = 512; // bytes a request body may have
 
 /**
+ * New installs the whole server accepts per hour. An exact ceiling (counted in D1), unlike the Workers rate
+ * limiter, which is best effort. Every fake player needs an install, so this bounds how fast the table can
+ * be flooded: 300 an hour is far above a class of students starting the game, and the cost of too low a
+ * number is only that new players register a little later (the client retries by itself). Raise it if
+ * the game gets popular.
+ */
+export const MAX_REGISTRATIONS_PER_HOUR = 300;
+
+/**
  * The games the hub ranks, with the highest score each one can really reach: a bigger score is a forged
  * request. The key is the game's `id` in its GameDef. To rank a new game, add a line here and deploy BEFORE
  * releasing a client that sends it (the client throws away a score the server refuses).

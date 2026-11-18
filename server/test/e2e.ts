@@ -58,9 +58,10 @@ const top = await call("GET", `/v1/top?board=${GAME}&limit=50`);
 const lines = top.text.trimEnd().split("\n");
 const rows = lines.slice(1).map((l) => l.split("|"));
 check("top: header and rows have the right shape", top.status === 200 && /^ok\|[0-9]+$/.test(lines[0] ?? "") && rows.every((r) => r.length === 4 && /^[0-9]+$/.test(r[0] ?? "") && /^[0-9]+$/.test(r[2] ?? "")), show(top));
-check("top: ranks are 1, 2, 3 ... and scores never go up", rows.every((r, i) => Number(r[0]) === i + 1 && (i === 0 || Number(r[2]) <= Number(rows[i - 1]?.[2]))), top.text);
-check("top: our best score (7) is there, once", rows.filter((r) => r[1] === "e2e-test" && r[2] === "7").length === 1, top.text);
-check("top: the worse and the first runs are not", !rows.some((r) => r[1] === "e2e-test" && (r[2] === "5" || r[2] === "2")), top.text);
+// these need real rows: an empty or failed answer must not pass them by being vacuously true
+check("top: ranks are 1, 2, 3 ... and scores never go up", top.status === 200 && rows.length > 0 && rows.every((r, i) => Number(r[0]) === i + 1 && (i === 0 || Number(r[2]) <= Number(rows[i - 1]?.[2]))), show(top));
+check("top: our best score (7) is there, once", top.status === 200 && rows.filter((r) => r[1] === "e2e-test" && r[2] === "7").length === 1, show(top));
+check("top: the worse and the first runs are not", top.status === 200 && rows.length > 0 && !rows.some((r) => r[1] === "e2e-test" && (r[2] === "5" || r[2] === "2")), show(top));
 
 const refusals: [string, string, number][] = [
   ["a game that does not exist", "nope|e2e-test|1\n", 400],

@@ -12,14 +12,17 @@
     {
       "binding": "DB",
       "database_name": "arcade-leaderboard",
-      // placeholder: `wrangler d1 create arcade-leaderboard` prints the real id (local dev works with any id)
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // from `wrangler d1 create arcade-leaderboard`; an identifier, not a secret
+      "database_id": "8cd5c5e6-45d7-4ea0-a6f2-c8fd093f5383",
       "migrations_dir": "migrations"
     }
   ],
 
-  // Abuse limits. Cloudflare counts per location and approximately: this stops floods, it is not a strict quota.
-  // namespace_id only has to be unique within the Cloudflare account.
+  // BEST-EFFORT limits only. Cloudflare counts per machine and syncs lazily; measured on the deployed Worker:
+  // exact over one reused connection (59 of 200 allowed at a limit of 60), but almost nothing against 20
+  // parallel connections (398 of 400 allowed). They slow down a naive loop and nothing more. The exact
+  // protections are in the code: MAX_REGISTRATIONS_PER_HOUR (counted in D1), the score caps, the one row per
+  // install and table. namespace_id only has to be unique within the Cloudflare account.
   "ratelimits": [
     { "name": "RL_REGISTER", "namespace_id": "7101", "simple": { "limit": 10, "period": 60 } },
     { "name": "RL_INSTALL", "namespace_id": "7102", "simple": { "limit": 10, "period": 60 } },
