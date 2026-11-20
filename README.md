@@ -128,8 +128,8 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
       </a>
       <p align="left">
-        Mainan falling-sand: pasir, air, batu, api, kayu, dan lebih banyak lagi. Gambar dengan mouse, ganti elemen, perhatikan reaksi berlangsung piksel demi piksel.<br/>
-        <b>Kontrol:</b> Klik atau seret untuk melukis, roda mouse untuk ukuran kuas, tombol angka atau klik palet untuk memilih elemen, R untuk mereset.
+        Mainan falling-sand dengan 29 elemen: pasir, air, lava, api, TNT, asam, tanaman, rayap, uranium, dan lebih banyak lagi. Gambar dengan mouse, ganti elemen, perhatikan reaksi berlangsung sel demi sel.<br/>
+        <b>Kontrol:</b> Klik atau seret untuk melukis (klik kanan menghapus), klik palet, tombol 0-9, [ ] atau roda mouse untuk memilih elemen, +/- untuk ukuran kuas, Space untuk jeda, C untuk membersihkan, R untuk mereset.
       </p>
     </td>
   </tr>
