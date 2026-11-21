@@ -86,13 +86,11 @@ void gfx_sandbox_view_free(GfxSandboxView *v) {
 void gfx_sandbox_view_draw(GfxSandboxView *v, const Sandbox *sb, Rectangle dst, Color tint) {
     for (int y = 0; y < sb->h; y++) {
         for (int x = 0; x < sb->w; x++) {
-            const ElementDef *e = sandbox_element((ElementId)sb->cells[y * sb->w + x]);
-            int shade = e->kind == MOVE_NONE && e->density == 0 ? 0 : ((x * 7 + y * 13) & 15) - 8; /* grain */
+            uint32_t rgb = sandbox_pixel(sb, x, y); /* the engine decides the colour: shading, glow, flames */
             int i = (y * sb->w + x) * 4;
-            int r = e->r + shade, gr = e->g + shade, b = e->b + shade;
-            g_pixels[i + 0] = (uint8_t)arc_clampi(r, 0, 255);
-            g_pixels[i + 1] = (uint8_t)arc_clampi(gr, 0, 255);
-            g_pixels[i + 2] = (uint8_t)arc_clampi(b, 0, 255);
+            g_pixels[i + 0] = (uint8_t)(rgb >> 16);
+            g_pixels[i + 1] = (uint8_t)(rgb >> 8);
+            g_pixels[i + 2] = (uint8_t)rgb;
             g_pixels[i + 3] = 255;
         }
     }

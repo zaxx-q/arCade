@@ -142,7 +142,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Beat Dodge & Catch | `games/beat_dodge/` | Member 5                | Jalan (dua mode, Dodge dan Catch, dipilih di layar pilih lagu; lagu dari MIDI, ribbon, close call, combo, health, musik sintesis, 3 kesulitan) |
 | Absorb & Grow | `deferred/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
 | Sort It       | `deferred/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
-| Sandbox       | `deferred/sandbox/`       | Leader                     | Jalan (mainan falling-sand; engine-nya menjalankan background menu)        |
+| Sandbox       | `deferred/sandbox/`       | Leader                     | Jalan (falling-sand 29 elemen; engine-nya jalankan background menu)        |
 | Post It       | `deferred/post_it/`       | Leader                     | Jalan (miring dunia lewat mouse, gulusan post-it, virus, jeda)             |
 | Master Juggler | `deferred/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa)                                    |
 | BW Reflex     | `deferred/bw_reflex/`     | Leader                     | Jalan (balik warna dasar, kecepatan naik tiap cocok)                       |
@@ -164,7 +164,7 @@ Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:
 
 - [ ] Beatmap tambahan untuk Beat Dodge & Catch (`assets/beatmaps/`).
 - [ ] Level puzzle tambahan untuk Laser Mirrors dan Ghost Loop.
-- [ ] Elemen pasir tambahan (api, minyak, lava, asam - lihat `docs/SANDBOX.md`).
+- [ ] Elemen pasir tambahan (emitter, kabel, tumbuhan lain - lihat "Ide berikutnya" di `docs/SANDBOX.md`).
 - [ ] Game tambahan (opsional) dengan `cmake -DID=... -DTITLE=... -DOWNER=... -P tools/new_game.cmake`.
 - [ ] Rincian per game (mis. membuat Beat Dodge lebih sulit, memperbaiki level tutorial) ada di bagian "Prioritas dari diskusi tim" di tiap `GAME.md`.
 

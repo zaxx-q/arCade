@@ -8,6 +8,41 @@ static void run(int ticks) {
         sandbox_step(&g_sb);
 }
 
+/* Fill the rectangle x0..x1, y0..y1 (inclusive) with one element. */
+static void fill(int x0, int y0, int x1, int y1, ElementId id) {
+    for (int y = y0; y <= y1; y++)
+        for (int x = x0; x <= x1; x++)
+            sandbox_set(&g_sb, x, y, id);
+}
+
+/* Hold a torch over the rectangle for `ticks` ticks: flames are re-lit in empty cells every tick, the way a
+ * player holds the mouse button down. */
+static void torch(int x0, int y0, int x1, int y1, int ticks) {
+    for (int t = 0; t < ticks; t++) {
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++)
+                if (sandbox_get(&g_sb, x, y) == EL_EMPTY)
+                    sandbox_set(&g_sb, x, y, EL_FIRE);
+        sandbox_step(&g_sb);
+    }
+}
+
+/* A fresh world with a stone floor on the bottom row and stone walls on both sides. */
+static void tank(int w, int h, unsigned seed) {
+    sandbox_init(&g_sb, w, h, seed);
+    fill(0, h - 1, w - 1, h - 1, EL_STONE);
+    fill(0, 0, 0, h - 1, EL_STONE);
+    fill(w - 1, 0, w - 1, h - 1, EL_STONE);
+}
+
+/* Height of the highest cell of `id` in column x, counted from the floor row (0 = none). */
+static int column_height(int x, ElementId id) {
+    for (int y = 0; y < g_sb.h; y++)
+        if (sandbox_get(&g_sb, x, y) == id)
+            return g_sb.h - 1 - y;
+    return 0;
+}
+
 static void test_grid_and_bounds(void) {
     sandbox_init(&g_sb, 1000, 1000, 1); /* clamped to the maximum size */
     CHECK_EQ_INT(g_sb.w, SANDBOX_MAX_W);
@@ -144,6 +179,590 @@ static void test_deterministic(void) {
         CHECK_EQ_INT(g_sb.cells[i], other.cells[i]);
 }
 
+/* ---- palette and colours ---- */
+
+static void test_palette(void) {
+    int n = sandbox_palette_count();
+    CHECK(n >= 20 && n < EL_COUNT);
+    CHECK_EQ_INT(sandbox_palette_id(0), EL_EMPTY); /* the number keys 0-3 keep their old meaning */
+    CHECK_EQ_INT(sandbox_palette_id(1), EL_SAND);
+    CHECK_EQ_INT(sandbox_palette_id(2), EL_WATER);
+    CHECK_EQ_INT(sandbox_palette_id(3), EL_STONE);
+    for (int i = 0; i < n; i++) {
+        ElementId id = sandbox_palette_id(i);
+        CHECK(!(sandbox_element(id)->flags & EF_HIDDEN));
+        CHECK_EQ_INT(sandbox_palette_index(id), i); /* index and id are inverse of each other */
+    }
+    CHECK_EQ_INT(sandbox_palette_index(EL_GAMMA), -1); /* hidden elements are not in the palette */
+    CHECK_EQ_INT(sandbox_palette_index(EL_MOLTEN_URANIUM), -1);
+    CHECK_EQ_INT(sandbox_palette_id(n), EL_EMPTY); /* out of range is harmless */
+    CHECK_EQ_INT(sandbox_palette_index((ElementId)999), -1);
+}
+
+static void test_colours_are_distinct_and_stable(void) {
+    sandbox_init(&g_sb, 8, 8, 1);
+    uint32_t bg = sandbox_pixel(&g_sb, 3, 3);
+    CHECK_EQ_INT(bg, 0x080A16); /* an empty cell is the dark background, same as before */
+    CHECK_EQ_INT(sandbox_pixel(&g_sb, -1, 0), 0);
+    for (int i = 1; i < sandbox_palette_count(); i++) { /* every element is visible against the background */
+        sandbox_set(&g_sb, 3, 3, sandbox_palette_id(i));
+        uint32_t c = sandbox_pixel(&g_sb, 3, 3);
+        CHECK(c != bg);
+        CHECK_EQ_INT(sandbox_pixel(&g_sb, 3, 3), c); /* pure: asking twice gives the same colour */
+    }
+    /* the new roster looks different from the original palette: sand keeps its colour family */
+    sandbox_set(&g_sb, 3, 3, EL_SAND);
+    uint32_t sand = sandbox_pixel(&g_sb, 3, 3);
+    CHECK(((sand >> 16) & 255u) > 200u && (sand & 255u) < 140u);
+}
+
+static void test_every_element_has_a_row(void) {
+    for (int i = 0; i < EL_COUNT; i++) {
+        const ElementDef *d = sandbox_element((ElementId)i);
+        CHECK(d->name != NULL && d->name[0] != 0);
+        if (i != EL_EMPTY)
+            CHECK(d->r + d->g + d->b > 0);
+        if (d->kind == MOVE_POWDER || d->kind == MOVE_LIQUID)
+            CHECK(d->speed > 0);
+        if (d->kind == MOVE_LIQUID)
+            CHECK(d->slip > 0 && d->spread > 0);
+    }
+}
+
+static void test_brush_spray_and_hidden_cells(void) {
+    sandbox_init(&g_sb, 30, 30, 1);
+    sandbox_paint(&g_sb, 15, 15, 6, EL_SAND);
+    int full = sandbox_count(&g_sb, EL_SAND);
+    sandbox_init(&g_sb, 30, 30, 1);
+    sandbox_paint(&g_sb, 15, 15, 6, EL_SNOW); /* snow is sprinkled: fewer cells than a solid brush */
+    int sprinkled = sandbox_count(&g_sb, EL_SNOW);
+    CHECK(sprinkled > 10 && sprinkled < full * 9 / 10);
+    sandbox_set(&g_sb, 2, 2, EL_SAND);
+    sandbox_set(&g_sb, 2, 2, (ElementId)EL_COUNT); /* an invalid id is ignored */
+    CHECK_EQ_INT(sandbox_get(&g_sb, 2, 2), EL_SAND);
+}
+
+static void test_set_clears_cell_memory(void) {
+    sandbox_init(&g_sb, 10, 10, 1);
+    sandbox_set(&g_sb, 5, 5, EL_URANIUM);
+    g_sb.aux[5 * 10 + 5] = 200;
+    sandbox_set(&g_sb, 5, 5, EL_URANIUM); /* painting again starts from a cool cell */
+    CHECK_EQ_INT(g_sb.aux[5 * 10 + 5], 0);
+}
+
+/* ---- movement ---- */
+
+static void test_sand_falls_several_cells_per_tick(void) {
+    sandbox_init(&g_sb, 10, 60, 1);
+    sandbox_set(&g_sb, 5, 0, EL_SAND);
+    run(20); /* 59 rows to fall: at 1 cell per tick this would take 59 ticks */
+    CHECK_EQ_INT(sandbox_get(&g_sb, 5, 59), EL_SAND);
+}
+
+static void test_a_big_dump_splashes_wider_than_a_trickle(void) {
+    tank(80, 50, 3);
+    fill(30, 10, 46, 24, EL_SAND); /* a 17x15 block dropped in one go */
+    run(200);
+    int blob_width = 0;
+    for (int x = 1; x < 79; x++)
+        if (column_height(x, EL_SAND) > 0)
+            blob_width++;
+    int blob_height = 0;
+    for (int x = 1; x < 79; x++)
+        blob_height = arc_maxi(blob_height, column_height(x, EL_SAND));
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SAND), 17 * 15);
+    CHECK(blob_width >= 30);             /* it spread out... */
+    CHECK(blob_height * 2 < blob_width); /* ...into a heap flatter than a 45 degree cone */
+}
+
+static void test_a_trickle_makes_a_steep_cone(void) {
+    tank(60, 40, 4);
+    for (int i = 0; i < 150; i++) {
+        sandbox_set(&g_sb, 30, 2, EL_SAND);
+        run(2);
+    }
+    run(100);
+    int width = 0;
+    for (int x = 1; x < 59; x++)
+        if (column_height(x, EL_SAND) > 0)
+            width++;
+    int height = column_height(30, EL_SAND);
+    CHECK(height * 2 >= width * 3 / 4); /* about 40 degrees or more: a clean cone, not a pancake */
+}
+
+static void test_water_levels_out_quickly(void) {
+    tank(64, 30, 5);
+    fill(1, 12, 12, 28, EL_WATER); /* a tall column on the left of a wide tank */
+    int total = sandbox_count(&g_sb, EL_WATER);
+    run(60);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WATER), total);
+    int lo = 99, hi = 0;
+    for (int x = 1; x < 63; x++) {
+        int h = column_height(x, EL_WATER);
+        lo = arc_mini(lo, h);
+        hi = arc_maxi(hi, h);
+    }
+    CHECK(hi - lo <= 1); /* flat to within one cell after only 60 ticks */
+}
+
+static void test_a_settled_pool_stays_still(void) {
+    tank(40, 20, 6);
+    fill(1, 12, 38, 18, EL_WATER);
+    run(100);
+    static uint8_t before[40 * 20];
+    memcpy(before, g_sb.cells, sizeof(before));
+    run(50);
+    CHECK(memcmp(before, g_sb.cells, sizeof(before)) == 0); /* no shimmering: a calm pool is stable */
+}
+
+static void test_water_flows_off_a_ledge(void) {
+    tank(40, 30, 7);
+    fill(1, 15, 20, 15, EL_STONE); /* a ledge */
+    for (int i = 0; i < 20; i++) {
+        sandbox_set(&g_sb, 5, 14, EL_WATER);
+        run(3);
+    }
+    run(100);
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 1, 0, 20, 15, EL_WATER),
+                 0);                                  /* nothing is left sitting on the ledge */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WATER), 20); /* it all ran off and pooled below */
+}
+
+static void test_liquids_layer_by_density(void) {
+    tank(24, 40, 8);
+    for (int y = 2; y < 30; y++)
+        for (int x = 1; x < 23; x++) {
+            ElementId id = (x * 7 + y * 3) % 3 == 0 ? EL_OIL : (x + y) % 2 ? EL_WATER : EL_MERCURY;
+            sandbox_set(&g_sb, x, y, id);
+        }
+    int oil = sandbox_count(&g_sb, EL_OIL), water = sandbox_count(&g_sb, EL_WATER);
+    int mercury = sandbox_count(&g_sb, EL_MERCURY);
+    run(400);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_OIL), oil);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WATER), water);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_MERCURY), mercury);
+    /* going down a column, density never decreases: oil, then water, then mercury */
+    int wrong = 0, pairs = 0;
+    for (int x = 1; x < 23; x++) {
+        int last = -1;
+        for (int y = 0; y < 39; y++) {
+            ElementId id = sandbox_get(&g_sb, x, y);
+            int rank = id == EL_OIL ? 0 : id == EL_WATER ? 1 : id == EL_MERCURY ? 2 : -1;
+            if (rank < 0)
+                continue;
+            if (last >= 0) {
+                pairs++;
+                if (rank < last)
+                    wrong++;
+            }
+            last = rank;
+        }
+    }
+    CHECK(wrong * 20 <= pairs); /* at least 95% of neighbouring pairs are in the right order */
+}
+
+static void test_light_powder_floats_on_water(void) {
+    tank(12, 20, 9);
+    fill(1, 10, 10, 18, EL_WATER);
+    sandbox_set(&g_sb, 5, 2, EL_ASH);
+    run(60);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 5, 9), EL_ASH); /* ash is lighter than water: it rests on the surface */
+}
+
+static void test_gas_rises_and_stays_conserved_when_sealed(void) {
+    tank(20, 30, 10);
+    fill(0, 0, 19, 0, EL_STONE); /* a lid */
+    fill(5, 20, 14, 27, EL_METHANE);
+    int total = sandbox_count(&g_sb, EL_METHANE);
+    run(60);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_METHANE), total); /* methane does not decay or leak */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 1, 1, 18, 10, EL_METHANE), total); /* all of it is in the top part */
+}
+
+static void test_heavy_things_sink_through_light_fluids(void) {
+    tank(10, 40, 11);
+    fill(1, 20, 8, 38, EL_OIL);
+    sandbox_set(&g_sb, 4, 2, EL_STONE); /* stone is not a fluid: it stays where it is */
+    sandbox_set(&g_sb, 6, 2, EL_SAND);
+    run(80);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 6, 38), EL_SAND); /* sand sinks to the bottom of oil */
+}
+
+/* ---- fire and explosives ---- */
+
+static int burn_wood_and_count_ash(unsigned seed) {
+    tank(30, 20, seed);
+    fill(8, 12, 22, 18, EL_WOOD);
+    fill(9, 11, 21, 11, EL_FIRE); /* a line of flames on top */
+    run(600);
+    return sandbox_count(&g_sb, EL_ASH);
+}
+
+static void test_fire_burns_wood_to_ash(void) {
+    int ash = burn_wood_and_count_ash(12);
+    CHECK(ash > 10);
+    CHECK(sandbox_count(&g_sb, EL_WOOD) < 15 * 7 / 2); /* most of the block is gone */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_FIRE), 0);    /* and the fire went out when the fuel ran out */
+}
+
+static void test_fire_dies_without_fuel(void) {
+    tank(20, 20, 13);
+    sandbox_set(&g_sb, 10, 10, EL_FIRE);
+    run(80);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_FIRE), 0);
+}
+
+static void test_water_puts_out_fire(void) {
+    int fire[2];
+    for (int round = 0; round < 2; round++) {
+        tank(60, 20, 14);
+        if (round == 1)
+            fill(1, 15, 58, 18, EL_WATER);
+        fill(2, 14, 57, 14, EL_FIRE); /* a long row of flames resting on the floor or on the water */
+        run(2);
+        fire[round] = sandbox_count(&g_sb, EL_FIRE);
+    }
+    CHECK(fire[0] >= 50);             /* over bare floor the flames are still there... */
+    CHECK(fire[1] * 3 < fire[0] * 2); /* ...over water a good part of them is put out straight away */
+}
+
+static void test_oil_burns_and_keeps_flowing(void) {
+    tank(30, 20, 15);
+    fill(1, 14, 28, 18, EL_OIL);
+    sandbox_set(&g_sb, 2, 13, EL_FIRE);
+    sandbox_set(&g_sb, 2, 12, EL_FIRE);
+    run(400);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_OIL), 0); /* a burning slick burns itself out completely */
+}
+
+static void test_gunpowder_flashes_but_does_not_blast_walls(void) {
+    tank(30, 20, 16);
+    fill(5, 15, 24, 18, EL_GUNPOWDER);
+    sandbox_set(&g_sb, 4, 17, EL_FIRE);
+    run(120);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_GUNPOWDER), 0);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 0, 10), EL_STONE); /* the walls of the tank are still standing */
+}
+
+static void test_fuse_burns_slowly_along_its_length(void) {
+    tank(60, 20, 17);
+    fill(5, 10, 54, 10, EL_FUSE);
+    sandbox_set(&g_sb, 4, 10, EL_FIRE);
+    run(40);
+    int left = sandbox_count(&g_sb, EL_FUSE);
+    CHECK(left > 30); /* after 40 ticks only the first few cells are gone: a fuse is slow... */
+    CHECK(left < 50); /* ...but it is burning */
+    run(500);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_FUSE), 0); /* and it reaches the end */
+}
+
+static void test_tnt_explodes_and_walls_survive(void) {
+    tank(60, 40, 18);
+    fill(25, 30, 34, 38, EL_STONE);
+    fill(28, 26, 31, 29, EL_TNT);
+    fill(20, 38, 40, 38, EL_WALL); /* an unbreakable strip right under the blast */
+    int stone = sandbox_count(&g_sb, EL_STONE);
+    torch(26, 26, 27, 29, 10);
+    run(200);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+    CHECK(sandbox_count(&g_sb, EL_STONE) < stone - 15); /* a crater was dug in the stone */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), 21);    /* walls are blast-proof */
+}
+
+static void test_tnt_chain_reaction(void) {
+    tank(70, 30, 19);
+    for (int x = 5; x < 65; x += 8)
+        fill(x, 24, x + 2, 26, EL_TNT); /* crates 5 cells apart: each blast reaches the next one */
+    torch(3, 24, 4, 26, 10);
+    run(300);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+}
+
+static void test_methane_burns(void) {
+    tank(30, 20, 20);
+    fill(1, 5, 28, 18, EL_METHANE);
+    sandbox_set(&g_sb, 15, 10, EL_FIRE);
+    run(150);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_METHANE), 0);
+}
+
+/* ---- heat, cold and liquids that react ---- */
+
+static void test_lava_meets_water(void) {
+    tank(30, 20, 21);
+    fill(1, 14, 28, 18, EL_WATER);
+    fill(10, 6, 18, 9, EL_LAVA);
+    run(300);
+    CHECK(sandbox_count(&g_sb, EL_STONE) > 2 * 20 + 18 + 15); /* the tank itself plus new rock */
+    CHECK(sandbox_count(&g_sb, EL_WATER) > 0);                /* some water boiled away, not all of it */
+}
+
+static void test_lava_turns_sand_to_glass(void) {
+    tank(30, 12, 22);
+    fill(2, 6, 10, 10, EL_LAVA);
+    fill(11, 6, 20, 10, EL_SAND);
+    run(300);
+    CHECK(sandbox_count(&g_sb, EL_GLASS) > 0);
+}
+
+static void test_thermite_burns_through_stone(void) {
+    tank(30, 30, 23);
+    fill(5, 20, 24, 28, EL_STONE);
+    fill(12, 14, 16, 19, EL_THERMITE);
+    fill(11, 13, 17, 13, EL_FIRE);
+    int stone = sandbox_count(&g_sb, EL_STONE);
+    for (int i = 0; i < 12; i++) {
+        fill(11, 13, 17, 13, EL_FIRE);
+        run(1);
+    }
+    run(200);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_THERMITE), 0);
+    CHECK(sandbox_count(&g_sb, EL_STONE) < stone - 5); /* it melted a pocket into the stone */
+}
+
+static void test_acid_dissolves_stone_but_not_glass_or_walls(void) {
+    tank(30, 30, 24);
+    fill(5, 20, 24, 28, EL_STONE);
+    fill(5, 12, 24, 12, EL_GLASS);
+    fill(5, 13, 24, 13, EL_WALL);
+    fill(6, 14, 23, 19, EL_ACID);
+    int stone = sandbox_count(&g_sb, EL_STONE);
+    run(400);
+    CHECK(sandbox_count(&g_sb, EL_STONE) < stone - 10);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_GLASS), 20);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), 20);
+}
+
+static void test_nitrogen_freezes_water(void) {
+    tank(20, 20, 25);
+    fill(1, 12, 18, 18, EL_WATER);
+    fill(5, 6, 14, 9, EL_NITROGEN);
+    run(60);
+    CHECK(sandbox_count(&g_sb, EL_ICE) >= 5);
+}
+
+static void test_heat_melts_ice_and_snow(void) {
+    tank(20, 20, 26);
+    fill(2, 16, 17, 18, EL_ICE);
+    fill(2, 14, 17, 15, EL_SNOW);
+    fill(2, 13, 17, 13, EL_FIRE);
+    for (int i = 0; i < 40; i++) {
+        fill(2, 13, 17, 13, EL_FIRE);
+        run(1);
+    }
+    run(300);
+    CHECK(sandbox_count(&g_sb, EL_WATER) > 10);
+}
+
+static void test_steam_condenses_back_to_water(void) {
+    tank(20, 30, 27);
+    fill(0, 0, 19, 0, EL_STONE);
+    fill(5, 24, 14, 28, EL_STEAM);
+    run(600);
+    CHECK(sandbox_count(&g_sb, EL_WATER) > 0);
+}
+
+static void test_smoke_fades(void) {
+    tank(20, 20, 28);
+    fill(5, 8, 14, 12, EL_SMOKE);
+    run(1500);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SMOKE), 0);
+}
+
+/* ---- living things ---- */
+
+static void test_seed_on_soil_grows_and_seed_elsewhere_does_not(void) {
+    tank(40, 30, 29);
+    fill(1, 26, 38, 28, EL_SOIL);
+    sandbox_set(&g_sb, 10, 25, EL_SEED);
+    run(300);
+    CHECK(sandbox_count(&g_sb, EL_PLANT) >= 4); /* a sprout and a few stems */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SEED), 0);
+    tank(40, 30, 29);
+    sandbox_set(&g_sb, 10, 2, EL_SEED);
+    run(300);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_PLANT), 0); /* bare floor: nothing grows */
+}
+
+static void test_plants_drink_water_and_grow_bigger(void) {
+    int count[2];
+    for (int round = 0; round < 2; round++) {
+        tank(40, 40, 30);
+        fill(1, 36, 38, 38, EL_SOIL);
+        sandbox_set(&g_sb, 20, 35, EL_SEED);
+        run(300);
+        for (int t = 0; t < 1200; t++) {
+            if (round == 1 && t % 20 == 0)
+                sandbox_paint(&g_sb, 20, 20, 2, EL_WATER); /* rain on the garden */
+            sandbox_step(&g_sb);
+        }
+        count[round] = sandbox_count(&g_sb, EL_PLANT);
+    }
+    CHECK(count[1] > count[0] * 3); /* a watered plant grows several times bigger than a dry one */
+}
+
+static void test_plants_burn(void) {
+    tank(30, 30, 31);
+    fill(5, 20, 24, 28, EL_PLANT);
+    fill(5, 19, 24, 19, EL_FIRE);
+    run(400);
+    CHECK(sandbox_count(&g_sb, EL_PLANT) < 20);
+}
+
+static void test_termites_eat_wood_and_starve(void) {
+    tank(40, 20, 32);
+    fill(10, 15, 30, 18, EL_WOOD);
+    sandbox_set(&g_sb, 9, 18, EL_TERMITE);
+    sandbox_set(&g_sb, 9, 17, EL_TERMITE);
+    sandbox_set(&g_sb, 9, 16, EL_TERMITE);
+    int wood = sandbox_count(&g_sb, EL_WOOD);
+    run(3000);
+    CHECK(sandbox_count(&g_sb, EL_WOOD) < wood / 2);
+    CHECK(sandbox_count(&g_sb, EL_TERMITE) >= 3); /* well fed: they multiplied while there was wood */
+}
+
+static void test_termites_starve_without_food(void) {
+    tank(30, 12, 33);
+    sandbox_set(&g_sb, 15, 10, EL_TERMITE);
+    run(8000);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TERMITE), 0);
+}
+
+static void test_life_blinker_and_glider(void) {
+    sandbox_init(&g_sb, 30, 30, 34);
+    fill(10, 5, 12, 5, EL_LIFE); /* blinker */
+    run(6);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_LIFE), 3);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 11, 4), EL_LIFE); /* it turned vertical after one generation... */
+    CHECK_EQ_INT(sandbox_get(&g_sb, 10, 5), EL_EMPTY);
+    run(6);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 10, 5), EL_LIFE); /* ...and horizontal again after two */
+    sandbox_clear(&g_sb);
+    sandbox_set(&g_sb, 5, 15, EL_LIFE); /* glider: moves one cell diagonally every 4 generations */
+    sandbox_set(&g_sb, 6, 16, EL_LIFE);
+    sandbox_set(&g_sb, 4, 17, EL_LIFE);
+    sandbox_set(&g_sb, 5, 17, EL_LIFE);
+    sandbox_set(&g_sb, 6, 17, EL_LIFE);
+    run(24 * 3);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_LIFE), 5);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 8, 18), EL_LIFE); /* (5,15) -> (8,18) */
+}
+
+/* ---- uranium ---- */
+
+static int run_until_molten(int ticks) {
+    run(ticks);
+    return sandbox_count(&g_sb, EL_MOLTEN_URANIUM);
+}
+
+static void test_uranium_gamma_rays_stop_at_solids(void) {
+    sandbox_init(&g_sb, 30, 10, 35);
+    fill(20, 0, 20, 9, EL_STONE);
+    sandbox_set(&g_sb, 5, 5, EL_URANIUM);
+    g_sb.moved[5 * 30 + 5] |=
+        4u; /* EXCITED: it splits on its next turn (value of the engine's private bit) */
+    run(40);
+    for (int y = 0; y < 10; y++)
+        for (int x = 21; x < 30; x++)
+            CHECK(sandbox_get(&g_sb, x, y) != EL_GAMMA); /* nothing got through the stone wall */
+}
+
+static void test_big_uranium_block_melts_down(void) {
+    tank(50, 40, 36);
+    fill(18, 20, 31, 33, EL_URANIUM); /* 14 x 14: well above critical size */
+    CHECK(run_until_molten(600) > 10);
+}
+
+static void test_small_uranium_lump_is_stable(void) {
+    tank(50, 40, 37);
+    fill(22, 30, 24, 32, EL_URANIUM); /* 3 x 3 */
+    CHECK(run_until_molten(1500) == 0);
+}
+
+static void test_water_between_rods_prevents_meltdown(void) {
+    int melted[2];
+    for (int round = 0; round < 2; round++) {
+        tank(60, 40, 38);
+        if (round == 1)
+            fill(1, 10, 58, 38, EL_WATER);
+        for (int x = 10; x < 52; x += 5)
+            fill(x, 14, x + 1, 33, EL_URANIUM);
+        melted[round] = run_until_molten(1500);
+    }
+    CHECK(melted[0] > 20); /* in air the rods feed each other and melt down */
+    CHECK(melted[1] == 0); /* water soaks up the rays: the same rods stay cool */
+}
+
+static void test_molten_uranium_solidifies_in_water(void) {
+    tank(20, 20, 39);
+    fill(1, 12, 18, 18, EL_WATER);
+    sandbox_set(&g_sb, 10, 5, EL_MOLTEN_URANIUM);
+    run(100);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_MOLTEN_URANIUM), 0);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 1);
+}
+
+/* ---- the engine as a whole ---- */
+
+static void test_mass_is_conserved_for_inert_elements(void) {
+    tank(40, 40, 40);
+    for (int i = 0; i < 300; i++) {
+        sandbox_paint(&g_sb, 8 + (i * 5) % 24, 2, 1,
+                      i % 3 == 0   ? EL_SAND
+                      : i % 3 == 1 ? EL_WATER
+                                   : EL_MERCURY);
+        sandbox_step(&g_sb);
+    }
+    int total =
+        sandbox_count(&g_sb, EL_SAND) + sandbox_count(&g_sb, EL_WATER) + sandbox_count(&g_sb, EL_MERCURY);
+    run(200);
+    int after =
+        sandbox_count(&g_sb, EL_SAND) + sandbox_count(&g_sb, EL_WATER) + sandbox_count(&g_sb, EL_MERCURY);
+    CHECK_EQ_INT(after, total); /* nothing appears or disappears while only inert fluids move */
+}
+
+static void test_deterministic_with_every_element(void) {
+    static Sandbox other;
+    sandbox_init(&g_sb, 60, 40, 123);
+    sandbox_init(&other, 60, 40, 123);
+    Rng pick;
+    rng_seed(&pick, 5);
+    for (int i = 0; i < 400; i++) {
+        ElementId id = sandbox_palette_id(rng_range(&pick, 0, sandbox_palette_count() - 1));
+        int x = rng_range(&pick, 0, 59), y = rng_range(&pick, 0, 39), r = rng_range(&pick, 0, 3);
+        sandbox_paint(&g_sb, x, y, r, id);
+        sandbox_paint(&other, x, y, r, id);
+        sandbox_step(&g_sb);
+        sandbox_step(&other);
+    }
+    CHECK(memcmp(g_sb.cells, other.cells, sizeof(g_sb.cells)) == 0);
+    CHECK(memcmp(g_sb.aux, other.aux, sizeof(g_sb.aux)) == 0);
+}
+
+static void test_chaos_never_breaks_the_grid(void) {
+    sandbox_init(&g_sb, 80, 50, 99);
+    Rng pick;
+    rng_seed(&pick, 11);
+    for (int i = 0; i < 1500; i++) {
+        ElementId id = sandbox_palette_id(rng_range(&pick, 0, sandbox_palette_count() - 1));
+        sandbox_paint(&g_sb, rng_range(&pick, -5, 85), rng_range(&pick, -5, 55), rng_range(&pick, 0, 4), id);
+        sandbox_step(&g_sb);
+    }
+    for (int i = 0; i < 80 * 50; i++)
+        CHECK(g_sb.cells[i] < EL_COUNT); /* every cell is still a valid element */
+    for (int i = 80 * 50; i < SANDBOX_MAX_W * SANDBOX_MAX_H; i++)
+        CHECK_EQ_INT(g_sb.cells[i], EL_EMPTY); /* and nothing leaked outside the used area */
+}
+
+static void test_clear_resets_everything(void) {
+    sandbox_init(&g_sb, 20, 20, 1);
+    sandbox_set(&g_sb, 5, 5, EL_URANIUM);
+    g_sb.aux[5 * 20 + 5] = 99;
+    sandbox_clear(&g_sb);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 0);
+    CHECK_EQ_INT(g_sb.aux[5 * 20 + 5], 0);
+}
+
 int main(void) {
     RUN(test_grid_and_bounds);
     RUN(test_sand_falls_to_floor);
@@ -156,5 +775,52 @@ int main(void) {
     RUN(test_water_fills_a_stone_basin);
     RUN(test_element_table);
     RUN(test_deterministic);
+    RUN(test_palette);
+    RUN(test_colours_are_distinct_and_stable);
+    RUN(test_every_element_has_a_row);
+    RUN(test_brush_spray_and_hidden_cells);
+    RUN(test_set_clears_cell_memory);
+    RUN(test_sand_falls_several_cells_per_tick);
+    RUN(test_a_big_dump_splashes_wider_than_a_trickle);
+    RUN(test_a_trickle_makes_a_steep_cone);
+    RUN(test_water_levels_out_quickly);
+    RUN(test_a_settled_pool_stays_still);
+    RUN(test_water_flows_off_a_ledge);
+    RUN(test_liquids_layer_by_density);
+    RUN(test_light_powder_floats_on_water);
+    RUN(test_gas_rises_and_stays_conserved_when_sealed);
+    RUN(test_heavy_things_sink_through_light_fluids);
+    RUN(test_fire_burns_wood_to_ash);
+    RUN(test_fire_dies_without_fuel);
+    RUN(test_water_puts_out_fire);
+    RUN(test_oil_burns_and_keeps_flowing);
+    RUN(test_gunpowder_flashes_but_does_not_blast_walls);
+    RUN(test_fuse_burns_slowly_along_its_length);
+    RUN(test_tnt_explodes_and_walls_survive);
+    RUN(test_tnt_chain_reaction);
+    RUN(test_methane_burns);
+    RUN(test_lava_meets_water);
+    RUN(test_lava_turns_sand_to_glass);
+    RUN(test_thermite_burns_through_stone);
+    RUN(test_acid_dissolves_stone_but_not_glass_or_walls);
+    RUN(test_nitrogen_freezes_water);
+    RUN(test_heat_melts_ice_and_snow);
+    RUN(test_steam_condenses_back_to_water);
+    RUN(test_smoke_fades);
+    RUN(test_seed_on_soil_grows_and_seed_elsewhere_does_not);
+    RUN(test_plants_drink_water_and_grow_bigger);
+    RUN(test_plants_burn);
+    RUN(test_termites_eat_wood_and_starve);
+    RUN(test_termites_starve_without_food);
+    RUN(test_life_blinker_and_glider);
+    RUN(test_uranium_gamma_rays_stop_at_solids);
+    RUN(test_big_uranium_block_melts_down);
+    RUN(test_small_uranium_lump_is_stable);
+    RUN(test_water_between_rods_prevents_meltdown);
+    RUN(test_molten_uranium_solidifies_in_water);
+    RUN(test_mass_is_conserved_for_inert_elements);
+    RUN(test_deterministic_with_every_element);
+    RUN(test_chaos_never_breaks_the_grid);
+    RUN(test_clear_resets_everything);
     return TEST_SUMMARY();
 }
