@@ -128,7 +128,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
       </a>
       <p align="left">
-        Mainan falling-sand dengan 29 elemen: pasir, air, lava, api, TNT, asam, tanaman, rayap, uranium, dan lebih banyak lagi. Gambar dengan mouse, ganti elemen, perhatikan reaksi berlangsung sel demi sel.<br/>
+        Mainan falling-sand dengan 34 elemen dan suhu yang dihitung nyata: pasir, air, lava, api, TNT yang benar-benar meledak, uranium yang bisa meratakan dunia, baja yang menghantar panas dan bata yang menyekat, dan lebih banyak lagi. Gambar dengan mouse, arahkan pointer untuk melihat suhu, tekan T untuk tampilan termal.<br/>
         <b>Kontrol:</b> Klik atau seret untuk melukis (klik kanan menghapus), klik palet, tombol 0-9, [ ] atau roda mouse untuk memilih elemen, +/- untuk ukuran kuas, Space untuk jeda, C untuk membersihkan, R untuk mereset.
       </p>
     </td>

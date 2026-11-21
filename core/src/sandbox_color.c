@@ -3,8 +3,6 @@
  * Everything here is a pure function of the grid and the tick: no random state is consumed. */
 #include "sandbox_internal.h"
 
-#define BURN_BIT 0x80u /* same meaning as in sandbox_react.c */
-
 static uint32_t hash3(uint32_t a, uint32_t b, uint32_t c) {
     uint32_t h = a * 0x9E3779B1u ^ b * 0x85EBCA6Bu ^ c * 0xC2B2AE35u;
     h ^= h >> 15;
@@ -44,10 +42,8 @@ static int grain(uint32_t h, int amount) {
     return ((int)(h & 255u) - 128) * amount / 128;
 }
 
-uint32_t sandbox_pixel(const Sandbox *sb, int x, int y) {
+static uint32_t cell_color(const Sandbox *sb, int x, int y) {
     int i = y * sb->w + x;
-    if (!sandbox_inside(sb, x, y))
-        return 0;
     ElementId id = (ElementId)sb->cells[i];
     const ElementDef *d = sandbox_element(id);
     Rgb bg = rgb(sandbox_element(EL_EMPTY)->r, sandbox_element(EL_EMPTY)->g, sandbox_element(EL_EMPTY)->b);
@@ -114,7 +110,7 @@ uint32_t sandbox_pixel(const Sandbox *sb, int x, int y) {
             c = ((sb->tick >> 1) & 1u) ? rgb(255, 245, 230) : rgb(255, 60, 40); /* a lit charge blinks */
         break;
     case EL_URANIUM:
-        c = mix(c, rgb(214, 255, 130), aux);
+        c = mix(c, rgb(214, 255, 130), arc_clampi((sb->temp[i] - SANDBOX_AMBIENT) * 255 / 1200, 0, 255));
         if (sb->moved[i] & EXCITED)
             c = rgb(255, 255, 240);
         break;
@@ -127,8 +123,77 @@ uint32_t sandbox_pixel(const Sandbox *sb, int x, int y) {
     case EL_LIFE:
         c = add(c, (int)((sb->tick / LIFE_PERIOD + (uint32_t)(x + y)) & 1u) * 14);
         break;
+    case EL_STEEL:
+        if (y % 3 == 0) /* brushed metal */
+            c = add(c, 18);
+        if (open_above)
+            c = add(c, 22);
+        break;
+    case EL_BRICK: { /* courses of bricks with mortar between them */
+        int row = y / 4;
+        int off = (row & 1) ? 4 : 0;
+        if (y % 4 == 0 || (x + off) % 8 == 0)
+            c = mix(c, rgb(196, 188, 176), 200);
+        break;
+    }
+    case EL_HEATER: {
+        int pulse = (int)((sb->tick / 3 + (uint32_t)(x * 3 + y * 5)) % 12u);
+        c = mix(c, rgb(255, 150, 60), pulse < 3 ? 140 - pulse * 40 : 24);
+        break;
+    }
+    case EL_COOLER: {
+        int pulse = (int)((sb->tick / 3 + (uint32_t)(x * 5 + y * 3)) % 12u);
+        c = mix(c, rgb(170, 235, 255), pulse < 3 ? 130 - pulse * 40 : 20);
+        break;
+    }
     default:
         break;
     }
+    /* incandescence: whatever is hot enough glows red, then orange, then white-yellow */
+    int temp = sb->temp[i];
+    if (temp >= 450 && d->kind != MOVE_GAS && d->kind != MOVE_FIRE && d->kind != MOVE_RAY && id != EL_LAVA &&
+        id != EL_MOLTEN_URANIUM && id != EL_HEATER && !(aux & BURN_BIT && d->ignite > 0)) {
+        Rgb glow = temp < 800    ? mix(rgb(190, 36, 20), rgb(255, 120, 30), (temp - 450) * 256 / 350)
+                   : temp < 1200 ? mix(rgb(255, 120, 30), rgb(255, 210, 120), (temp - 800) * 256 / 400)
+                                 : mix(rgb(255, 210, 120), rgb(255, 245, 220), (temp - 1200) * 256 / 600);
+        c = mix(c, glow, (temp - 450) * 256 / 350 + 40);
+    }
     return pack(c);
+}
+
+/* Thermal map: blue is cold, a dim teal is room temperature, then yellow, orange, red and white as it heats
+ * up. */
+static uint32_t heat_color(const Sandbox *sb, int i) {
+    static const struct {
+        int t;
+        int r, g, b;
+    } stops[] = {{-200, 90, 110, 255},  {-60, 40, 150, 255},  {5, 36, 200, 215},   {20, 28, 52, 66},
+                 {60, 120, 170, 60},    {150, 235, 215, 60},  {400, 255, 140, 30}, {800, 235, 50, 30},
+                 {1300, 255, 200, 140}, {2200, 255, 255, 255}};
+    const int n = (int)(sizeof stops / sizeof stops[0]);
+    if (sb->cells[i] == EL_EMPTY)
+        return pack(rgb(10, 14, 24));
+    int t = sb->temp[i];
+    if (t <= stops[0].t)
+        return pack(rgb(stops[0].r, stops[0].g, stops[0].b));
+    for (int k = 1; k < n; k++) {
+        if (t <= stops[k].t) {
+            int span = stops[k].t - stops[k - 1].t;
+            int f = (t - stops[k - 1].t) * 256 / span;
+            return pack(mix(rgb(stops[k - 1].r, stops[k - 1].g, stops[k - 1].b),
+                            rgb(stops[k].r, stops[k].g, stops[k].b), f));
+        }
+    }
+    return pack(rgb(255, 255, 255));
+}
+
+uint32_t sandbox_pixel(const Sandbox *sb, int x, int y) {
+    if (!sandbox_inside(sb, x, y))
+        return 0;
+    uint32_t px = sb->heat_view ? heat_color(sb, y * sb->w + x) : cell_color(sb, x, y);
+    if (sb->flash > 0) { /* the white-out after a huge blast */
+        Rgb c = rgb((int)((px >> 16) & 255u), (int)((px >> 8) & 255u), (int)(px & 255u));
+        px = pack(mix(c, rgb(255, 250, 235), sb->flash));
+    }
+    return px;
 }

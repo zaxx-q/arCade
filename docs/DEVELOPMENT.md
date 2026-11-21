@@ -142,7 +142,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Beat Dodge & Catch | `games/beat_dodge/` | Member 5                | Jalan (dua mode, Dodge dan Catch, dipilih di layar pilih lagu; lagu dari MIDI, ribbon, close call, combo, health, musik sintesis, 3 kesulitan) |
 | Absorb & Grow | `deferred/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
 | Sort It       | `deferred/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
-| Sandbox       | `deferred/sandbox/`       | Leader                     | Jalan (falling-sand 29 elemen; engine-nya jalankan background menu)        |
+| Sandbox       | `deferred/sandbox/`       | Leader                     | Jalan (falling-sand 34 elemen dengan suhu dan ledakan; engine-nya jalankan background menu)        |
 | Post It       | `deferred/post_it/`       | Leader                     | Jalan (miring dunia lewat mouse, gulusan post-it, virus, jeda)             |
 | Master Juggler | `deferred/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa)                                    |
 | BW Reflex     | `deferred/bw_reflex/`     | Leader                     | Jalan (balik warna dasar, kecepatan naik tiap cocok)                       |

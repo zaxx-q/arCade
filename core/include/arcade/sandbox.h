@@ -5,7 +5,9 @@
  *   sandbox_elements.c  the element table: name, colour, density, how it moves, how it reacts
  *   sandbox_move.c      movement rules for powders, liquids, gases, fire, rays and crawlers
  *   sandbox_react.c     chemistry: fire, lava, acid, plants, explosives, uranium, termites, life
- *   sandbox_color.c     the colour of one cell (shading, glow) so renderers stay trivial
+ *   sandbox_heat.c      temperature: conduction, insulators, phase changes, auto-ignition
+ *   sandbox_blast.c     explosions: shock waves that shatter, push and burn what is around them
+ *   sandbox_color.c     the colour of one cell (shading, glow, heat view) so renderers stay trivial
  *
  * To add an element:
  *   1. add an ElementId before EL_COUNT                      (this file)
@@ -36,6 +38,7 @@ typedef enum ElementId {
     EL_SEED,
     EL_ASH,
     EL_THERMITE,
+    EL_GRAVEL,
     /* liquids */
     EL_OIL,
     EL_ACID,
@@ -51,11 +54,15 @@ typedef enum ElementId {
     EL_ICE,
     EL_GLASS,
     EL_WALL,
+    EL_STEEL, /* conducts heat very well */
+    EL_BRICK, /* hardly conducts heat at all: an insulator */
     EL_PLANT,
     EL_FUSE,
     EL_TNT,
     /* energetic and alive */
     EL_FIRE,
+    EL_HEATER, /* a block that is always 700 degrees */
+    EL_COOLER, /* a block that is always -80 degrees */
     EL_URANIUM,
     EL_TERMITE,
     EL_LIFE,
@@ -95,14 +102,39 @@ typedef struct ElementDef {
     uint8_t spray;  /* brush density: chance (out of 256) that a painted cell is filled */
 } ElementDef;
 
-/* Per-cell memory. `aux` means something different for each element (fire: remaining life, uranium: heat,
- * plant: growth budget, wood: burn timer, ...). It is 0 for a freshly painted cell. See sandbox_react.c. */
+/* Temperatures are whole degrees Celsius. An empty cell is always at the ambient temperature. */
+#define SANDBOX_AMBIENT 20
+#define SANDBOX_TEMP_MIN (-273)
+#define SANDBOX_TEMP_MAX 9000
+
+/* A shock wave that is still travelling outwards (only big blasts are spread over several ticks; small ones
+ * finish within the tick that made them). One ray per cell on the border of a square around the centre. */
+#define SANDBOX_MAX_RAYS 1400
+typedef struct Shock {
+    bool active;
+    int cx, cy;
+    int reach; /* the wave stops after this many steps; the border of the square is `reach` cells away */
+    int front; /* how many steps the wave has travelled so far */
+    int power; /* the energy it started with */
+    int16_t energy[SANDBOX_MAX_RAYS];
+} Shock;
+
+/* Per-cell memory. `aux` means something different for each element (fire: remaining life, plant: growth
+ * budget, wood: burn timer, ...). It is 0 for a freshly painted cell. See sandbox_react.c. `temp` is the
+ * cell's temperature; it travels with the cell when it moves (see sandbox_heat.c). */
 typedef struct Sandbox {
     int w, h;
     uint8_t cells[SANDBOX_MAX_W * SANDBOX_MAX_H];
     uint8_t aux[SANDBOX_MAX_W * SANDBOX_MAX_H];
     /* scratch: bit 0 = moved this tick, bit 1 = moved last tick (travels with the cell) */
     uint8_t moved[SANDBOX_MAX_W * SANDBOX_MAX_H];
+    int16_t temp[SANDBOX_MAX_W * SANDBOX_MAX_H];
+    int16_t heat_flow[SANDBOX_MAX_W * SANDBOX_MAX_H]; /* scratch for the conduction pass */
+    uint8_t heat_rows[SANDBOX_MAX_H];                 /* 1 = this row may hold something not at ambient */
+    Shock shock;
+    int flash;        /* 0..255: the white-out after a huge blast; fades by itself */
+    int blast_budget; /* TNT blasts still allowed this tick: a huge stack rolls on over several ticks */
+    bool heat_view;   /* render as a thermal map instead of the normal colours */
     unsigned tick;
     Rng rng;
 } Sandbox;
@@ -119,6 +151,15 @@ int sandbox_count(const Sandbox *sb, ElementId id);
 /* Like sandbox_count, but only inside the w x h rectangle whose top-left cell is (x, y).
  * The rectangle is clipped to the grid. Used by the hub's vault to measure how full it is. */
 int sandbox_count_in(const Sandbox *sb, int x, int y, int w, int h, ElementId id);
+
+/* Temperature of a cell in degrees Celsius (SANDBOX_AMBIENT for empty cells and outside the grid). */
+int sandbox_temp(const Sandbox *sb, int x, int y);
+/* Set or change the temperature of a non-empty cell (clamped to the allowed range). */
+void sandbox_set_temp(Sandbox *sb, int x, int y, int degrees);
+void sandbox_add_heat(Sandbox *sb, int x, int y, int degrees);
+/* A blast of the given power at (x, y): a shock wave reaches about `power` cells in open air and loses energy
+ * on everything it crosses. Walls stop it; stone, wood and glass shatter; sand, water and gas are thrown. */
+void sandbox_blast(Sandbox *sb, int x, int y, int power);
 
 /* The on-screen colour of cell (x, y) as 0xRRGGBB. Pure: same cell, same tick => same colour. */
 uint32_t sandbox_pixel(const Sandbox *sb, int x, int y);
