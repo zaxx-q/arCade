@@ -137,8 +137,8 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | ------------- | ---------------------- | -------------------------- | -------------------------------------------------------------------------- |
 | Time Shooter  | `deferred/time_shooter/`  | Member 1                   | Mekanik inti jalan (slow-motion, wave, shake)                              |
 | Echo Maze     | `deferred/echo_maze/`     | Member 2                   | Mekanik inti jalan (generator rekursif, pulse sonar, line of sight)        |
-| Laser Mirrors | `deferred/laser_mirrors/` | Member 3                   | Mekanik inti jalan (level contoh, pelacakan sinar rekursif)                |
-| Ghost Loop    | `deferred/ghost_loop/`    | Member 4                   | Mekanik inti jalan (record/replay, saklar lantai, logic pintu)             |
+| Laser Mirrors | `deferred/laser_mirrors/` | Member 3                   | Jalan (kampanye 12 level, par per level; solver membuktikan satu solusi per level) |
+| Ghost Loop    | `deferred/ghost_loop/`    | Member 4                   | Jalan (kampanye 6 level: dinding, banyak pad dan pintu, relay antar ghost; tanpa celah, dibuktikan flood fill) |
 | Beat Dodge & Catch | `games/beat_dodge/` | Member 5                | Jalan (dua mode, Dodge dan Catch, dipilih di layar pilih lagu; lagu dari MIDI, ribbon, close call, combo, health, musik sintesis, 3 kesulitan) |
 | Absorb & Grow | `deferred/absorb_grow/`   | Member 6 (+ editor laporan) | Mekanik inti jalan (aturan pertumbuhan, skala respawn predator)           |
 | Sort It       | `deferred/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
@@ -163,7 +163,7 @@ Setiap pemilik game mengubah placeholder miliknya menjadi game yang utuh:
 ### Fase 3: Peningkatan Hub & Backlog
 
 - [ ] Beatmap tambahan untuk Beat Dodge & Catch (`assets/beatmaps/`).
-- [ ] Level puzzle tambahan untuk Laser Mirrors dan Ghost Loop.
+- [x] Level puzzle tambahan untuk Laser Mirrors (12 level) dan Ghost Loop (6 level). Level baru untuk keduanya masih bisa ditambah lewat tabel level masing-masing.
 - [ ] Elemen pasir tambahan (emitter, kabel, tumbuhan lain - lihat "Ide berikutnya" di `docs/SANDBOX.md`).
 - [ ] Game tambahan (opsional) dengan `cmake -DID=... -DTITLE=... -DOWNER=... -P tools/new_game.cmake`.
 - [ ] Rincian per game (mis. membuat Beat Dodge lebih sulit, memperbaiki level tutorial) ada di bagian "Prioritas dari diskusi tim" di tiap `GAME.md`.

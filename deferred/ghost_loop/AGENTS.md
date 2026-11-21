@@ -24,6 +24,8 @@ Past runs replay as ghosts that help you. Rules and status: `GAME.md`.
 - Player and ghosts MUST move through the same function (`move_actor`). A second movement code path breaks replays.
 - Ghosts store inputs (`gl_Move`), not positions. Keep inputs quantized to -1/0/1.
 - `GL_ROUND_STEPS` bounds every array; do not index past `step`.
+- Levels live in the `k_levels` table (walls, pads, doors, ghost slots, par). A barrier is two wall pieces plus a door filling the gap, spanning the whole room, so a closed door can never be walked around. Never leave a gap: `test_no_door_can_be_walked_around` flood-fills every level to prove it.
+- Every level needs an intended solution in `tests/test_ghost_loop.c` (`k_solution`): the test replays it through the real `ghost_loop_step` and requires the level to be cleared with exactly `par_ghosts` ghosts. A pad must stay out of reach of the doors it opens (`test_a_pad_cannot_open_its_own_door...`) or a lone player could ride a door.
 - Test: `ctest --preset logic -R "^ghost_loop\."`
 - Follow the game contract in `../AGENTS.md` (loop pattern, determinism, fixed arrays, `finished` semantics).
 
