@@ -41,7 +41,7 @@ Kesimpulan: apa yang diperlihatkan proyek ini. Saran: backlog (bagian 7 "Roadmap
 | 2 | Input, output | input keyboard/mouse `arcade_poll`; output layar (raylib); output console `--list`, `--help`; file I/O |
 | 3 | Tipe data, pseudocode | `float`, `int`, `bool`, `uint8_t`, `char[]`; pseudocode di `GAME.md` |
 | 4 | Operator | aritmetika dan logika di mana-mana; bitwise di `laser_mirrors_logic.c` (`1u << d`, `d ^ 1`) |
-| 5 | Percabangan | `if`/`switch`: `laser_mirrors_init`, state machine layar di `app/main.c` |
+| 5 | Percabangan | `if`/`switch`: `laser_mirrors_load_rows`, state machine layar di `app/main.c` |
 | 6 | Perulangan | frame loop, loop bersarang pada grid (`sandbox_step`, `advance_ping`) |
 | 9 | Array, string | grid (`wall[][]`, `cells[]`), parsing di `bd_song_load`, `lb_find_player` |
 | 10 | Pointer | `swap_int(int*, int*)`, setiap parameter `State *s` |
