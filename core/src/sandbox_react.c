@@ -1,32 +1,35 @@
 /* Chemistry. sandbox_react() runs once per cell per tick, right before the cell moves (see sandbox_step).
  * It may change the cell, its neighbours, or both; a cell that was changed is marked "moved" by sandbox_put()
  * and then waits for the next tick, so a reaction never chains through the whole grid in one tick.
+ * Temperature (phase changes, self-ignition) lives in sandbox_heat.c and explosions in sandbox_blast.c.
  *
  * Per-cell memory (Sandbox.aux), by element:
  *   Fire      age in ticks
  *   Wood, Plant, Fuse, Oil
  *             bit 7 = burning; low 7 bits = burn timer. A Plant that is not burning keeps its growth budget
- * there. TNT       0 = idle, otherwise the countdown to the blast Lava      0 = plain lava; >0 = thermite
- * melt power that wears off and lets it eat through solids Uranium   heat (250 = meltdown). Sandbox.moved bit
- * EXCITED = a gamma ray hit it, it splits next turn Gamma     direction (top 3 bits) and remaining flight
- * (low 5 bits) Termite   hunger Tuning numbers sit in the #defines so they can be found in one place. */
+ *             there
+ *   TNT       0 = idle, otherwise the countdown to the blast
+ *   Lava      0 = plain lava; >0 = thermite melt power that wears off and lets it eat through solids
+ *   Uranium   none: its heat is its temperature. moved bit EXCITED = hit by a gamma ray, splits next turn
+ *   Gamma     direction (top 3 bits) and remaining flight (low 5 bits)
+ *   Termite   hunger
+ * Tuning numbers sit in the #defines so they can be found in one place. */
 #include <string.h>
 
 #include "sandbox_internal.h"
 
-#define BURN_BIT 0x80u
-#define BURN_TIMER(a) ((a) & 0x7Fu)
-
 #define THERMITE_POWER 110 /* melt power of freshly ignited thermite */
 #define TNT_DELAY 4        /* ticks between catching fire and blowing up */
-#define TNT_RADIUS 8
-#define FUSE_DELAY 6 /* ticks a burning fuse cell waits before it lights the next cell */
+#define TNT_POWER 56       /* a TNT cell blows with this much energy: a crater a couple of dozen cells wide */
+#define FUSE_DELAY 6       /* ticks a burning fuse cell waits before it lights the next cell */
 #define FUSE_LENGTH 10
 
-#define URANIUM_MELT 250
-#define FISSION_HEAT 22
-#define GAMMA_HIT 140 /* chance (/256) that a gamma ray makes uranium split */
-#define GAMMA_LIFE 22 /* how many ticks a ray flies at most */
+#define URANIUM_CRIT 900 /* degrees at which a lump goes critical (lava gets it there; a heater does not) */
+#define NUKE_MIN 12      /* a critical lump this big (cells) detonates; a smaller one only melts */
+#define FISSION_HEAT 110 /* degrees a cell warms up each time it splits */
+#define GAMMA_WARM 30    /* ... and when a ray hits it without making it split */
+#define GAMMA_HIT 140    /* chance (/256) that a gamma ray makes uranium split */
+#define GAMMA_LIFE 22    /* how many ticks a ray flies at most */
 
 static int cell_at(const Sandbox *sb, int x, int y) {
     return y * sb->w + x;
@@ -37,7 +40,7 @@ static bool burning(const Sandbox *sb, int i) {
     return (id == EL_WOOD || id == EL_PLANT || id == EL_FUSE || id == EL_OIL) && (sb->aux[i] & BURN_BIT);
 }
 
-static bool is_flammable_now(const Sandbox *sb, int i) {
+bool sandbox_flammable_now(const Sandbox *sb, int i) {
     ElementId id = (ElementId)sb->cells[i];
     if (sandbox_element(id)->ignite == 0)
         return false;
@@ -75,7 +78,7 @@ static bool cold_near(const Sandbox *sb, int x, int y) {
     return false;
 }
 
-static void ignite(Sandbox *sb, int x, int y) {
+void sandbox_ignite(Sandbox *sb, int x, int y) {
     int i = cell_at(sb, x, y);
     switch ((ElementId)sb->cells[i]) {
     case EL_WOOD:
@@ -91,54 +94,16 @@ static void ignite(Sandbox *sb, int x, int y) {
         break;
     case EL_THERMITE:
         sandbox_put(sb, x, y, EL_LAVA, THERMITE_POWER);
+        sandbox_set_temp(sb, x, y, 2400); /* far hotter than ordinary lava */
         break;
     case EL_METHANE:
         sandbox_put(sb, x, y, EL_FIRE, 0);
         if (sandbox_chance(sb, 16))
-            sandbox_explode(sb, x, y, 2); /* now and then a pocket of gas goes off with a pop */
+            sandbox_blast(sb, x, y, 5); /* now and then a pocket of gas goes off with a pop */
         break;
     default:
         sandbox_put(sb, x, y, EL_FIRE, 0);
         break;
-    }
-}
-
-/* ---- explosions ---- */
-
-void sandbox_explode(Sandbox *sb, int cx, int cy, int radius) {
-    int r2 = radius * radius;
-    for (int dy = -radius; dy <= radius; dy++) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            int d2 = dx * dx + dy * dy;
-            int x = cx + dx, y = cy + dy;
-            if (d2 > r2 || !sandbox_inside(sb, x, y))
-                continue;
-            int i = cell_at(sb, x, y);
-            ElementId id = (ElementId)sb->cells[i];
-            const ElementDef *d = sandbox_element(id);
-            if (d->density >= 200 && id != EL_EMPTY)
-                continue; /* walls shrug it off */
-            if (id == EL_TNT && d2 > 0) {
-                if (sb->aux[i] == 0) { /* neighbouring charges go off a moment later: a rolling blast */
-                    sb->aux[i] = 1;
-                    sb->moved[i] |= MOVED_NOW;
-                }
-                continue;
-            }
-            bool core = d2 * 100 < r2 * 45;
-            if (core) {
-                sandbox_put(sb, x, y, EL_FIRE, 0);
-            } else if (id == EL_EMPTY) {
-                if (sandbox_chance(sb, 50))
-                    sandbox_put(sb, x, y, EL_FIRE, 0);
-            } else if (is_flammable_now(sb, i)) {
-                ignite(sb, x, y);
-            } else {
-                int frac = d2 * 255 / r2; /* 0 at the centre, 255 at the edge */
-                if (sandbox_chance(sb, 215 - frac / 2))
-                    sandbox_put(sb, x, y, sandbox_chance(sb, 40) ? EL_SMOKE : EL_EMPTY, 0);
-            }
-        }
     }
 }
 
@@ -155,7 +120,6 @@ static bool spawn_gamma(Sandbox *sb, int x, int y, int dir) {
 /* A uranium atom splits: 2 or 3 rays fly out. A ray that has no room (the cell beside it is solid) goes
  * straight into that neighbour, so a solid block can pass the reaction on from the inside. */
 static void fission(Sandbox *sb, int x, int y) {
-    int i = cell_at(sb, x, y);
     int rays = 2 + (sandbox_chance(sb, 150) ? 1 : 0);
     for (int r = 0; r < rays; r++) {
         int dir = sandbox_rand(sb, 8);
@@ -165,7 +129,7 @@ static void fission(Sandbox *sb, int x, int y) {
         if (sandbox_inside(sb, nx, ny))
             sandbox_gamma_hit(sb, nx, ny);
     }
-    sb->aux[i] = (uint8_t)arc_mini(255, sb->aux[i] + FISSION_HEAT);
+    sandbox_add_heat(sb, x, y, FISSION_HEAT);
 }
 
 void sandbox_gamma_hit(Sandbox *sb, int x, int y) {
@@ -175,7 +139,7 @@ void sandbox_gamma_hit(Sandbox *sb, int x, int y) {
         if (sandbox_chance(sb, GAMMA_HIT))
             sb->moved[i] |= EXCITED; /* splits on its own turn, so the reaction spreads one cell per tick */
         else
-            sb->aux[i] = (uint8_t)arc_mini(255, sb->aux[i] + 6);
+            sandbox_add_heat(sb, x, y, GAMMA_WARM);
         break;
     case EL_WATER:
         if (sandbox_chance(sb, 10))
@@ -189,44 +153,71 @@ void sandbox_gamma_hit(Sandbox *sb, int x, int y) {
     }
 }
 
-static void react_uranium(Sandbox *sb, int x, int y) {
-    int i = cell_at(sb, x, y);
-    int heat = sb->aux[i];
-    int coolant = 0, water = 0;
-    for (int dir = 0; dir < 8; dir += 2) {
-        ElementId id = sandbox_at(sb, x + sandbox_dx(dir), y + sandbox_dy(dir));
-        if (id == EL_WATER) {
-            coolant += 2;
-            water++;
-        } else if (id == EL_NITROGEN)
-            coolant += 6;
-        else if (id == EL_ICE)
-            coolant += 1;
-    }
-    if (coolant > 0)
-        heat = arc_maxi(0, heat - coolant);
-    else if (heat > 0 && sandbox_chance(sb, 64))
-        heat--;
-    sb->aux[i] = (uint8_t)heat;
-
-    if (water > 0 && heat > 150 && sandbox_chance(sb, 24)) { /* hot fuel boils the coolant */
-        for (int dir = 0; dir < 8; dir += 2) {
-            int nx = x + sandbox_dx(dir), ny = y + sandbox_dy(dir);
-            if (sandbox_at(sb, nx, ny) == EL_WATER) {
-                sandbox_put(sb, nx, ny, EL_STEAM, 0);
-                break;
+/* A critical lump of uranium. Everything uranium that touches it, 8 ways, is part of the same lump. The lump
+ * is gathered with a flood fill (BLASTED marks the cells already visited) and then goes up at once: all of it
+ * vanishes and the blast is as strong as the lump is big, so a few dozen cells already wipe out a whole
+ * corner of the world and a huge heap takes everything with it. A few cells are left behind as hot
+ * molten fallout. A lump smaller than NUKE_MIN only melts. */
+static void meltdown(Sandbox *sb, int x0, int y0) {
+    static int stack[SANDBOX_MAX_W * SANDBOX_MAX_H];
+    int top = 0, n = 0;
+    long sx = 0, sy = 0;
+    int start = cell_at(sb, x0, y0);
+    stack[top++] = start;
+    sb->moved[start] |= BLASTED;
+    int head = 0;
+    while (head < top) {
+        int i = stack[head++];
+        n++;
+        sx += i % sb->w;
+        sy += i / sb->w;
+        for (int dir = 0; dir < 8; dir++) {
+            int nx = i % sb->w + sandbox_dx(dir), ny = i / sb->w + sandbox_dy(dir);
+            if (!sandbox_inside(sb, nx, ny))
+                continue;
+            int j = cell_at(sb, nx, ny);
+            ElementId id = (ElementId)sb->cells[j];
+            if ((id == EL_URANIUM || id == EL_MOLTEN_URANIUM) && !(sb->moved[j] & BLASTED) &&
+                top < (int)(sizeof stack / sizeof stack[0])) {
+                sb->moved[j] |= BLASTED;
+                stack[top++] = j;
             }
         }
     }
+    if (n < NUKE_MIN) {
+        sandbox_put(sb, x0, y0, EL_MOLTEN_URANIUM, 0);
+        return;
+    }
+    int cx = (int)(sx / n), cy = (int)(sy / n);
+    int fallout = 0;
+    for (int k = 0; k < n; k++) {
+        int i = stack[k];
+        int x = i % sb->w, y = i / sb->w;
+        if (sandbox_chance(sb, 30) && fallout < 60) {
+            fallout++;
+            sandbox_put(sb, x, y, EL_MOLTEN_URANIUM, 0);
+        } else {
+            sandbox_put(sb, x, y, EL_FIRE, 0);
+        }
+    }
+    int power = 18;
+    int root = 0;
+    while ((root + 1) * (root + 1) <= n)
+        root++;
+    power += 7 * root;
+    sandbox_blast(sb, cx, cy, power);
+}
 
+static void react_uranium(Sandbox *sb, int x, int y) {
+    int i = cell_at(sb, x, y);
     if (sb->moved[i] & EXCITED) {
         sb->moved[i] &= (uint8_t)~EXCITED;
         fission(sb, x, y);
     } else if ((rng_u32(&sb->rng) & 1023u) == 0u) {
         fission(sb, x, y); /* spontaneous decay: a lump of uranium crackles quietly on its own */
     }
-    if (sb->aux[i] >= URANIUM_MELT)
-        sandbox_put(sb, x, y, EL_MOLTEN_URANIUM, 0);
+    if (sb->temp[i] >= URANIUM_CRIT)
+        meltdown(sb, x, y);
 }
 
 static void react_molten(Sandbox *sb, int x, int y) {
@@ -237,6 +228,7 @@ static void react_molten(Sandbox *sb, int x, int y) {
         if (sandbox_at(sb, nx, ny) == EL_WATER && sandbox_chance(sb, 90)) {
             sandbox_put(sb, nx, ny, EL_STEAM, 0);
             sandbox_put(sb, x, y, EL_URANIUM, 0); /* quenched: it freezes back into a lump */
+            sandbox_set_temp(sb, x, y, 150);
             return;
         }
     }
@@ -294,7 +286,7 @@ static void react_fire(Sandbox *sb, int x, int y) {
             sandbox_put(sb, x, y, EL_EMPTY, 0);
             return;
         }
-        if (is_flammable_now(sb, cell_at(sb, nx, ny)))
+        if (sandbox_flammable_now(sb, cell_at(sb, nx, ny)))
             fuel_near = true;
     }
     int age = sb->aux[i];
@@ -329,9 +321,9 @@ static void react_burning(Sandbox *sb, int x, int y, ElementId id) {
     if (id == EL_FUSE && timer == FUSE_DELAY) { /* the flame creeps on to the next piece of fuse or charge */
         for (int dir = 0; dir < 8; dir += 2) {
             int nx = x + sandbox_dx(dir), ny = y + sandbox_dy(dir);
-            if (sandbox_inside(sb, nx, ny) && is_flammable_now(sb, cell_at(sb, nx, ny)) &&
+            if (sandbox_inside(sb, nx, ny) && sandbox_flammable_now(sb, cell_at(sb, nx, ny)) &&
                 sandbox_element(sandbox_at(sb, nx, ny))->ignite >= 40)
-                ignite(sb, nx, ny);
+                sandbox_ignite(sb, nx, ny);
         }
     }
     if (timer < 127)
@@ -509,6 +501,16 @@ static void react_nitrogen(Sandbox *sb, int x, int y) {
     }
 }
 
+/* Convection: in a liquid, a warmer cell rises through the cooler cell of the same liquid above it, so a pot
+ * heated from below warms up all the way to the top. */
+static void convect(Sandbox *sb, int x, int y) {
+    if (y == 0)
+        return;
+    int i = cell_at(sb, x, y), up = cell_at(sb, x, y - 1);
+    if (sb->cells[up] == sb->cells[i] && sb->temp[up] + 3 <= sb->temp[i] && sandbox_chance(sb, 70))
+        sandbox_swap(sb, i, up);
+}
+
 /* ---- the dispatcher ---- */
 
 void sandbox_react(Sandbox *sb, int x, int y) {
@@ -516,8 +518,18 @@ void sandbox_react(Sandbox *sb, int x, int y) {
     ElementId id = (ElementId)sb->cells[i];
     const ElementDef *d = sandbox_element(id);
 
-    if (d->ignite && is_flammable_now(sb, i) && hot_near(sb, x, y, id) && sandbox_chance(sb, d->ignite)) {
-        ignite(sb, x, y);
+    if (sandbox_heat_react(sb, x, y))
+        return; /* it boiled, froze, melted or caught fire because of its temperature */
+
+    if (d->kind == MOVE_LIQUID) {
+        convect(sb, x, y);
+        if (sb->moved[i] & MOVED_NOW)
+            return;
+    }
+
+    if (d->ignite && sandbox_flammable_now(sb, i) && hot_near(sb, x, y, id) &&
+        sandbox_chance(sb, d->ignite)) {
+        sandbox_ignite(sb, x, y);
         return;
     }
 
@@ -539,8 +551,14 @@ void sandbox_react(Sandbox *sb, int x, int y) {
         break;
     case EL_TNT:
         if (sb->aux[i] > 0) {
-            if (++sb->aux[i] >= TNT_DELAY)
-                sandbox_explode(sb, x, y, TNT_RADIUS);
+            if (sb->aux[i] < TNT_DELAY)
+                sb->aux[i]++;
+            if (sb->aux[i] >= TNT_DELAY &&
+                sb->blast_budget > 0) { /* a huge stack goes off over a few ticks */
+                sb->blast_budget--;
+                sandbox_put(sb, x, y, EL_FIRE, 0);
+                sandbox_blast(sb, x, y, TNT_POWER);
+            }
         }
         break;
     case EL_LAVA:
@@ -574,8 +592,9 @@ void sandbox_react(Sandbox *sb, int x, int y) {
             sandbox_put(sb, x, y, EL_WATER, 0);
         break;
     case EL_STEAM:
-        if (sandbox_chance(sb, cold_near(sb, x, y) ? 60 : 3))
-            sandbox_put(sb, x, y, EL_WATER, 0); /* condenses back into a drop */
+        if (cold_near(sb, x, y) && sandbox_chance(sb, 60))
+            sandbox_put(sb, x, y, EL_WATER,
+                        0); /* touching ice condenses it at once; otherwise it cools on its own */
         break;
     case EL_SMOKE:
         if (sandbox_chance(sb, 3))

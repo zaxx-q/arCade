@@ -2,8 +2,30 @@
 #include "arcade/gfx.h"
 #include "sandbox_logic.h"
 
-static const char k_hint[] =
-    "0-9 / [ ] / wheel: element   +/-: brush   C: clear   R: reset   Space: pause   right mouse: erase";
+static const char k_hint[] = "0-9 / [ ] / wheel: element   +/-: brush   T: thermal view   C: clear   "
+                             "R: reset   Space: pause   right mouse: erase";
+
+/* "Steel  412 C" for the cell under the pointer (the built-in font has no degree sign). */
+static const char *probe_text(const sbx_State *s, const ArcadeInput *in) {
+    ElementId id;
+    int t;
+    if (!sbx_probe(s, in->aim_x, in->aim_y, &id, &t))
+        return NULL;
+    return TextFormat("%s  %d C", id == EL_EMPTY ? "Air" : sandbox_element(id)->name, t);
+}
+
+/* A small label next to the pointer, kept inside the window. */
+static void draw_probe_tip(const char *text, const ArcadeInput *in) {
+    int w = gfx_text_width(text, 16) + 12;
+    int x = (int)in->aim_x + 16, y = (int)in->aim_y + 14;
+    if (x + w > ARC_SCREEN_W - 4)
+        x = (int)in->aim_x - 16 - w;
+    if (y + 24 > SBX_H * SBX_CELL)
+        y = (int)in->aim_y - 14 - 24;
+    DrawRectangle(x, y, w, 24, Fade(ARC_COL_PANEL, 0.9f));
+    DrawRectangleLines(x, y, w, 24, Fade(WHITE, 0.25f));
+    gfx_text(text, x + 6, y + 4, 16, ARC_COL_TEXT);
+}
 
 static void draw_palette(const sbx_State *s, const ArcadeInput *in) {
     DrawRectangle(0, SBX_PAL_Y - SBX_PAL_PAD, ARC_SCREEN_W, ARC_SCREEN_H - SBX_PAL_Y + SBX_PAL_PAD,
@@ -25,8 +47,26 @@ static void draw_palette(const sbx_State *s, const ArcadeInput *in) {
     }
 }
 
+/* One frame: the world, the brush outline, the HUD, the temperature label and the palette. */
+static void draw_frame(const sbx_State *s, GfxSandboxView *view, const ArcadeInput *in) {
+    ClearBackground(ARC_COL_BG);
+    Rectangle dst = {0.0f, 0.0f, (float)(SBX_W * SBX_CELL), (float)(SBX_H * SBX_CELL)};
+    gfx_sandbox_view_draw(view, &s->world, dst, WHITE);
+    if (!sbx_over_panel(in->aim_x, in->aim_y)) /* brush outline */
+        DrawCircleLines((int)in->aim_x, (int)in->aim_y, ((float)s->brush + 0.5f) * (float)SBX_CELL,
+                        Fade(WHITE, 0.45f));
+    const char *probe = probe_text(s, in);
+    gfx_hud("SANDBOX", sbx_score(s),
+            TextFormat("%s   brush %d%s%s", sandbox_element(s->element)->name, s->brush,
+                       s->world.heat_view ? "   THERMAL VIEW" : "", s->paused ? "   PAUSED" : ""));
+    gfx_text(k_hint, 16, 42, 16, ARC_COL_DIM);
+    if (probe != NULL)
+        draw_probe_tip(probe, in);
+    draw_palette(s, in);
+}
+
 static GameResult play(const GameContext *ctx) {
-    static sbx_State s; /* ~175 KB: must not live on the stack */
+    static sbx_State s; /* ~400 KB: must not live on the stack */
     static GfxSandboxView view;
     sbx_init(&s, ctx->seed);
     gfx_sandbox_view_init(&view, &s.world);
@@ -36,17 +76,7 @@ static GameResult play(const GameContext *ctx) {
         arcade_poll(&in);
         sbx_step(&s, &in, ARC_DT);
         BeginDrawing();
-        ClearBackground(ARC_COL_BG);
-        Rectangle dst = {0.0f, 0.0f, (float)(SBX_W * SBX_CELL), (float)(SBX_H * SBX_CELL)};
-        gfx_sandbox_view_draw(&view, &s.world, dst, WHITE);
-        if (!sbx_over_panel(in.aim_x, in.aim_y)) /* brush outline */
-            DrawCircleLines((int)in.aim_x, (int)in.aim_y, ((float)s.brush + 0.5f) * (float)SBX_CELL,
-                            Fade(WHITE, 0.45f));
-        gfx_hud("SANDBOX", sbx_score(&s),
-                TextFormat("%s   brush %d%s", sandbox_element(s.element)->name, s.brush,
-                           s.paused ? "   PAUSED" : ""));
-        gfx_text(k_hint, 16, 42, 16, ARC_COL_DIM);
-        draw_palette(&s, &in);
+        draw_frame(&s, &view, &in);
         arcade_frame_end();
     }
     gfx_sandbox_view_free(&view);
@@ -60,7 +90,7 @@ const GameDef game_sandbox_def = {
     "sandbox",
     "Sandbox",
     "Paint sand, water, fire, lava and uranium and watch it all react",
-    "left mouse: paint   click the palette or press 0-9 / [ ] / wheel: element   +/-: brush   Space: pause",
+    "left mouse: paint   palette / 0-9 / [ ] / wheel: element   +/-: brush   T: thermal view   Space: pause",
     90,
     false,
     play};

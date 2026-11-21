@@ -8,6 +8,7 @@ void sandbox_init(Sandbox *sb, int w, int h, unsigned seed) {
     sb->w = arc_clampi(w, 1, SANDBOX_MAX_W);
     sb->h = arc_clampi(h, 1, SANDBOX_MAX_H);
     sb->tick = 0;
+    sb->heat_view = false;
     rng_seed(&sb->rng, seed);
     sandbox_clear(sb);
 }
@@ -16,6 +17,10 @@ void sandbox_clear(Sandbox *sb) {
     memset(sb->cells, EL_EMPTY, sizeof(sb->cells));
     memset(sb->aux, 0, sizeof(sb->aux));
     memset(sb->moved, 0, sizeof(sb->moved));
+    sandbox_heat_clear(sb);
+    sb->shock.active = false;
+    sb->flash = 0;
+    sb->blast_budget = SANDBOX_BLASTS_PER_TICK;
 }
 
 ElementId sandbox_get(const Sandbox *sb, int x, int y) {
@@ -29,6 +34,8 @@ void sandbox_set(Sandbox *sb, int x, int y, ElementId id) {
     sb->cells[i] = (uint8_t)id;
     sb->aux[i] = 0; /* a freshly placed cell starts with a clean memory */
     sb->moved[i] = 0;
+    sb->temp[i] = SANDBOX_AMBIENT; /* ... and with the temperature its element is made at */
+    sandbox_heat_on_put(sb, i, id);
 }
 
 void sandbox_paint(Sandbox *sb, int cx, int cy, int radius, ElementId id) {
@@ -92,6 +99,13 @@ void sandbox_swap(Sandbox *sb, int a, int b) {
     sb->moved[b] = t;
     sb->moved[a] |= MOVED_NOW;
     sb->moved[b] |= MOVED_NOW;
+    int16_t temp = sb->temp[a]; /* heat moves with the cell */
+    sb->temp[a] = sb->temp[b];
+    sb->temp[b] = temp;
+    if (sb->temp[a] != SANDBOX_AMBIENT || sb->temp[b] != SANDBOX_AMBIENT) {
+        sandbox_heat_mark(sb, a / sb->w);
+        sandbox_heat_mark(sb, b / sb->w);
+    }
 }
 
 void sandbox_put(Sandbox *sb, int x, int y, ElementId id, uint8_t aux) {
@@ -101,6 +115,7 @@ void sandbox_put(Sandbox *sb, int x, int y, ElementId id, uint8_t aux) {
     sb->cells[i] = (uint8_t)id;
     sb->aux[i] = id == EL_EMPTY ? 0 : aux;
     sb->moved[i] = MOVED_NOW; /* a new cell does not act in the tick it was made */
+    sandbox_heat_on_put(sb, i, id);
 }
 
 void sandbox_step(Sandbox *sb) {
@@ -108,6 +123,7 @@ void sandbox_step(Sandbox *sb) {
     for (int i = 0; i < total; i++) /* "moved this tick" becomes "moved last tick"; EXCITED survives */
         sb->moved[i] = (uint8_t)(((sb->moved[i] & MOVED_NOW) << 1) | (sb->moved[i] & EXCITED));
     sb->tick++;
+    sandbox_blast_step(sb); /* a travelling shock wave pushes things before anything else moves */
 
     /* Bottom row first, so a falling cell never gets moved twice in one tick. */
     for (int y = sb->h - 1; y >= 0; y--) {
@@ -123,6 +139,7 @@ void sandbox_step(Sandbox *sb) {
             sandbox_move(sb, x, y);
         }
     }
+    sandbox_heat_step(sb);
     if (sb->tick % LIFE_PERIOD == 0)
         sandbox_life_step(sb);
 }

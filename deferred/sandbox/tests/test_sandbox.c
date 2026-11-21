@@ -130,8 +130,9 @@ static void test_cannot_paint_through_the_panel(void) {
     ArcadeInput in = idle();
     in.fire = true;
     in.alt = true;
-    in.aim_x = slot_x(29); /* an empty slot on the panel */
-    in.aim_y = slot_y(29);
+    int empty = sandbox_palette_count(); /* the first slot that holds no element */
+    in.aim_x = slot_x(empty);
+    in.aim_y = slot_y(empty);
     sbx_step(&g_s, &in, ARC_DT);
     CHECK_EQ_INT(sbx_score(&g_s), 0);
     CHECK_EQ_INT(g_s.element, EL_SAND); /* clicking an empty slot does not change the selection */
@@ -197,6 +198,69 @@ static void test_starter_scene_and_reset(void) {
     CHECK_EQ_INT(sandbox_count(&g_s.world, EL_SEED), 3); /* R brings the starter scene back */
 }
 
+/* Centre of world cell (cx, cy) in window pixels. */
+static float cell_px(int c) {
+    return (float)(c * SBX_CELL + SBX_CELL / 2);
+}
+
+static void test_hover_probe_reports_element_and_temperature(void) {
+    sbx_init(&g_s, 1);
+    sandbox_clear(&g_s.world);
+    sandbox_set(&g_s.world, 50, 40, EL_STEEL);
+    sandbox_set_temp(&g_s.world, 50, 40, 321);
+    ElementId id = EL_SAND;
+    int t = 0;
+    CHECK(sbx_probe(&g_s, cell_px(50), cell_px(40), &id, &t));
+    CHECK_EQ_INT(id, EL_STEEL);
+    CHECK_EQ_INT(t, 321);
+    CHECK(sbx_probe(&g_s, cell_px(60), cell_px(40), &id, &t)); /* empty space still has a temperature */
+    CHECK_EQ_INT(id, EL_EMPTY);
+    CHECK_EQ_INT(t, SANDBOX_AMBIENT);
+    CHECK(!sbx_probe(&g_s, slot_x(0), slot_y(0), &id, &t)); /* on the palette: nothing to read */
+    CHECK(!sbx_probe(&g_s, -5.0f, 10.0f, &id, &t));         /* outside the window */
+    CHECK(!sbx_probe(&g_s, 5000.0f, 10.0f, &id, &t));
+}
+
+static void test_thermal_view_key_toggles(void) {
+    sbx_init(&g_s, 1);
+    CHECK(!g_s.world.heat_view);
+    ArcadeInput in = idle();
+    in.typed = 't';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(g_s.world.heat_view);
+    in.typed = 'T';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(!g_s.world.heat_view);
+    in.typed = 'T';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(g_s.world.heat_view);
+    in.typed = 'C'; /* the thermal view is a view only: clearing the world leaves it on */
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK_EQ_INT(sbx_score(&g_s), 0);
+    CHECK(g_s.world.heat_view);
+}
+
+static void test_the_starter_kettle_heats_and_boils(void) {
+    sbx_init(&g_s, 1);
+    ElementId id;
+    int t;
+    ArcadeInput in = idle();
+    in.aim_x = cell_px(164); /* the middle of the kettle's water */
+    in.aim_y = cell_px(145);
+    CHECK(sbx_probe(&g_s, in.aim_x, in.aim_y, &id, &t));
+    CHECK_EQ_INT(id, EL_WATER);
+    CHECK_EQ_INT(t, SANDBOX_AMBIENT);
+    for (int i = 0; i < 120; i++)
+        sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sbx_probe(&g_s, in.aim_x, in.aim_y, &id, &t));
+    CHECK(t > 50);                                   /* the heater has warmed the water through the steel */
+    CHECK(sandbox_temp(&g_s.world, 170, 148) > 300); /* the steel plate is far hotter than the water */
+    for (int i = 0; i < 700; i++)
+        sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sandbox_count(&g_s.world, EL_STEAM) > 20);            /* and it has been boiling */
+    CHECK_EQ_INT(g_s.world.cells[149 * SBX_W + 140], EL_EMPTY); /* the heater did not set the room alight */
+}
+
 static void test_painting_every_element_is_safe(void) {
     sbx_init(&g_s, 3);
     for (int i = 0; i < sandbox_palette_count(); i++) {
@@ -230,6 +294,9 @@ int main(void) {
     RUN(test_number_keys_pick_the_first_row);
     RUN(test_bracket_keys_and_wheel_cycle_and_wrap);
     RUN(test_starter_scene_and_reset);
+    RUN(test_hover_probe_reports_element_and_temperature);
+    RUN(test_thermal_view_key_toggles);
+    RUN(test_the_starter_kettle_heats_and_boils);
     RUN(test_painting_every_element_is_safe);
     return TEST_SUMMARY();
 }

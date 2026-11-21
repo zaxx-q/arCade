@@ -3,8 +3,9 @@
 #define BRUSH_MIN 0
 #define BRUSH_MAX 12
 
-/* The starter scene: a stone basin holding some water, and a shelf of soil with three seeds on it. It is calm
- * at first, but the seeds sprout by themselves, and everything else is one click away. */
+/* The starter scene: a stone basin holding some water, a steel kettle sitting on a heater (hover over it to
+ * watch the temperatures, or press T for the thermal view), and a shelf of soil with three seeds on it. The
+ * seeds sprout by themselves and the kettle slowly comes to the boil; everything else is one click away. */
 static void build_scene(sbx_State *s) {
     Sandbox *w = &s->world;
     sandbox_clear(w);
@@ -22,6 +23,26 @@ static void build_scene(sbx_State *s) {
     for (int y = 146; y < 150; y++)
         for (int x = 192; x < 278; x++)
             sandbox_set(w, x, y, EL_SOIL);
+    /* the kettle: brick legs keep the floor cool, a heater warms a steel pot of water */
+    for (int x = 146; x < 185; x++)
+        sandbox_set(w, x, 150, EL_STONE);
+    for (int y = 148; y < 150; y++) {
+        sandbox_set(w, 152, y, EL_BRICK);
+        sandbox_set(w, 153, y, EL_BRICK);
+        sandbox_set(w, 176, y, EL_BRICK);
+        sandbox_set(w, 177, y, EL_BRICK);
+    }
+    for (int x = 154; x < 176; x++)
+        sandbox_set(w, x, 149, EL_HEATER);
+    for (int x = 152; x < 178; x++)
+        sandbox_set(w, x, 148, EL_STEEL);
+    for (int y = 140; y < 148; y++) {
+        sandbox_set(w, 152, y, EL_STEEL);
+        sandbox_set(w, 177, y, EL_STEEL);
+        for (int x = 153; x < 177; x++)
+            if (y >= 141)
+                sandbox_set(w, x, y, EL_WATER);
+    }
     sandbox_set(w, 205, 145, EL_SEED);
     sandbox_set(w, 233, 145, EL_SEED);
     sandbox_set(w, 261, 145, EL_SEED);
@@ -40,6 +61,17 @@ void sbx_init(sbx_State *s, unsigned seed) {
 bool sbx_over_panel(float px, float py) {
     (void)px;
     return py >= (float)(SBX_PAL_Y - SBX_PAL_PAD);
+}
+
+bool sbx_probe(const sbx_State *s, float px, float py, ElementId *id, int *temp_c) {
+    if (px < 0.0f || py < 0.0f || sbx_over_panel(px, py))
+        return false;
+    int cx = (int)(px / SBX_CELL), cy = (int)(py / SBX_CELL);
+    if (cx < 0 || cy < 0 || cx >= s->world.w || cy >= s->world.h)
+        return false;
+    *id = sandbox_get(&s->world, cx, cy);
+    *temp_c = sandbox_temp(&s->world, cx, cy);
+    return true;
 }
 
 int sbx_palette_slot_at(float px, float py) {
@@ -74,10 +106,12 @@ static void handle_keys(sbx_State *s, const ArcadeInput *in) {
         cycle(s, 1);
     if (in->typed == '[')
         cycle(s, -1);
-    if (in->typed == 'c')
+    if (in->typed == 'c' || in->typed == 'C')
         sandbox_clear(&s->world);
-    if (in->typed == 'r')
+    if (in->typed == 'r' || in->typed == 'R')
         build_scene(s);
+    if (in->typed == 't' || in->typed == 'T')
+        s->world.heat_view = !s->world.heat_view; /* thermal view: colours show temperature, not material */
     if (in->typed == '+' || in->typed == '=')
         s->brush = arc_clampi(s->brush + 1, BRUSH_MIN, BRUSH_MAX);
     if (in->typed == '-')

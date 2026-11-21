@@ -28,9 +28,10 @@ static const ElementDef k_elements[EL_COUNT] = {
     [EL_SEED] = {"Seed", 205, 214, 120, 6, MOVE_POWDER, 0, 3, 0, 0, 0, 60, 10, 90},
     [EL_ASH] = {"Ash", 176, 168, 160, 14, MOVE_POWDER, 0, 2, 0, 0, 0, 0, 12, 255},
     [EL_THERMITE] = {"Thermite", 176, 72, 56, 55, MOVE_POWDER, 0, 4, 0, 0, 0, 60, 14, 255},
+    [EL_GRAVEL] = {"Gravel", 128, 120, 110, 56, MOVE_POWDER, 0, 4, 0, 0, 2, 0, 20, 255},
 
     /* liquids */
-    [EL_OIL] = {"Oil", 78, 52, 66, 10, MOVE_LIQUID, 0, 4, 32, 255, 0, 90, 6, 255},
+    [EL_OIL] = {"Oil", 78, 52, 66, 10, MOVE_LIQUID, 0, 4, 32, 255, 0, 140, 6, 255},
     [EL_ACID] = {"Acid", 146, 255, 70, 22, MOVE_LIQUID, EF_ACIDPROOF, 4, 32, 255, 0, 0, 10, 255},
     [EL_LAVA] = {"Lava", 255, 98, 24, 60, MOVE_LIQUID, EF_HOT | EF_ACIDPROOF, 2, 3, 70, 0, 0, 24, 255},
     [EL_MERCURY] = {"Mercury", 178, 190, 204, 136, MOVE_LIQUID, 0, 4, 24, 255, 0, 0, 20, 255},
@@ -46,12 +47,16 @@ static const ElementDef k_elements[EL_COUNT] = {
     [EL_ICE] = {"Ice", 156, 214, 244, 100, MOVE_NONE, 0, 0, 0, 0, 0, 0, 10, 255},
     [EL_GLASS] = {"Glass", 130, 220, 214, 100, MOVE_NONE, EF_ACIDPROOF, 0, 0, 0, 0, 0, 6, 255},
     [EL_WALL] = {"Wall", 70, 78, 110, 255, MOVE_NONE, EF_ACIDPROOF, 0, 0, 0, 0, 0, 4, 255},
+    [EL_STEEL] = {"Steel", 150, 160, 178, 100, MOVE_NONE, 0, 0, 0, 0, 0, 0, 4, 255},
+    [EL_BRICK] = {"Brick", 168, 84, 64, 100, MOVE_NONE, EF_ACIDPROOF, 0, 0, 0, 0, 0, 6, 255},
     [EL_PLANT] = {"Plant", 62, 172, 90, 100, MOVE_NONE, 0, 0, 0, 0, 0, 90, 16, 255},
     [EL_FUSE] = {"Fuse", 206, 186, 150, 100, MOVE_NONE, 0, 0, 0, 0, 0, 255, 6, 255},
     [EL_TNT] = {"TNT", 214, 62, 66, 100, MOVE_NONE, 0, 0, 0, 0, 0, 140, 6, 255},
 
     /* energetic and alive */
     [EL_FIRE] = {"Fire", 255, 170, 40, 1, MOVE_FIRE, EF_HOT, 160, 0, 0, 0, 0, 0, 100},
+    [EL_HEATER] = {"Heater", 126, 44, 34, 120, MOVE_NONE, EF_ACIDPROOF, 0, 0, 0, 0, 0, 6, 255},
+    [EL_COOLER] = {"Cooler", 40, 96, 150, 120, MOVE_NONE, EF_ACIDPROOF, 0, 0, 0, 0, 0, 6, 255},
     [EL_URANIUM] = {"Uranium", 96, 230, 110, 190, MOVE_NONE, 0, 0, 0, 0, 0, 0, 10, 255},
     [EL_TERMITE] = {"Termite", 240, 226, 184, 52, MOVE_CRAWL, 0, 0, 0, 0, 0, 70, 8, 24},
     [EL_LIFE] = {"Life", 232, 80, 200, 100, MOVE_NONE, 0, 0, 0, 0, 0, 0, 0, 255},
