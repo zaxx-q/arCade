@@ -21,8 +21,9 @@ Rotate mirrors so the beam hits every target. Rules and status: `GAME.md`.
 
 ## Code style & conventions
 - Directions are 0=right, 1=down, 2=left, 3=up. `'/'` maps `d -> 3 - d`, `'\'` maps `d -> d ^ 1`. Keep these identities in one place (`trace`).
+- Load boards with `laser_mirrors_load_level()` / `laser_mirrors_load_rows()` (the emitter is a `>` `v` `<` `^` character in the level text, normally on the board edge facing in).
 - Always call `laser_mirrors_recompute()` after changing any tile; never edit `beam[][]` or `lit[][]` by hand.
-- Every level must pass `laser_mirrors_can_solve()` (add a test when adding a level) and must start unsolved.
+- Levels live in the `k_levels` table (name, hint, `par`, 8 rows of 14 characters). Every level must start unsolved, have exactly ONE solution and a `par` equal to the true minimum number of clicks: `tests/test_laser_mirrors.c` checks all of this with `laser_mirrors_solve()`, so adding a level means adding a table entry and raising `LM_LEVEL_COUNT`, and the existing tests cover it. At most `LM_MAX_ROT` rotatable mirrors per level (the solver tries every combination).
 - The visited-bit check in `trace` is what prevents infinite loops: do not remove it.
 - Test: `ctest --preset logic -R "^laser_mirrors\."`
 - Follow the game contract in `../AGENTS.md` (loop pattern, determinism, fixed arrays, `finished` semantics).

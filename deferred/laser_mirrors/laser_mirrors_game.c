@@ -15,8 +15,11 @@ static void draw_beams(const laser_mirrors_State *s) {
                     continue;
                 Vec2 c = center(x, y);
                 float half = LM_TILE / 2.0f;
-                /* incoming half: from the edge the beam enters through, to the tile centre */
-                gfx_glow_line(vec2(c.x - dx[d] * half, c.y - dy[d] * half), c, 3.0f, ARC_COL_RED);
+                /* incoming half: from the edge the beam enters through, to the tile centre
+                 * (the emitter's own beam starts at the emitter, not at the edge behind it) */
+                bool from_emitter = (x == s->emitter_x && y == s->emitter_y && d == s->emitter_dir);
+                if (!from_emitter)
+                    gfx_glow_line(vec2(c.x - dx[d] * half, c.y - dy[d] * half), c, 3.0f, ARC_COL_RED);
                 /* outgoing half(s): from the centre toward the direction(s) the beam leaves in */
                 int out = d, branch = -1;
                 switch (s->cell[y][x]) {
@@ -41,6 +44,21 @@ static void draw_beams(const laser_mirrors_State *s) {
             }
 }
 
+/* The level-clear banner: a dark band across the board so the lit beams stay visible above and below it. */
+static void draw_clear_banner(const laser_mirrors_State *s, float t) {
+    bool last = s->level + 1 >= LM_LEVEL_COUNT;
+    bool ready = s->hold >= LM_CLEAR_HOLD;
+    DrawRectangle(0, 270, ARC_SCREEN_W, 170, Fade(ARC_COL_BG, 0.86f));
+    gfx_text_center(last ? "ALL LEVELS CLEARED" : "LEVEL CLEARED", ARC_SCREEN_W / 2, 284, 44, ARC_COL_GREEN);
+    gfx_text_center(TextFormat("+%d   %d moves (par %d)", s->level_points, s->moves, s->par),
+                    ARC_SCREEN_W / 2, 346, 28, ARC_COL_YELLOW);
+    if (ready) {
+        float pulse = 0.55f + 0.45f * sinf(t * 5.0f);
+        gfx_text_center(last ? "click or press SPACE to finish" : "click or press SPACE for the next level",
+                        ARC_SCREEN_W / 2, 394, 22, Fade(ARC_COL_TEXT, pulse));
+    }
+}
+
 static void draw(const laser_mirrors_State *s, float t) {
     gfx_backdrop(t * 0.2f);
     for (int y = 0; y < LM_H; y++)
@@ -55,10 +73,13 @@ static void draw(const laser_mirrors_State *s, float t) {
             float h = LM_TILE * 0.34f;
             Color mc = s->rotatable[y][x] ? ARC_COL_YELLOW : ARC_COL_CYAN;
             switch (s->cell[y][x]) {
-            case LM_WALL:
-                DrawRectangle((int)(c.x - LM_TILE / 2 + 4), (int)(c.y - LM_TILE / 2 + 4), (int)LM_TILE - 8,
-                              (int)LM_TILE - 8, ARC_COL_PANEL);
+            case LM_WALL: {
+                Rectangle w = {c.x - LM_TILE / 2 + 4, c.y - LM_TILE / 2 + 4, LM_TILE - 8, LM_TILE - 8};
+                DrawRectangleRec(w,
+                                 Fade(ARC_COL_DIM, 0.35f)); /* bright enough to read against the dark board */
+                DrawRectangleLinesEx(w, 2.0f, Fade(ARC_COL_DIM, 0.9f));
                 break;
+            }
             case LM_SLASH:
                 gfx_glow_line(vec2(c.x - h, c.y + h), vec2(c.x + h, c.y - h), 5.0f, mc);
                 break;
@@ -69,7 +90,9 @@ static void draw(const laser_mirrors_State *s, float t) {
                 DrawPoly((Vector2){c.x, c.y}, 4, h, 45.0f, ARC_COL_MAGENTA);
                 break;
             case LM_TARGET:
-                gfx_glow_circle(c.x, c.y, 14.0f, s->lit[y][x] ? ARC_COL_GREEN : ARC_COL_DIM);
+                /* a lit target pulses gently */
+                gfx_glow_circle(c.x, c.y, s->lit[y][x] ? 14.0f + 2.0f * sinf(t * 6.0f) : 14.0f,
+                                s->lit[y][x] ? ARC_COL_GREEN : ARC_COL_DIM);
                 break;
             default:
                 break;
@@ -77,8 +100,27 @@ static void draw(const laser_mirrors_State *s, float t) {
             if (s->rotatable[y][x])
                 DrawCircleLines((int)c.x, (int)c.y, LM_TILE * 0.42f, Fade(ARC_COL_YELLOW, 0.35f));
         }
+    /* the emitter: a red block with a barrel that points the way it shoots */
+    static const float dx[4] = {1, 0, -1, 0}, dy[4] = {0, 1, 0, -1};
     Vec2 e = center(s->emitter_x, s->emitter_y);
+    int d = s->emitter_dir;
+    gfx_glow_line(e, vec2(e.x + dx[d] * 30.0f, e.y + dy[d] * 30.0f), 10.0f, ARC_COL_RED);
     DrawRectangle((int)(e.x - 18), (int)(e.y - 18), 36, 36, ARC_COL_RED);
+    if (s->solved)
+        draw_clear_banner(s, t);
+}
+
+/* One whole frame: the board, then the HUD and the strip under it with the level name and hint. */
+static void draw_frame(const laser_mirrors_State *s, float t) {
+    draw(s, t);
+    gfx_hud("LASER MIRRORS", laser_mirrors_score(s),
+            TextFormat("level %d/%d   targets %d/%d   moves %d (par %d)", s->level + 1, LM_LEVEL_COUNT,
+                       s->targets_lit, s->targets, s->moves, s->par));
+    /* the strip between the HUD and the board: level name and hint, plus the reset key */
+    gfx_text_center(
+        TextFormat("%s  -  %s", laser_mirrors_level_name(s->level), laser_mirrors_level_hint(s->level)),
+        ARC_SCREEN_W / 2, 36, 18, ARC_COL_DIM);
+    gfx_text_right("R: reset mirrors", ARC_SCREEN_W - 16, 36, 18, Fade(ARC_COL_DIM, 0.7f));
 }
 
 static GameResult play(const GameContext *ctx) {
@@ -92,11 +134,7 @@ static GameResult play(const GameContext *ctx) {
         laser_mirrors_step(&s, &in, ARC_DT);
         t += ARC_DT;
         BeginDrawing();
-        draw(&s, t);
-        gfx_hud("LASER MIRRORS", laser_mirrors_score(&s),
-                TextFormat("targets %d/%d   moves %d", s.targets_lit, s.targets, s.moves));
-        gfx_text_center("click a yellow mirror to rotate it", ARC_SCREEN_W / 2, ARC_SCREEN_H - 36, 20,
-                        ARC_COL_DIM);
+        draw_frame(&s, t);
         arcade_frame_end();
         if (laser_mirrors_is_over(&s))
             break;
@@ -111,7 +149,7 @@ const GameDef game_laser_mirrors_def = {
     "laser_mirrors",
     "Laser Mirrors",
     "Bounce the beam onto every target",
-    "left click a yellow mirror: rotate it   light all targets in as few moves as possible",
+    "click a yellow mirror: rotate it   R: reset mirrors   clear every level in few clicks",
     30,
     true,
     play};
