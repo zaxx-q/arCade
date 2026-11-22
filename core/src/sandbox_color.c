@@ -212,10 +212,5 @@ static uint32_t heat_color(const Sandbox *sb, int i) {
 uint32_t sandbox_pixel(const Sandbox *sb, int x, int y) {
     if (!sandbox_inside(sb, x, y))
         return 0;
-    uint32_t px = sb->heat_view ? heat_color(sb, y * sb->w + x) : cell_color(sb, x, y);
-    if (sb->flash > 0) { /* the white-out after a huge blast */
-        Rgb c = rgb((int)((px >> 16) & 255u), (int)((px >> 8) & 255u), (int)(px & 255u));
-        px = pack(mix(c, rgb(255, 250, 235), sb->flash));
-    }
-    return px;
+    return sb->heat_view ? heat_color(sb, y * sb->w + x) : cell_color(sb, x, y);
 }

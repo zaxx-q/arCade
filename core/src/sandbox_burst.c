@@ -32,9 +32,8 @@
 #define SPARK_LIFE_SPAN 70 /* ... and up to this many more */
 #define POWDER_LIFE_MIN 15 /* gunpowder is a weaker charge: its sparks do not fly as far */
 #define POWDER_LIFE_SPAN 30
-#define SPARK_FORK 6     /* chance (/256) per step that a spark throws off a twin */
-#define SPARK_DIE 80     /* chance (/256) that a cell it breaks through, or a spark it bumps, uses it up */
-#define FLASH_CHARGE 120 /* a charge of this many cells or more also lights up the whole screen a little */
+#define SPARK_FORK 6 /* chance (/256) per step that a spark throws off a twin */
+#define SPARK_DIE 80 /* chance (/256) that a cell it breaks through, or a spark it bumps, uses it up */
 
 /* aux of a ray: bits 6-7 = generation (0 = straight from uranium, 1 = scattered), bits 0-5 = ticks left */
 #define GAMMA_LIFE_MIN 40
@@ -101,8 +100,6 @@ void sandbox_detonate(Sandbox *sb, int x0, int y0) {
                           : SPARK_LIFE_MIN + sandbox_rand(sb, SPARK_LIFE_SPAN);
         make_particle(sb, x, y, EL_SPARK, life, sandbox_rand(sb, 16));
     }
-    if (top >= FLASH_CHARGE)
-        sb->flash = arc_maxi(sb->flash, arc_mini(150, top / 3));
 }
 
 /* Things a spark cannot get through. */
@@ -198,7 +195,6 @@ static void make_ray(Sandbox *sb, int x, int y, int generation) {
 
 void sandbox_go_critical(Sandbox *sb, int x, int y) {
     make_ray(sb, x, y, 0);
-    sb->flash = arc_mini(220, sb->flash + 10);
 }
 
 /* What a ray leaves in the cell it has burnt through (EL_EMPTY = nothing at all). */
