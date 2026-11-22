@@ -42,6 +42,9 @@ static struct {
     SwcReflection mirror;
 } G;
 
+static int g_gpu_users; /* swc_gpu_init() calls not yet matched by a shutdown: the hub backdrop and a game
+                           started from the archive can both be using the GPU renderer at the same time */
+
 /* (Re)creates the mirror target for a frame of w x h; without one the streets simply show no reflection. */
 static void reflection_target(int w, int h) {
     swc_target_destroy(&G.refl);
@@ -57,10 +60,12 @@ bool swc_gpu_available(void) {
 }
 
 bool swc_gpu_init(void) {
-    if (G.ready)
-        return true;
-    if (!swc_gpu_available())
+    if (g_gpu_users++ > 0)
+        return G.ready; /* somebody already built the shaders and FBOs: share them */
+    if (!swc_gpu_available()) {
+        g_gpu_users--;
         return false;
+    }
     memset(&G, 0, sizeof(G));
     G.dbg.layers = 255;
     G.dbg.reflect = true;
@@ -71,6 +76,7 @@ bool swc_gpu_init(void) {
         swc_post_free(&G.post);
         swc_sky_free();
         swc_geometry_free();
+        g_gpu_users--;
         TraceLog(LOG_WARNING, "SWC: the GPU renderer could not start; using the CPU renderer");
         return false;
     }
@@ -111,8 +117,8 @@ bool swc_gpu_init(void) {
 }
 
 void swc_gpu_shutdown(void) {
-    if (!G.ready)
-        return;
+    if (g_gpu_users == 0 || --g_gpu_users > 0)
+        return; /* nothing to release, or another user still needs the GPU resources */
     swc_post_free(&G.post);
     swc_target_destroy(&G.refl);
     swc_holograms_free();
