@@ -190,12 +190,12 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 | Sort It       | `deferred/sort_it/`       | Leader                     | Jalan (3 ronde, par dan benchmark algoritma)                               |
 | Sandbox       | `deferred/sandbox/`       | Leader                     | Jalan (falling-sand 34 elemen dengan suhu, ledakan dari percikan, uranium yang meleleh lalu kritis, dan lava yang membatu; engine-nya jalankan background menu)        |
 | Post It       | `deferred/post_it/`       | Leader                     | Jalan (miring dunia lewat mouse, gulusan post-it, virus, jeda)             |
-| Master Juggler | `deferred/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa)                                    |
+| Master Juggler | `deferred/master_juggler/` | Leader                     | Jalan (trampolin, level 1..32, 3 nyawa, lanjut dari level terakhir)        |
 | BW Reflex     | `deferred/bw_reflex/`     | Leader                     | Jalan (balik warna dasar, kecepatan naik tiap cocok)                       |
 | A Different Color | `games/different_color/` | Leader                     | Jalan (dua papan warna acak, timer 30 detik)                               |
-| Spike Dart    | `deferred/spike_dart/`    | Leader                     | Jalan (lempar paku, orbit, jalur lempar, batas 64)                         |
-| Loop Lap      | `games/loop_lap/`      | Leader                     | Jalan (rem/biasa/gas, musuh bergabung per lap)                             |
-| Tower Stacker | `deferred/tower_stacker/` | Leader                     | Jalan (langkah 5 px, potong, scroll, zoom akhir)                           |
+| Spike Dart    | `deferred/spike_dart/`    | Leader                     | Jalan (lempar paku, orbit, hitbox = segitiga yang digambar, batas 64)      |
+| Loop Lap      | `games/loop_lap/`      | Leader                     | Jalan (rem/biasa/gas, musuh bergabung per lap, ukuran & kecepatan acak)    |
+| Tower Stacker | `deferred/tower_stacker/` | Leader                     | Jalan (langkah 5 px, potong, scroll, bar dari kiri/kanan acak, zoom akhir, tap untuk lanjut) |
 | New Star      | `deferred/new_star/`      | Leader                     | Jalan (layar gelap, bintang baru, batas waktu dari bintang ke-10)          |
 | Gritty Golf   | `games/gritty_golf/`   | zaxx-q (upstream), integrasi ke arCade | Jalan (25 level, progres tersimpan; engine disalin ke `gg/`, lihat `gg/VENDORED.md`) |
 
