@@ -79,6 +79,51 @@ Pasang extension yang direkomendasikan (editor akan menawarkannya; daftarnya di 
 - Penjaga opsional untuk pesan commit di lokal: `git config core.hooksPath .githooks`.
 - Line ending adalah LF di semua tempat (`.gitattributes`). Jangan commit `build/` dan `scores.txt`.
 
+### Membuka proteksi force-push sementara (GitHub CLI)
+
+Jika perlu memperbaiki commit di `main` (misalnya membetulkan format pesan commit yang menentukan rilis versi) sementara branch protection memblokir force-push, gunakan GitHub CLI (`gh`) untuk mengizinkan force-push sementara tanpa menghapus aturan proteksi lainnya:
+
+1. **Izinkan force-push di branch `main`:**
+   ```bash
+   gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input - << 'EOF'
+   {
+     "required_status_checks": {
+       "strict": false,
+       "contexts": ["CI OK"]
+     },
+     "enforce_admins": false,
+     "required_pull_request_reviews": {
+       "required_approving_review_count": 1
+     },
+     "restrictions": null,
+     "allow_force_pushes": true
+   }
+   EOF
+   ```
+
+2. **Lakukan push secara aman:**
+   ```bash
+   git push --force-with-lease origin main
+   ```
+
+3. **Kunci kembali proteksi force-push:**
+   ```bash
+   gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input - << 'EOF'
+   {
+     "required_status_checks": {
+       "strict": false,
+       "contexts": ["CI OK"]
+     },
+     "enforce_admins": false,
+     "required_pull_request_reviews": {
+       "required_approving_review_count": 1
+     },
+     "restrictions": null,
+     "allow_force_pushes": false
+   }
+   EOF
+   ```
+
 ## 5. Troubleshooting
 
 | Gejala                                             | Solusi                                                                                   |
@@ -89,6 +134,7 @@ Pasang extension yang direkomendasikan (editor akan menawarkannya; daftarnya di 
 | Configure pertama menggantung/gagal saat offline   | clone raylib (tag dari `ARCADE_RAYLIB_TAG`) dan berikan `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=` |
 | Window tidak terbuka di server / WSL tanpa GUI     | pakai preset `headless` dan `--smoke`                                                    |
 | Peringatan ALSA / audio di console                 | tidak berbahaya: game berjalan tanpa suara kalau tidak ada perangkat suara               |
+| `Protected branch update failed: ... force-push`   | Buka proteksi sementara lewat `gh api` (lihat panduan di bagian *Alur kerja Git*)        |
 
 ## 6. Verifikasi dan matriks test
 
