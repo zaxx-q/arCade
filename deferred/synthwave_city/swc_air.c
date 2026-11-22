@@ -395,7 +395,7 @@ static Ring ring_diamond(double cx, double w, double h) {
     return r;
 }
 static Ring ring_ellipse(double rx, double ry, int n) {
-    Ring r;
+    Ring r = {0};
     r.n = n;
     for (int i = 0; i < n; i++) {
         double a = ((i + 0.5) / n) * SWC_PI * 2.0 - SWC_PI / 2.0;
@@ -405,7 +405,7 @@ static Ring ring_ellipse(double rx, double ry, int n) {
     return r;
 }
 static Ring ring_point(double x, double y, int n) {
-    Ring r;
+    Ring r = {0};
     r.n = n;
     for (int i = 0; i < n; i++) {
         r.p[i][0] = x;
@@ -415,7 +415,7 @@ static Ring ring_point(double x, double y, int n) {
 }
 /* Mirror in x and reverse so the ring stays counter-clockwise. */
 static Ring ring_mirrored(const Ring *in) {
-    Ring r;
+    Ring r = {0};
     r.n = in->n;
     for (int i = 0; i < in->n; i++) {
         r.p[i][0] = -in->p[in->n - 1 - i][0];
