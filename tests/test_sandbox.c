@@ -3,6 +3,10 @@
 
 static Sandbox g_sb; /* ~400 KB: keep off the stack */
 
+static int iabs(int v) {
+    return v < 0 ? -v : v;
+}
+
 static void run(int ticks) {
     for (int i = 0; i < ticks; i++)
         sandbox_step(&g_sb);
@@ -195,6 +199,8 @@ static void test_palette(void) {
     }
     CHECK_EQ_INT(sandbox_palette_index(EL_GAMMA), -1); /* hidden elements are not in the palette */
     CHECK_EQ_INT(sandbox_palette_index(EL_MOLTEN_URANIUM), -1);
+    CHECK_EQ_INT(sandbox_palette_index(EL_SPARK), -1);
+    CHECK_EQ_INT(sandbox_palette_index(EL_BASALT), -1);
     CHECK_EQ_INT(sandbox_palette_id(n), EL_EMPTY); /* out of range is harmless */
     CHECK_EQ_INT(sandbox_palette_index((ElementId)999), -1);
 }
@@ -435,13 +441,17 @@ static void test_oil_burns_and_keeps_flowing(void) {
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_OIL), 0); /* a burning slick burns itself out completely */
 }
 
-static void test_gunpowder_flashes_but_does_not_blast_walls(void) {
-    tank(30, 20, 16);
-    fill(5, 15, 24, 18, EL_GUNPOWDER);
-    sandbox_set(&g_sb, 4, 17, EL_FIRE);
-    run(120);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_GUNPOWDER), 0);
-    CHECK_EQ_INT(sandbox_get(&g_sb, 0, 10), EL_STONE); /* the walls of the tank are still standing */
+static void test_gunpowder_goes_off_all_at_once_as_sparks(void) {
+    tank(60, 30, 16);
+    fill(5, 25, 54, 28, EL_GUNPOWDER);
+    fill(2, 20, 2, 28, EL_WALL); /* a wall the sparks cannot get through */
+    sandbox_set(&g_sb, 30, 24, EL_FIRE);
+    run(2);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_GUNPOWDER), 0); /* the whole heap went at once, not cell by cell */
+    CHECK(sandbox_count(&g_sb, EL_SPARK) > 100);
+    run(200);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SPARK), 0); /* the sparks burn out */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), 9);
 }
 
 static void test_fuse_burns_slowly_along_its_length(void) {
@@ -459,23 +469,56 @@ static void test_fuse_burns_slowly_along_its_length(void) {
 static void test_tnt_explodes_and_walls_survive(void) {
     tank(60, 40, 18);
     fill(25, 30, 34, 38, EL_STONE);
-    fill(28, 26, 31, 29, EL_TNT);
+    fill(26, 24, 33, 29, EL_TNT);
     fill(20, 38, 40, 38, EL_WALL); /* an unbreakable strip right under the blast */
     int stone = sandbox_count(&g_sb, EL_STONE);
-    torch(26, 26, 27, 29, 10);
+    torch(24, 24, 25, 29, 10);
     run(200);
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
-    CHECK(sandbox_count(&g_sb, EL_STONE) < stone - 15); /* a crater was dug in the stone */
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), 21);    /* walls are blast-proof */
+    CHECK(sandbox_count(&g_sb, EL_STONE) < stone - 5); /* the sparks drilled into the stone */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), 21);   /* walls stop them dead */
 }
 
 static void test_tnt_chain_reaction(void) {
     tank(70, 30, 19);
     for (int x = 5; x < 65; x += 8)
-        fill(x, 24, x + 2, 26, EL_TNT); /* crates 5 cells apart: each blast reaches the next one */
+        fill(x, 24, x + 2, 26, EL_TNT); /* crates 5 cells apart: sparks from one reach the next */
     torch(3, 24, 4, 26, 10);
     run(300);
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+}
+
+static void test_tnt_makes_a_real_explosion(void) {
+    tank(160, 70, 64);
+    fill(1, 60, 158, 68, EL_SAND);
+    fill(110, 40, 112, 59, EL_WOOD); /* a fence 30 cells from the charge */
+    fill(60, 52, 69, 59, EL_TNT);
+    int wood = sandbox_count(&g_sb, EL_WOOD);
+    int sand = sandbox_count(&g_sb, EL_SAND);
+    sandbox_set(&g_sb, 64, 51, EL_FIRE);
+    run(2);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+    /* one spark per cell of the charge, some already bumped out */
+    CHECK(sandbox_count(&g_sb, EL_SPARK) >= 25);
+    run(300);
+    CHECK(sandbox_count(&g_sb, EL_SAND) < sand); /* the surroundings were dug up... */
+    CHECK(sandbox_count(&g_sb, EL_WOOD) < wood); /* ...the fence was hit by sparks and set alight... */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SPARK), 0);
+}
+
+static void test_one_tnt_cell_still_goes_off(void) {
+    tank(100, 50, 65);
+    fill(1, 40, 98, 48, EL_SAND);
+    sandbox_set(&g_sb, 50, 45, EL_TNT);
+    int before = sandbox_count(&g_sb, EL_SAND);
+    for (int t = 0; t < 10; t++) { /* a few flames held against it, like a brush stroke */
+        sandbox_set(&g_sb, 50, 44, EL_FIRE);
+        sandbox_set(&g_sb, 49, 45, EL_FIRE);
+        sandbox_step(&g_sb);
+    }
+    run(120);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+    CHECK(sandbox_count(&g_sb, EL_SAND) < before); /* the one spark dug at least a little */
 }
 
 static void test_methane_burns(void) {
@@ -493,8 +536,8 @@ static void test_lava_meets_water(void) {
     fill(1, 14, 28, 18, EL_WATER);
     fill(10, 6, 18, 9, EL_LAVA);
     run(300);
-    CHECK(sandbox_count(&g_sb, EL_STONE) > 2 * 20 + 18 + 15); /* the tank itself plus new rock */
-    CHECK(sandbox_count(&g_sb, EL_WATER) > 0);                /* some water boiled away, not all of it */
+    CHECK(sandbox_count(&g_sb, EL_BASALT) > 15); /* lava that meets water sets into rock at once */
+    CHECK(sandbox_count(&g_sb, EL_WATER) > 0);   /* some water boiled away, not all of it */
 }
 
 static void test_lava_turns_sand_to_glass(void) {
@@ -650,88 +693,134 @@ static void test_life_blinker_and_glider(void) {
 
 /* ---- uranium ---- */
 
-static int run_until_molten(int ticks) {
-    run(ticks);
-    return sandbox_count(&g_sb, EL_MOLTEN_URANIUM);
-}
-
-static void test_uranium_gamma_rays_stop_at_solids(void) {
-    sandbox_init(&g_sb, 30, 10, 35);
-    fill(20, 0, 20, 9, EL_STONE);
-    sandbox_set(&g_sb, 5, 5, EL_URANIUM);
-    g_sb.moved[5 * 30 + 5] |=
-        4u; /* EXCITED: it splits on its next turn (value of the engine's private bit) */
-    run(40);
-    for (int y = 0; y < 10; y++)
-        for (int x = 21; x < 30; x++)
-            CHECK(sandbox_get(&g_sb, x, y) != EL_GAMMA); /* nothing got through the stone wall */
-}
-
-/* Stone that is left of a tank's floor: a world-wide blast turns it to gravel or throws it out. */
-static int floor_stone(int w, int h) {
-    int n = 0;
-    for (int x = 1; x < w - 1; x++)
-        n += sandbox_get(&g_sb, x, h - 1) == EL_STONE;
-    return n;
-}
-
-static void test_big_uranium_block_goes_critical_and_wrecks_the_world(void) {
-    tank(200, 80, 36);
-    fill(90, 66, 103, 78, EL_URANIUM); /* 14 x 13: far above critical size */
-    fill(20, 70, 40, 78, EL_SAND);
-    int floor = floor_stone(200, 80);
-    CHECK_EQ_INT(floor, 198);
-    int flashed = 0;
-    for (int t = 0; t < 600; t++) {
+/* The first tick (counting from 1) on which `id` shows up in the world, within `limit` ticks; 0 = never. */
+static int first_tick_with(ElementId id, int limit) {
+    for (int t = 1; t <= limit; t++) {
         sandbox_step(&g_sb);
-        flashed |= g_sb.flash > 0;
+        if (sandbox_count(&g_sb, id) > 0)
+            return t;
     }
-    /* the whole lump went up (bar a crumb of cooled fallout), with a flash, tearing up the floor */
-    CHECK(sandbox_count(&g_sb, EL_URANIUM) <= 3);
-    CHECK(flashed);
-    CHECK(floor_stone(200, 80) < floor / 2);
-    CHECK(sandbox_count(&g_sb, EL_SAND) < 21 * 9); /* and blew the sand away */
+    return 0;
+}
+
+static void test_uranium_gamma_rays_stop_at_walls(void) {
+    sandbox_init(&g_sb, 60, 20, 35);
+    fill(30, 0, 30, 19, EL_WALL);
+    fill(5, 8, 7, 11, EL_URANIUM);
+    for (int y = 8; y <= 11; y++)
+        for (int x = 5; x <= 7; x++)
+            sandbox_set_temp(&g_sb, x, y, 1300); /* white hot: the whole lump goes critical */
+    for (int t = 0; t < 120; t++) {
+        sandbox_step(&g_sb);
+        for (int y = 0; y < 20; y++)
+            for (int x = 31; x < 60; x++)
+                CHECK(sandbox_get(&g_sb, x, y) != EL_GAMMA); /* nothing got through the wall */
+    }
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 0);
+}
+
+static void test_gamma_rays_burn_through_what_they_cross(void) {
+    sandbox_init(&g_sb, 80, 30, 45);
+    fill(0, 29, 79, 29, EL_WALL);
+    fill(30, 5, 59, 28, EL_SAND);
+    fill(40, 20, 59, 28, EL_WATER);
+    fill(40, 5, 59, 19, EL_SAND);
+    fill(5, 22, 8, 28, EL_URANIUM);
+    for (int y = 22; y <= 28; y++)
+        for (int x = 5; x <= 8; x++)
+            sandbox_set_temp(&g_sb, x, y, 1300);
+    int steam = 0;
+    for (int t = 0; t < 120; t++) {
+        sandbox_step(&g_sb);
+        steam = arc_maxi(steam, sandbox_count(&g_sb, EL_STEAM));
+    }
+    CHECK(sandbox_count(&g_sb, EL_GLASS) > 20);                   /* sand is fused into glass */
+    CHECK(sandbox_count(&g_sb, EL_SAND) < 30 * 24 - 20 * 9 - 20); /* ...or simply burnt away */
+    CHECK(steam > 20);                                            /* water is boiled off */
+}
+
+static void test_uranium_heats_itself_in_proportion_to_its_size(void) {
+    tank(60, 40, 38);
+    fill(10, 38, 10, 38, EL_URANIUM); /* a single cell loses its heat as fast as it makes it... */
+    fill(30, 33, 37, 38, EL_URANIUM); /* ...a big lump cannot, its middle just keeps getting hotter */
+    run(200);
+    CHECK(sandbox_temp(&g_sb, 10, 38) < 300);
+    CHECK(sandbox_temp(&g_sb, 33, 35) > 600);
 }
 
 static void test_small_uranium_lump_is_stable(void) {
     tank(50, 40, 37);
     fill(22, 30, 24, 32, EL_URANIUM); /* 3 x 3 */
-    CHECK(run_until_molten(1500) == 0);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 9);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_FIRE), 0);
+    run(2500);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 9); /* never melts, never goes off */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_GAMMA), 0);
+    CHECK_EQ_INT(g_sb.flash, 0);
 }
 
-static void test_hot_uranium_goes_critical(void) {
+static void test_big_uranium_lump_melts_then_goes_critical_and_wrecks_the_world(void) {
+    tank(200, 80, 36);
+    fill(90, 67, 101, 78, EL_URANIUM); /* 12 x 12: far above critical size */
+    fill(20, 70, 40, 78, EL_SAND);
+    int floor = 198;
+    for (int x = 1; x < 199; x++)
+        CHECK_EQ_INT(sandbox_get(&g_sb, x, 79), EL_STONE);
+    int melted = first_tick_with(EL_MOLTEN_URANIUM, 2000);
+    CHECK(melted > 0); /* it heats itself until it melts... */
+    int critical = melted + first_tick_with(EL_GAMMA, 2000);
+    CHECK(critical > melted + 10); /* ...and only some time after that does it go critical */
+    int flashed = 0;
+    for (int t = 0; t < 600; t++) {
+        sandbox_step(&g_sb);
+        flashed |= g_sb.flash > 0;
+    }
+    int uranium = sandbox_count(&g_sb, EL_URANIUM) + sandbox_count(&g_sb, EL_MOLTEN_URANIUM);
+    CHECK(uranium <= 3); /* all of it went up */
+    CHECK(flashed);
+    int left = 0;
+    for (int x = 1; x < 199; x++)
+        left += sandbox_get(&g_sb, x, 79) == EL_STONE;
+    CHECK(left < floor * 9 / 10);                  /* the rays tore up the floor */
+    CHECK(sandbox_count(&g_sb, EL_SAND) < 21 * 9); /* and burnt the sand into glass and gravel */
+    CHECK(sandbox_count(&g_sb, EL_GLASS) > 0);
+}
+
+static void test_one_critical_cell_takes_the_whole_lump(void) {
     tank(120, 60, 41);
-    fill(50, 52, 53, 58, EL_URANIUM); /* 4 x 7 = 28 cells: calm at room temperature... */
+    fill(50, 49, 59, 58, EL_URANIUM); /* 10 x 10: calm for a while at room temperature... */
+    run(30);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 100);
+    sandbox_set_temp(&g_sb, 55, 54, 1300); /* ...but one hot cell is enough: its ray sets off the rest */
     run(60);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 28);
-    sandbox_set_temp(&g_sb, 51, 55, 1300); /* ...but not once it is hot enough */
-    run(40);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 0);
-    CHECK(sandbox_count(&g_sb, EL_STONE) < 2 * 60 + 120 - 5); /* the blast chewed into the tank itself */
+    CHECK(sandbox_count(&g_sb, EL_URANIUM) <= 3);
 }
 
 static void test_a_lump_too_small_to_blow_only_melts(void) {
     tank(50, 40, 42);
-    fill(22, 30, 24, 32, EL_URANIUM); /* 9 cells: below the size that can detonate */
+    fill(22, 30, 24, 32, EL_URANIUM); /* 9 cells */
     for (int y = 30; y <= 32; y++)
         for (int x = 22; x <= 24; x++)
-            sandbox_set_temp(&g_sb, x, y, 1400);
-    run(40);
+            sandbox_set_temp(&g_sb, x, y, 1100); /* hot enough to melt, not hot enough to go critical */
+    int gamma = 0;
+    for (int t = 0; t < 60; t++) {
+        sandbox_step(&g_sb);
+        gamma += sandbox_count(&g_sb, EL_GAMMA);
+    }
     CHECK(sandbox_count(&g_sb, EL_MOLTEN_URANIUM) > 0);
-    CHECK_EQ_INT(g_sb.flash, 0); /* no explosion */
-    CHECK_EQ_INT(floor_stone(50, 40), 48);
+    CHECK_EQ_INT(gamma, 0);
+    CHECK_EQ_INT(g_sb.flash, 0);
 }
 
-static void test_lava_sets_off_a_critical_sized_lump(void) {
-    tank(120, 60, 43);
-    fill(50, 54, 53, 58, EL_URANIUM); /* 4 x 5 */
-    run(300);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 20); /* left alone it is fine */
-    fill(54, 52, 61, 58, EL_LAVA);                      /* hot enough: it heats the lump past its limit */
+static void test_water_keeps_a_small_lump_cool_but_not_a_big_one(void) {
+    tank(80, 50, 43);
+    fill(1, 20, 78, 48, EL_WATER);
+    fill(20, 45, 25, 48, EL_URANIUM); /* 6 x 4 under water: cooled by it, however long we wait */
     run(1500);
-    CHECK(sandbox_count(&g_sb, EL_URANIUM) <= 3); /* it went up (a few hot crumbs of fallout may cool back) */
+    CHECK(sandbox_count(&g_sb, EL_URANIUM) + sandbox_count(&g_sb, EL_MOLTEN_URANIUM) >= 20);
+    tank(80, 50, 43);
+    fill(1, 20, 78, 48, EL_WATER);
+    fill(30, 39, 39, 48, EL_URANIUM); /* 10 x 10: too much even for water */
+    run(1500);
+    CHECK(sandbox_count(&g_sb, EL_URANIUM) + sandbox_count(&g_sb, EL_MOLTEN_URANIUM) <= 3);
 }
 
 static void test_a_bigger_lump_makes_a_bigger_blast(void) {
@@ -740,7 +829,6 @@ static void test_a_bigger_lump_makes_a_bigger_blast(void) {
     for (int round = 0; round < 2; round++) {
         tank(200, 80, 44);
         int n = sizes[round];
-        fill(100, 79 - n, 99 + n, 78, EL_URANIUM);
         fill(10, 40, 190, 78, EL_SAND);
         fill(100, 79 - n, 99 + n, 78, EL_URANIUM); /* the sand bed goes around the lump */
         sandbox_set_temp(&g_sb, 100, 78, 1300);
@@ -885,20 +973,108 @@ static void test_water_freezes_and_ice_melts_by_temperature(void) {
     CHECK(sandbox_count(&g_sb, EL_WATER) > 30);
 }
 
-static void test_lava_cools_to_stone_and_hot_sand_turns_to_glass(void) {
+static void test_hot_sand_turns_to_glass(void) {
     sandbox_init(&g_sb, 30, 20, 58);
-    fill(2, 10, 8, 12, EL_LAVA);
     fill(15, 10, 20, 12, EL_SAND);
     for (int y = 10; y <= 12; y++)
         for (int x = 15; x <= 20; x++)
             sandbox_set_temp(&g_sb, x, y, 1200);
     run(30);
     CHECK(sandbox_count(&g_sb, EL_GLASS) > 5);
-    sandbox_clear(&g_sb);
-    fill(0, 19, 29, 19, EL_STONE);
-    fill(5, 14, 10, 18, EL_LAVA);
-    run(2500);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_LAVA), 0); /* given time it sets into rock */
+}
+
+/* Average of one colour channel (shift 16 = red, 8 = green) over all cells of `id`; -1 if there are none. */
+static int average_channel(ElementId id, int shift) {
+    long sum = 0;
+    int n = 0;
+    for (int y = 0; y < g_sb.h; y++)
+        for (int x = 0; x < g_sb.w; x++)
+            if (sandbox_get(&g_sb, x, y) == id) {
+                sum += (long)((sandbox_pixel(&g_sb, x, y) >> shift) & 255u);
+                n++;
+            }
+    return n ? (int)(sum / n) : -1;
+}
+
+static void test_lava_colour_follows_its_temperature(void) {
+    sandbox_init(&g_sb, 20, 20, 71);
+    sandbox_set(&g_sb, 5, 10, EL_LAVA);
+    sandbox_set(&g_sb, 8, 10, EL_LAVA);
+    sandbox_set(&g_sb, 11, 10, EL_LAVA);
+    sandbox_set_temp(&g_sb, 5, 10, 1400);
+    sandbox_set_temp(&g_sb, 8, 10, 800);
+    sandbox_set_temp(&g_sb, 11, 10, 540);
+    uint32_t hot = sandbox_pixel(&g_sb, 5, 10), mid = sandbox_pixel(&g_sb, 8, 10),
+             cool = sandbox_pixel(&g_sb, 11, 10);
+    int g_hot = (int)((hot >> 8) & 255u), g_mid = (int)((mid >> 8) & 255u),
+        g_cool = (int)((cool >> 8) & 255u);
+    CHECK(g_hot > g_mid + 50); /* very hot lava is pale, cooling lava goes orange and then red... */
+    CHECK(g_mid > g_cool + 20);
+    CHECK(g_cool < 70);
+    CHECK((int)((cool >> 16) & 255u) <
+          (int)((mid >> 16) & 255u)); /* ...and dims to dark crimson at the end */
+}
+
+static void test_lava_cools_through_the_colours_and_sets_into_basalt(void) {
+    tank(40, 30, 72);
+    fill(10, 24, 25, 28, EL_LAVA);
+    int lava = sandbox_count(&g_sb, EL_LAVA);
+    run(3);
+    int green_start = average_channel(EL_LAVA, 8);
+    run(150);
+    int green_mid = average_channel(EL_LAVA, 8);
+    CHECK(green_mid >= 0 && green_mid < green_start - 25); /* it has cooled to orange and red... */
+    CHECK(sandbox_count(&g_sb, EL_BASALT) > 0);            /* ...and is already crusting over */
+    run(1500);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_LAVA), 0);     /* in the end it has all set... */
+    CHECK(sandbox_count(&g_sb, EL_BASALT) >= lava - 4); /* ...into dark rock, one for one */
+    CHECK(sandbox_temp(&g_sb, 15, 27) < 500);
+}
+
+static void test_basalt_melts_back_into_lava_when_it_is_heated(void) {
+    tank(30, 20, 73);
+    fill(12, 17, 18, 18, EL_BASALT);
+    for (int y = 17; y <= 18; y++)
+        for (int x = 12; x <= 18; x++)
+            sandbox_set_temp(&g_sb, x, y, 1500);
+    run(40);
+    CHECK(sandbox_count(&g_sb, EL_LAVA) > 3);
+    sandbox_set(&g_sb, 5, 18, EL_BASALT);
+    sandbox_set_temp(&g_sb, 5, 18, 800); /* ordinary heat does not melt it */
+    run(30);
+    CHECK_EQ_INT(sandbox_get(&g_sb, 5, 18), EL_BASALT);
+}
+
+static int spread_of_pool(int start_temp) {
+    tank(120, 30, 74);
+    fill(55, 14, 64, 28, EL_LAVA); /* a column of lava, 10 wide, standing on the floor */
+    for (int y = 14; y <= 28; y++)
+        for (int x = 55; x <= 64; x++)
+            sandbox_set_temp(&g_sb, x, y, start_temp);
+    run(100);
+    int lo = 120, hi = 0;
+    for (int x = 1; x < 119; x++)
+        if (sandbox_get(&g_sb, x, 28) == EL_LAVA || sandbox_get(&g_sb, x, 28) == EL_BASALT) {
+            lo = arc_mini(lo, x);
+            hi = arc_maxi(hi, x);
+        }
+    return hi - lo + 1;
+}
+
+static void test_lava_thickens_as_it_cools(void) {
+    int runny = spread_of_pool(1150), stiff = spread_of_pool(620);
+    CHECK(runny > stiff + 5); /* hot lava runs out into a wide pool, cool lava stays piled up */
+}
+
+static void test_lava_throws_up_flames(void) {
+    tank(60, 30, 75);
+    fill(10, 26, 50, 28, EL_LAVA);
+    int flames = 0;
+    for (int t = 0; t < 40; t++) {
+        sandbox_step(&g_sb);
+        flames += sandbox_count(&g_sb, EL_FIRE);
+    }
+    CHECK(flames > 10);
 }
 
 static void test_wood_catches_fire_at_its_ignition_temperature(void) {
@@ -931,100 +1107,128 @@ static void test_every_element_survives_extreme_temperatures(void) {
     }
 }
 
-/* ---- blasts ---- */
+/* ---- explosions: sparks ---- */
 
-static void test_blast_digs_a_crater_and_throws_the_sand_out(void) {
-    tank(100, 50, 60);
-    fill(1, 36, 98, 48, EL_SAND);
-    int sand = sandbox_count(&g_sb, EL_SAND);
-    int before = column_height(50, EL_SAND);
-    sandbox_blast(&g_sb, 50, 44, 30);
-    run(200);
-    CHECK(column_height(50, EL_SAND) < before - 3); /* a crater at the centre... */
-    int rim = 0;
-    for (int x = 20; x < 80; x++)
-        rim = arc_maxi(rim, column_height(x, EL_SAND));
-    CHECK(rim > before);                                  /* ...and the sand lands as a rim around it */
-    CHECK(sandbox_count(&g_sb, EL_SAND) > sand * 6 / 10); /* mostly thrown, only the middle burns up */
+static int sparks_beyond(int cx, int cy, int radius) {
+    int n = 0;
+    for (int y = 0; y < g_sb.h; y++)
+        for (int x = 0; x < g_sb.w; x++)
+            if (sandbox_get(&g_sb, x, y) == EL_SPARK &&
+                (x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius)
+                n++;
+    return n;
 }
 
-static void test_blast_shatters_stone_but_not_walls(void) {
-    tank(80, 40, 61);
-    fill(20, 20, 60, 37, EL_STONE);
-    fill(34, 30, 46, 31, EL_WALL);
-    int stone = sandbox_count(&g_sb, EL_STONE);
-    sandbox_blast(&g_sb, 40, 24, 36);
-    run(100);
-    CHECK(sandbox_count(&g_sb, EL_STONE) < stone - 30);
-    CHECK(sandbox_count(&g_sb, EL_GRAVEL) > 10); /* broken rock lies around as rubble */
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), 26);
-    for (int x = 34; x <= 46; x++)
-        CHECK_EQ_INT(sandbox_get(&g_sb, x, 33), EL_STONE); /* the wall shielded what lies behind it */
+static void test_sparks_fly_out_in_all_directions(void) {
+    tank(200, 120, 60);
+    sandbox_burst(&g_sb, 100, 60, 200);
+    run(8);
+    int quadrant[4] = {0, 0, 0, 0};
+    for (int y = 0; y < 120; y++)
+        for (int x = 1; x < 199; x++)
+            if (sandbox_get(&g_sb, x, y) == EL_SPARK)
+                quadrant[(x > 100) + 2 * (y > 60)]++;
+    for (int q = 0; q < 4; q++)
+        CHECK(quadrant[q] > 5);             /* every direction got its share */
+    CHECK(sparks_beyond(100, 60, 14) > 20); /* five cells per tick: 8 ticks later the survivors are far out */
+    run(250);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SPARK), 0); /* none lives forever */
 }
 
-static void test_a_small_blast_stays_small(void) {
-    tank(60, 40, 62);
-    fill(1, 30, 58, 38, EL_SAND);
-    sandbox_set(&g_sb, 30, 30, EL_SAND);
-    sandbox_blast(&g_sb, 30, 30, 3);
-    run(60);
-    CHECK_EQ_INT(sandbox_get(&g_sb, 5, 36), EL_SAND);
-    CHECK_EQ_INT(sandbox_get(&g_sb, 55, 36), EL_SAND);
-    int dug = 0;
-    for (int x = 1; x < 59; x++)
-        dug += column_height(x, EL_SAND) < 9;
-    CHECK(dug < 12);
-}
-
-static void test_a_big_blast_spreads_as_a_wave(void) {
-    tank(200, 60, 63);
-    fill(1, 50, 198, 58, EL_SAND);
-    sandbox_blast(&g_sb, 100, 52, 90);
-    CHECK_EQ_INT(sandbox_get(&g_sb, 175, 55), EL_SAND); /* the ring has not got that far yet */
+static void test_sparks_dig_a_crater_in_sand(void) {
+    tank(100, 50, 61);
+    fill(1, 30, 98, 48, EL_SAND);
     int before = sandbox_count(&g_sb, EL_SAND);
-    for (int t = 0; t < 4; t++)
-        sandbox_step(&g_sb);
-    CHECK(g_sb.shock.active);
-    run(60);
-    CHECK(!g_sb.shock.active);
-    CHECK(sandbox_count(&g_sb, EL_SAND) < before); /* the wave reached far out and burnt or flung sand */
+    sandbox_burst(&g_sb, 50, 31, 60);
+    run(80);
+    CHECK(sandbox_count(&g_sb, EL_SAND) < before - 20); /* the sparks removed sand along their paths... */
+    CHECK(sandbox_count(&g_sb, EL_SAND) >
+          before - 600);                    /* ...but they run out of steam: it is not a vacuum */
+    CHECK(column_height(50, EL_SAND) < 19); /* and the sand slid into the hole they made */
 }
 
-static void test_tnt_makes_a_real_explosion(void) {
-    tank(120, 60, 64);
-    fill(1, 50, 118, 58, EL_SAND);
-    fill(70, 40, 74, 49, EL_WOOD); /* a fence 20 cells from the charge */
-    fill(60, 44, 61, 49, EL_TNT);
-    int wood = sandbox_count(&g_sb, EL_WOOD);
-    int before = column_height(55, EL_SAND);
-    sandbox_set(&g_sb, 60, 43, EL_FIRE);
-    run(200);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
-    CHECK(column_height(55, EL_SAND) != before); /* the surroundings were moved... */
-    CHECK(sandbox_count(&g_sb, EL_WOOD) < wood); /* ...and the fence was damaged */
-}
-
-static void test_one_tnt_cell_still_goes_off_with_a_bang(void) {
-    tank(100, 50, 65);
-    fill(1, 40, 98, 48, EL_SAND);
-    sandbox_set(&g_sb, 50, 45, EL_TNT);
-    int before = column_height(50, EL_SAND);
-    for (int t = 0; t < 10; t++) { /* a few flames held against it, like a brush stroke */
-        sandbox_set(&g_sb, 50, 44, EL_FIRE);
-        sandbox_set(&g_sb, 49, 45, EL_FIRE);
-        sandbox_step(&g_sb);
-    }
-    run(120);
-    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
-    CHECK(column_height(50, EL_SAND) < before - 2); /* a lone block of TNT makes a visible hole */
-}
-
-static void test_blast_power_is_clamped(void) {
-    tank(40, 30, 66);
-    sandbox_blast(&g_sb, 20, 15, 0);
-    sandbox_blast(&g_sb, 20, 15, 100000); /* silly values are clamped, never crash */
+static void test_sparks_cannot_pass_walls_or_steel(void) {
+    tank(60, 40, 62);
+    fill(20, 15, 40, 15, EL_WALL); /* a pocket closed in by wall and steel, with sand above and below it */
+    fill(20, 25, 40, 25, EL_STEEL);
+    fill(20, 16, 20, 24, EL_STEEL);
+    fill(40, 16, 40, 24, EL_WALL);
+    fill(26, 13, 34, 14, EL_SAND);
+    fill(26, 37, 34, 38, EL_SAND);
+    int walls = sandbox_count(&g_sb, EL_WALL), steel = sandbox_count(&g_sb, EL_STEEL);
+    sandbox_burst(&g_sb, 30, 20, 25); /* the pocket is 21 cells wide: all of them start inside it */
     run(100);
-    CHECK(g_sb.shock.active == false);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_WALL), walls); /* not one cell of the box was broken... */
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_STEEL), steel);
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 20, 5, 40, 14, EL_SAND),
+                 9 * 2); /* ...so the sand outside is untouched */
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 20, 30, 40, 38, EL_SAND), 9 * 2);
+}
+
+static void test_a_charge_goes_off_all_at_once(void) {
+    tank(80, 40, 63);
+    fill(30, 30, 41, 37, EL_TNT);
+    fill(42, 30, 45, 37, EL_GUNPOWDER); /* touching charges of both kinds go up together */
+    sandbox_set(&g_sb, 30, 29, EL_FIRE);
+    run(3);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_GUNPOWDER), 0);
+    CHECK(sandbox_count(&g_sb, EL_SPARK) > 60);
+}
+
+static void test_a_separate_charge_is_set_off_by_sparks_not_gathered(void) {
+    tank(100, 40, 67);
+    fill(10, 31, 14, 37, EL_TNT);
+    fill(40, 20, 41, 37, EL_TNT); /* a tall second charge, 25 cells away and not touching the first */
+    for (int t = 0; t < 30 && sandbox_count_in(&g_sb, 10, 31, 5, 7, EL_TNT) > 0; t++)
+        torch(10, 30, 14, 30, 1);
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 10, 31, 5, 7, EL_TNT), 0);
+    CHECK_EQ_INT(sandbox_count_in(&g_sb, 40, 20, 2, 18, EL_TNT), 36); /* it was not part of that charge */
+    run(300);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0); /* but the flying sparks got to it in the end */
+}
+
+static void test_explosion_under_water_blows_a_hole_and_boils_some_off(void) {
+    tank(80, 40, 68);
+    fill(1, 20, 78, 38, EL_WATER);
+    fill(38, 34, 41, 37, EL_TNT);
+    sandbox_set_temp(&g_sb, 40, 35,
+                     400); /* hot enough to set it off (a flame would be put out by the water) */
+    int water = sandbox_count(&g_sb, EL_WATER);
+    int steam = 0;
+    for (int t = 0; t < 40; t++) {
+        sandbox_step(&g_sb);
+        steam = arc_maxi(steam, sandbox_count(&g_sb, EL_STEAM));
+    }
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
+    CHECK(sandbox_count(&g_sb, EL_WATER) < water - 5); /* sparks ploughed water out of the way */
+    CHECK(steam >= 1);                                 /* and some of it flashed to steam */
+}
+
+static void test_burst_handles_silly_arguments(void) {
+    tank(40, 30, 66);
+    sandbox_burst(&g_sb, 20, 15, 0);
+    sandbox_burst(&g_sb, 20, 15, -5);
+    sandbox_burst(&g_sb, -50, 400, 100);
+    sandbox_burst(&g_sb, 20, 15, 5000);
+    run(300);
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_SPARK), 0);
+}
+
+static void test_a_lone_spark_flies_about_five_cells_per_tick(void) {
+    tank(80, 40, 69);
+    sandbox_burst(&g_sb, 40, 20, 1);
+    run(3);
+    int far = 0, near = 0;
+    for (int y = 0; y < 40; y++)
+        for (int x = 1; x < 79; x++)
+            if (sandbox_get(&g_sb, x, y) == EL_SPARK) {
+                int d = arc_maxi(iabs(x - 40), iabs(y - 20));
+                far += d >= 10;
+                near += d < 10;
+            }
+    CHECK_EQ_INT(far, 1); /* 3 ticks of five cells: well over ten cells from where it started */
+    CHECK_EQ_INT(near, 0);
 }
 
 /* ---- the engine as a whole ---- */
@@ -1120,7 +1324,7 @@ int main(void) {
     RUN(test_fire_dies_without_fuel);
     RUN(test_water_puts_out_fire);
     RUN(test_oil_burns_and_keeps_flowing);
-    RUN(test_gunpowder_flashes_but_does_not_blast_walls);
+    RUN(test_gunpowder_goes_off_all_at_once_as_sparks);
     RUN(test_fuse_burns_slowly_along_its_length);
     RUN(test_tnt_explodes_and_walls_survive);
     RUN(test_tnt_chain_reaction);
@@ -1139,12 +1343,14 @@ int main(void) {
     RUN(test_termites_eat_wood_and_starve);
     RUN(test_termites_starve_without_food);
     RUN(test_life_blinker_and_glider);
-    RUN(test_uranium_gamma_rays_stop_at_solids);
-    RUN(test_big_uranium_block_goes_critical_and_wrecks_the_world);
+    RUN(test_uranium_gamma_rays_stop_at_walls);
+    RUN(test_gamma_rays_burn_through_what_they_cross);
+    RUN(test_uranium_heats_itself_in_proportion_to_its_size);
+    RUN(test_big_uranium_lump_melts_then_goes_critical_and_wrecks_the_world);
     RUN(test_small_uranium_lump_is_stable);
-    RUN(test_hot_uranium_goes_critical);
+    RUN(test_one_critical_cell_takes_the_whole_lump);
     RUN(test_a_lump_too_small_to_blow_only_melts);
-    RUN(test_lava_sets_off_a_critical_sized_lump);
+    RUN(test_water_keeps_a_small_lump_cool_but_not_a_big_one);
     RUN(test_a_bigger_lump_makes_a_bigger_blast);
     RUN(test_molten_uranium_solidifies_in_water);
     RUN(test_every_cell_starts_at_room_temperature);
@@ -1156,16 +1362,24 @@ int main(void) {
     RUN(test_steel_pot_boils_water_but_a_brick_pot_hardly_does);
     RUN(test_a_pot_of_water_warms_up_before_it_boils);
     RUN(test_water_freezes_and_ice_melts_by_temperature);
-    RUN(test_lava_cools_to_stone_and_hot_sand_turns_to_glass);
+    RUN(test_hot_sand_turns_to_glass);
+    RUN(test_lava_colour_follows_its_temperature);
+    RUN(test_lava_cools_through_the_colours_and_sets_into_basalt);
+    RUN(test_basalt_melts_back_into_lava_when_it_is_heated);
+    RUN(test_lava_thickens_as_it_cools);
+    RUN(test_lava_throws_up_flames);
     RUN(test_wood_catches_fire_at_its_ignition_temperature);
     RUN(test_every_element_survives_extreme_temperatures);
-    RUN(test_blast_digs_a_crater_and_throws_the_sand_out);
-    RUN(test_blast_shatters_stone_but_not_walls);
-    RUN(test_a_small_blast_stays_small);
-    RUN(test_a_big_blast_spreads_as_a_wave);
+    RUN(test_sparks_fly_out_in_all_directions);
+    RUN(test_sparks_dig_a_crater_in_sand);
+    RUN(test_sparks_cannot_pass_walls_or_steel);
+    RUN(test_a_charge_goes_off_all_at_once);
+    RUN(test_a_separate_charge_is_set_off_by_sparks_not_gathered);
+    RUN(test_explosion_under_water_blows_a_hole_and_boils_some_off);
     RUN(test_tnt_makes_a_real_explosion);
-    RUN(test_one_tnt_cell_still_goes_off_with_a_bang);
-    RUN(test_blast_power_is_clamped);
+    RUN(test_one_tnt_cell_still_goes_off);
+    RUN(test_burst_handles_silly_arguments);
+    RUN(test_a_lone_spark_flies_about_five_cells_per_tick);
     RUN(test_mass_is_conserved_for_inert_elements);
     RUN(test_deterministic_with_every_element);
     RUN(test_chaos_never_breaks_the_grid);

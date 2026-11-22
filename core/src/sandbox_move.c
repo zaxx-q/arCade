@@ -192,7 +192,10 @@ static int find_mate(const Sandbox *sb, int x, int y, ElementId me, int reach, i
 static void move_liquid(Sandbox *sb, int x, int y) {
     ElementId me = (ElementId)sb->cells[cell_index(sb, x, y)];
     const ElementDef *d = sandbox_element(me);
-    if (d->slip < 255 && !sandbox_chance(sb, d->slip))
+    int slip = d->slip;
+    if (me == EL_LAVA) /* lava thickens as it cools: runny at 1200 degrees, nearly stiff by 500 */
+        slip = slip * arc_clampi(sb->temp[cell_index(sb, x, y)] - 450, 4, 800) / 800;
+    if (slip < 255 && !sandbox_chance(sb, slip))
         return; /* thick liquids (lava) only act now and then */
 
     int budget = d->speed;     /* cells it may still fall this tick */
@@ -245,30 +248,6 @@ static void move_gas(Sandbox *sb, int x, int y) {
         sandbox_swap(sb, i, cell_index(sb, x + dir, y));
 }
 
-/* ---- gamma rays: aux = direction (top 3 bits) + remaining flight (low 5 bits), 2 cells per tick ---- */
-
-static void move_ray(Sandbox *sb, int x, int y) {
-    for (int sub = 0; sub < 2; sub++) {
-        int i = cell_index(sb, x, y);
-        int dir = sb->aux[i] >> 5, life = sb->aux[i] & 31;
-        int nx = x + sandbox_dx(dir), ny = y + sandbox_dy(dir);
-        if (life == 0 || !sandbox_inside(sb, nx, ny)) {
-            sandbox_put(sb, x, y, EL_EMPTY, 0);
-            return;
-        }
-        ElementId t = (ElementId)sb->cells[cell_index(sb, nx, ny)];
-        if (t != EL_EMPTY && sandbox_element(t)->kind != MOVE_GAS) {
-            sandbox_gamma_hit(sb, nx, ny); /* it hit something solid or wet: see sandbox_react.c */
-            sandbox_put(sb, x, y, EL_EMPTY, 0);
-            return;
-        }
-        sandbox_swap(sb, i, cell_index(sb, nx, ny));
-        sb->aux[cell_index(sb, nx, ny)] = (uint8_t)((dir << 5) | (life - 1));
-        x = nx;
-        y = ny;
-    }
-}
-
 /* ---- crawlers: they only fall when nothing is near to hold on to; the walking is in sandbox_react.c ---- */
 
 static void move_crawl(Sandbox *sb, int x, int y) {
@@ -296,7 +275,7 @@ void sandbox_move(Sandbox *sb, int x, int y) {
         move_gas(sb, x, y);
         break;
     case MOVE_RAY:
-        move_ray(sb, x, y);
+        sandbox_fly(sb, x, y); /* sparks and gamma rays: see sandbox_burst.c */
         break;
     case MOVE_CRAWL:
         move_crawl(sb, x, y);

@@ -18,9 +18,7 @@ void sandbox_clear(Sandbox *sb) {
     memset(sb->aux, 0, sizeof(sb->aux));
     memset(sb->moved, 0, sizeof(sb->moved));
     sandbox_heat_clear(sb);
-    sb->shock.active = false;
     sb->flash = 0;
-    sb->blast_budget = SANDBOX_BLASTS_PER_TICK;
 }
 
 ElementId sandbox_get(const Sandbox *sb, int x, int y) {
@@ -120,10 +118,11 @@ void sandbox_put(Sandbox *sb, int x, int y, ElementId id, uint8_t aux) {
 
 void sandbox_step(Sandbox *sb) {
     int total = sb->w * sb->h;
-    for (int i = 0; i < total; i++) /* "moved this tick" becomes "moved last tick"; EXCITED survives */
-        sb->moved[i] = (uint8_t)(((sb->moved[i] & MOVED_NOW) << 1) | (sb->moved[i] & EXCITED));
+    /* "moved this tick" becomes "moved last tick"; a particle keeps its heading */
+    for (int i = 0; i < total; i++)
+        sb->moved[i] = (uint8_t)(((sb->moved[i] & MOVED_NOW) << 1) | (sb->moved[i] & HEADING_MASK));
     sb->tick++;
-    sandbox_blast_step(sb); /* a travelling shock wave pushes things before anything else moves */
+    sb->flash = arc_maxi(0, sb->flash - 9); /* the white-out after a big explosion fades */
 
     /* Bottom row first, so a falling cell never gets moved twice in one tick. */
     for (int y = sb->h - 1; y >= 0; y--) {

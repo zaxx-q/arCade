@@ -33,7 +33,7 @@ static const ElementDef k_elements[EL_COUNT] = {
     /* liquids */
     [EL_OIL] = {"Oil", 78, 52, 66, 10, MOVE_LIQUID, 0, 4, 32, 255, 0, 140, 6, 255},
     [EL_ACID] = {"Acid", 146, 255, 70, 22, MOVE_LIQUID, EF_ACIDPROOF, 4, 32, 255, 0, 0, 10, 255},
-    [EL_LAVA] = {"Lava", 255, 98, 24, 60, MOVE_LIQUID, EF_HOT | EF_ACIDPROOF, 2, 3, 70, 0, 0, 24, 255},
+    [EL_LAVA] = {"Lava", 255, 140, 36, 60, MOVE_LIQUID, EF_HOT | EF_ACIDPROOF, 2, 3, 70, 0, 0, 24, 255},
     [EL_MERCURY] = {"Mercury", 178, 190, 204, 136, MOVE_LIQUID, 0, 4, 24, 255, 0, 0, 20, 255},
     [EL_NITROGEN] = {"Nitrogen", 110, 235, 245, 8, MOVE_LIQUID, 0, 4, 96, 255, 0, 0, 8, 255},
 
@@ -65,6 +65,8 @@ static const ElementDef k_elements[EL_COUNT] = {
     [EL_GAMMA] = {"Gamma", 190, 255, 214, 0, MOVE_RAY, EF_HIDDEN, 0, 0, 0, 0, 0, 0, 0},
     [EL_MOLTEN_URANIUM] = {"Molten Uranium", 190, 255, 90, 150, MOVE_LIQUID, EF_HIDDEN | EF_HOT, 2, 3, 50, 0,
                            0, 20, 0},
+    [EL_SPARK] = {"Spark", 255, 232, 150, 0, MOVE_RAY, EF_HIDDEN | EF_HOT, 0, 0, 0, 0, 0, 0, 0},
+    [EL_BASALT] = {"Basalt", 70, 52, 58, 100, MOVE_NONE, EF_ACIDPROOF | EF_HIDDEN, 0, 0, 0, 0, 0, 14, 255},
 };
 
 const ElementDef *sandbox_element(ElementId id) {

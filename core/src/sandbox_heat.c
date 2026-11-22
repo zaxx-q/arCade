@@ -26,63 +26,64 @@
 #define NC INT16_MIN, EL_EMPTY /* never cold enough to change */
 #define NH INT16_MAX, EL_EMPTY /* never hot enough to change */
 
-/* Columns:  temp0, cond, cap, loss, autoignite, resist, tough, (cold_t, cold_to), (hot_t, hot_to), rate,
- * fixed, latent_hot, latent_cold
+/* Columns:  temp0, cond, cap, loss, autoignite, (cold_t, cold_to), (hot_t, hot_to), rate, fixed, latent_hot,
+ * latent_cold
  *
  * cond / cap : conductivity and heat capacity. Steel 62/1 heats and cools very fast, water 20/6 slowly, brick
  *              3/6 hardly passes heat on at all.
  * loss       : heat lost to open air per exposed face, 1/16384 of the temperature difference per tick
  * autoignite : flammable things light up by themselves above this temperature
- * resist     : energy a blast loses crossing the cell;  tough: energy needed to break it (255 = never)
  * rate       : phase changes happen with this chance (/256) per tick once the temperature is reached
  * fixed      : 1 = the cell is a heat source or sink and always sits at temp0
  * latent_*   : water that reaches 100 degrees does not boil at once: it stays at 100 while it soaks up heat
  *              (kept in aux, in units of 16) and only turns to steam when it has taken enough. Ice melting
  *              and water freezing work the same way at 0 degrees. Blank = the change is immediate. */
 static const ThermalDef k_thermal[EL_COUNT] = {
-    [EL_EMPTY] = {SANDBOX_AMBIENT, 0, 1, 0, 0, 1, 0, NC, NH, 0, 0},
+    [EL_EMPTY] = {SANDBOX_AMBIENT, 0, 1, 0, 0, NC, NH, 0, 0},
 
-    [EL_SAND] = {20, 8, 4, 24, 0, 3, 0, NC, 1100, EL_GLASS, 40, 0},
-    [EL_WATER] = {20, 6, 8, 20, 0, 3, 0, 0, EL_ICE, 100, EL_STEAM, 255, 0, 110, 60},
-    [EL_STONE] = {20, 14, 5, 20, 0, 12, 14, NC, 1300, EL_LAVA, 20, 0},
+    [EL_SAND] = {20, 8, 4, 24, 0, NC, 1100, EL_GLASS, 40, 0},
+    [EL_WATER] = {20, 6, 8, 20, 0, 0, EL_ICE, 100, EL_STEAM, 255, 0, 110, 60},
+    [EL_STONE] = {20, 14, 5, 20, 0, NC, 1300, EL_LAVA, 20, 0},
 
-    [EL_SOIL] = {20, 6, 5, 24, 0, 3, 0, NC, NH, 0, 0},
-    [EL_SNOW] = {-5, 4, 3, 24, 0, 2, 0, NC, 0, EL_WATER, 255, 0, 30, 0},
-    [EL_GUNPOWDER] = {20, 6, 3, 24, 260, 3, 0, NC, NH, 0, 0},
-    [EL_SEED] = {20, 5, 3, 24, 260, 2, 0, NC, NH, 0, 0},
-    [EL_ASH] = {20, 4, 2, 24, 0, 2, 0, NC, NH, 0, 0},
-    [EL_THERMITE] = {20, 10, 4, 24, 700, 3, 0, NC, NH, 0, 0},
-    [EL_GRAVEL] = {20, 10, 4, 24, 0, 4, 0, NC, 1300, EL_LAVA, 20, 0},
+    [EL_SOIL] = {20, 6, 5, 24, 0, NC, NH, 0, 0},
+    [EL_SNOW] = {-5, 4, 3, 24, 0, NC, 0, EL_WATER, 255, 0, 30, 0},
+    [EL_GUNPOWDER] = {20, 6, 3, 24, 260, NC, NH, 0, 0},
+    [EL_SEED] = {20, 5, 3, 24, 260, NC, NH, 0, 0},
+    [EL_ASH] = {20, 4, 2, 24, 0, NC, NH, 0, 0},
+    [EL_THERMITE] = {20, 10, 4, 24, 700, NC, NH, 0, 0},
+    [EL_GRAVEL] = {20, 10, 4, 24, 0, NC, 1300, EL_LAVA, 20, 0},
 
-    [EL_OIL] = {20, 8, 4, 24, 280, 3, 0, NC, NH, 0, 0},
-    [EL_ACID] = {20, 14, 5, 24, 0, 3, 0, NC, NH, 0, 0},
-    [EL_LAVA] = {1250, 22, 5, 40, 0, 6, 0, 700, EL_STONE, NH, 30, 0},
-    [EL_MERCURY] = {20, 56, 3, 20, 0, 8, 0, NC, NH, 0, 0},
-    [EL_NITROGEN] = {-196, 12, 4, 40, 0, 0, 0, NC, -150, EL_EMPTY, 90, 0},
+    [EL_OIL] = {20, 8, 4, 24, 280, NC, NH, 0, 0},
+    [EL_ACID] = {20, 14, 5, 24, 0, NC, NH, 0, 0},
+    [EL_LAVA] = {1150, 22, 4, 250, 0, 500, EL_BASALT, NH, 30, 0}, /* cools through red and sets into basalt */
+    [EL_MERCURY] = {20, 56, 3, 20, 0, NC, NH, 0, 0},
+    [EL_NITROGEN] = {-196, 12, 4, 40, 0, NC, -150, EL_EMPTY, 90, 0},
 
-    [EL_STEAM] = {110, 6, 1, 6, 0, 0, 0, 96, EL_WATER, NH, 40, 0},
-    [EL_METHANE] = {20, 6, 1, 20, 480, 0, 0, NC, NH, 0, 0},
-    [EL_SMOKE] = {20, 6, 1, 20, 0, 0, 0, NC, NH, 0, 0},
+    [EL_STEAM] = {110, 6, 1, 6, 0, 96, EL_WATER, NH, 40, 0},
+    [EL_METHANE] = {20, 6, 1, 20, 480, NC, NH, 0, 0},
+    [EL_SMOKE] = {20, 6, 1, 20, 0, NC, NH, 0, 0},
 
-    [EL_WOOD] = {20, 4, 4, 20, 300, 6, 10, NC, NH, 0, 0},
-    [EL_ICE] = {-10, 10, 4, 20, 0, 6, 8, NC, 0, EL_WATER, 255, 0, 60, 0},
-    [EL_GLASS] = {20, 10, 4, 20, 0, 8, 6, NC, 1700, EL_LAVA, 10, 0},
-    [EL_WALL] = {20, 2, 8, 4, 0, 255, 255, NC, NH, 0, 0},
-    [EL_STEEL] = {20, 62, 1, 30, 0, 22, 40, NC, 1500, EL_LAVA, 20, 0},
-    [EL_BRICK] = {20, 3, 6, 4, 0, 18, 22, NC, 1900, EL_LAVA, 10, 0},
-    [EL_PLANT] = {20, 8, 5, 24, 320, 2, 4, NC, NH, 0, 0},
-    [EL_FUSE] = {20, 5, 2, 24, 250, 2, 3, NC, NH, 0, 0},
-    [EL_TNT] = {20, 6, 4, 24, 330, 5, 0, NC, NH, 0, 0},
+    [EL_WOOD] = {20, 4, 4, 20, 300, NC, NH, 0, 0},
+    [EL_ICE] = {-10, 10, 4, 20, 0, NC, 0, EL_WATER, 255, 0, 60, 0},
+    [EL_GLASS] = {20, 10, 4, 20, 0, NC, 1700, EL_LAVA, 10, 0},
+    [EL_WALL] = {20, 2, 8, 4, 0, NC, NH, 0, 0},
+    [EL_STEEL] = {20, 62, 1, 30, 0, NC, 1500, EL_LAVA, 20, 0},
+    [EL_BRICK] = {20, 3, 6, 4, 0, NC, 1900, EL_LAVA, 10, 0},
+    [EL_PLANT] = {20, 8, 5, 24, 320, NC, NH, 0, 0},
+    [EL_FUSE] = {20, 5, 2, 24, 250, NC, NH, 0, 0},
+    [EL_TNT] = {20, 6, 4, 24, 330, NC, NH, 0, 0},
 
-    [EL_FIRE] = {800, 24, 1, 30, 0, 0, 0, NC, NH, 0, 1},
-    [EL_HEATER] = {700, 40, 10, 4, 0, 20, 60, NC, NH, 0, 1},
-    [EL_COOLER] = {-80, 40, 10, 4, 0, 20, 60, NC, NH, 0, 1},
-    [EL_URANIUM] = {20, 30, 4, 20, 0, 15, 20, NC, NH, 0, 0},
-    [EL_TERMITE] = {20, 6, 3, 24, 300, 2, 0, NC, NH, 0, 0},
-    [EL_LIFE] = {20, 6, 2, 24, 0, 2, 0, NC, NH, 0, 0},
+    [EL_FIRE] = {800, 24, 1, 30, 0, NC, NH, 0, 1},
+    [EL_HEATER] = {700, 40, 10, 4, 0, NC, NH, 0, 1},
+    [EL_COOLER] = {-80, 40, 10, 4, 0, NC, NH, 0, 1},
+    [EL_URANIUM] = {20, 30, 4, 160, 0, NC, 1000, EL_MOLTEN_URANIUM, 60, 0}, /* heats itself, melts at 1000 */
+    [EL_TERMITE] = {20, 6, 3, 24, 300, NC, NH, 0, 0},
+    [EL_LIFE] = {20, 6, 2, 24, 0, NC, NH, 0, 0},
 
-    [EL_GAMMA] = {20, 0, 1, 0, 0, 0, 0, NC, NH, 0, 0},
-    [EL_MOLTEN_URANIUM] = {1300, 30, 8, 8, 0, 6, 0, 800, EL_URANIUM, NH, 20, 0},
+    [EL_GAMMA] = {20, 0, 1, 0, 0, NC, NH, 0, 0},
+    [EL_MOLTEN_URANIUM] = {1000, 30, 4, 160, 0, 800, EL_URANIUM, NH, 20, 0},
+    [EL_SPARK] = {1200, 24, 1, 0, 0, NC, NH, 0, 1},
+    [EL_BASALT] = {20, 14, 5, 80, 0, NC, 1100, EL_LAVA, 20, 0},
 };
 
 const ThermalDef *sandbox_thermal(ElementId id) {

@@ -42,6 +42,27 @@ static int grain(uint32_t h, int amount) {
     return ((int)(h & 255u) - 128) * amount / 128;
 }
 
+/* Lava is coloured by its temperature, not by a fixed base colour: pale yellow when it is very hot, then
+ * amber, orange and red, and a dull crimson just before it sets into rock. */
+static Rgb lava_color(int temp) {
+    static const struct {
+        int t;
+        int r, g, b;
+    } stops[] = {{500, 92, 28, 34},    {600, 150, 30, 30},   {750, 212, 52, 26},    {900, 246, 98, 24},
+                 {1050, 255, 150, 40}, {1200, 255, 205, 96}, {1500, 255, 240, 190}, {2400, 255, 255, 240}};
+    const int n = (int)(sizeof stops / sizeof stops[0]);
+    if (temp <= stops[0].t)
+        return rgb(stops[0].r, stops[0].g, stops[0].b);
+    for (int k = 1; k < n; k++) {
+        if (temp <= stops[k].t) {
+            int f = (temp - stops[k - 1].t) * 256 / (stops[k].t - stops[k - 1].t);
+            return mix(rgb(stops[k - 1].r, stops[k - 1].g, stops[k - 1].b),
+                       rgb(stops[k].r, stops[k].g, stops[k].b), f);
+        }
+    }
+    return rgb(stops[n - 1].r, stops[n - 1].g, stops[n - 1].b);
+}
+
 static uint32_t cell_color(const Sandbox *sb, int x, int y) {
     int i = y * sb->w + x;
     ElementId id = (ElementId)sb->cells[i];
@@ -90,11 +111,11 @@ static uint32_t cell_color(const Sandbox *sb, int x, int y) {
         c = add(c, grain(t1, 40));
         break;
     }
-    case EL_LAVA: {
-        int glow = (int)(t4 & 255u);
-        c = mix(base, rgb(255, 214, 70), glow / 3 + (aux > 0 ? 90 : 0));
+    case EL_LAVA:
+        c = add(lava_color(sb->temp[i]), grain(t4, 16));
+        if (aux > 0) /* thermite melt: still burning bright */
+            c = mix(c, rgb(255, 235, 170), 90);
         break;
-    }
     case EL_WOOD:
     case EL_PLANT:
     case EL_FUSE:
@@ -105,20 +126,21 @@ static uint32_t cell_color(const Sandbox *sb, int x, int y) {
             c = mix(mix(c, rgb(46, 36, 34), arc_mini(200, timer * 4)), ember, 120 + grain(t1, 60));
         }
         break;
-    case EL_TNT:
-        if (aux > 0)
-            c = ((sb->tick >> 1) & 1u) ? rgb(255, 245, 230) : rgb(255, 60, 40); /* a lit charge blinks */
-        break;
     case EL_URANIUM:
         c = mix(c, rgb(214, 255, 130), arc_clampi((sb->temp[i] - SANDBOX_AMBIENT) * 255 / 1200, 0, 255));
-        if (sb->moved[i] & EXCITED)
-            c = rgb(255, 255, 240);
         break;
-    case EL_MOLTEN_URANIUM:
+    case EL_MOLTEN_URANIUM: { /* glows orange when it forms and goes white as it nears critical */
+        int heat = sb->temp[i];
+        Rgb glow = mix(rgb(255, 170, 60), rgb(255, 250, 215), arc_clampi((heat - 1000) * 256 / 260, 0, 256));
         c = mix(c, rgb(255, 255, 190), (int)(t4 & 127u));
+        c = mix(c, glow, arc_clampi((heat - 900) * 2, 60, 210));
         break;
+    }
     case EL_GAMMA:
         c = (t1 & 3u) == 0u ? rgb(255, 255, 255) : base;
+        break;
+    case EL_SPARK: /* white-hot, cooling to orange as it burns out */
+        c = (t1 & 3u) == 0u ? rgb(255, 255, 235) : mix(rgb(255, 110, 36), base, arc_mini(256, aux * 12));
         break;
     case EL_LIFE:
         c = add(c, (int)((sb->tick / LIFE_PERIOD + (uint32_t)(x + y)) & 1u) * 14);

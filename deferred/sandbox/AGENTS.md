@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-21 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-22 -->
 
 # AGENTS.md - Sandbox (`sandbox`)
 
@@ -19,7 +19,7 @@ Falling-sand toy on the shared `core/sandbox` engine (also animates the hub back
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^sandbox\."`
 - Smoke run (headless build): `build/headless/bin/arCade --smoke sandbox --frames 300 --out smoke-out`
-- Keys handled here: `0`-`9`, `[` `]`, wheel, `+`/`-`, `T` (thermal view), `C`, `R`, Space. The hover temperature comes from `sbx_probe` (pure) and is drawn in `sandbox_game.c`.
+- Keys handled here: `0`-`9`, `[` `]`, wheel (first element), `X` (swap the two elements), `+`/`-`, `T` (thermal view), `C`, `R`, Space. Mouse: left paints `element`, right paints `element2` (the eraser until a palette slot is right-clicked). The hover temperature comes from `sbx_probe` (pure) and is drawn in `sandbox_game.c`.
 
 ## Code style & conventions
 - Function prefix is `sbx_` (NOT `sandbox_`): `sandbox_*` belongs to the core engine.
@@ -36,7 +36,7 @@ Falling-sand toy on the shared `core/sandbox` engine (also animates the hub back
 - [ ] `bash tools/format.sh`, `bash tools/check_repo.sh` and the game's tests are clean
 
 ## Examples
-- Good: `sandbox_paint(&s->world, cx, cy, s->brush, s->element);` (engine call from `sbx_step`)
+- Good: `sandbox_paint(&s->world, cx, cy, s->brush, s->element2);` (engine call from `sbx_step`; the right button's element)
 - Bad: a `sbx_State` local variable (400 KB on the stack) or a new element rule written in this folder instead of `core/`
 
 ## When stuck

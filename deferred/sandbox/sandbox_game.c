@@ -2,8 +2,8 @@
 #include "arcade/gfx.h"
 #include "sandbox_logic.h"
 
-static const char k_hint[] = "0-9 / [ ] / wheel: element   +/-: brush   T: thermal view   C: clear   "
-                             "R: reset   Space: pause   right mouse: erase";
+static const char k_hint[] = "0-9 / [ ] / wheel: element   right-click a slot: 2nd element   X: swap   "
+                             "+/-: brush   T: thermal   C: clear   R: reset   Space: pause";
 
 /* "Steel  412 C" for the cell under the pointer (the built-in font has no degree sign). */
 static const char *probe_text(const sbx_State *s, const ArcadeInput *in) {
@@ -39,11 +39,15 @@ static void draw_palette(const sbx_State *s, const ArcadeInput *in) {
         if (i == hover)
             DrawRectangle(x, y, SBX_PAL_SLOT_W - 4, SBX_PAL_SLOT_H - 3, Fade(WHITE, 0.10f));
         DrawRectangle(x + 4, y + 3, 16, 16, gfx_rgba(e->r, e->g, e->b, 255));
+        /* the right mouse button's element: magenta, inset so both can show on a slot */
+        if (s->element2 == id)
+            DrawRectangleLines(x + 2, y + 1, SBX_PAL_SLOT_W - 6, SBX_PAL_SLOT_H - 5, ARC_COL_MAGENTA);
         if (s->element == id)
             DrawRectangleLines(x + 1, y, SBX_PAL_SLOT_W - 4, SBX_PAL_SLOT_H - 3, ARC_COL_CYAN);
         const char *label = i < 10 ? TextFormat("%d %s", i, e->name) : e->name; /* row 1 = number keys */
         int size = gfx_text_width(label, 16) > SBX_PAL_SLOT_W - 32 ? 14 : 16;   /* long names shrink to fit */
-        gfx_text(label, x + 26, y + 3 + (16 - size) / 2, size, s->element == id ? ARC_COL_TEXT : ARC_COL_DIM);
+        bool picked = s->element == id || s->element2 == id;
+        gfx_text(label, x + 26, y + 3 + (16 - size) / 2, size, picked ? ARC_COL_TEXT : ARC_COL_DIM);
     }
 }
 
@@ -57,7 +61,8 @@ static void draw_frame(const sbx_State *s, GfxSandboxView *view, const ArcadeInp
                         Fade(WHITE, 0.45f));
     const char *probe = probe_text(s, in);
     gfx_hud("SANDBOX", sbx_score(s),
-            TextFormat("%s   brush %d%s%s", sandbox_element(s->element)->name, s->brush,
+            TextFormat("L %s   R %s   brush %d%s%s", sandbox_element(s->element)->name,
+                       sandbox_element(s->element2)->name, s->brush,
                        s->world.heat_view ? "   THERMAL VIEW" : "", s->paused ? "   PAUSED" : ""));
     gfx_text(k_hint, 16, 42, 16, ARC_COL_DIM);
     if (probe != NULL)
@@ -86,11 +91,11 @@ static GameResult play(const GameContext *ctx) {
     return r;
 }
 
-const GameDef game_sandbox_def = {
-    "sandbox",
-    "Sandbox",
-    "Paint sand, water, fire, lava and uranium and watch it all react",
-    "left mouse: paint   palette / 0-9 / [ ] / wheel: element   +/-: brush   T: thermal view   Space: pause",
-    90,
-    false,
-    play};
+const GameDef game_sandbox_def = {"sandbox",
+                                  "Sandbox",
+                                  "Paint sand, water, fire, lava and uranium and watch it all react",
+                                  "left mouse: paint   right mouse: 2nd element (eraser)   0-9 / [ ] / "
+                                  "wheel: element   +/-: brush   T: thermal   Space: pause",
+                                  90,
+                                  false,
+                                  play};

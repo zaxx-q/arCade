@@ -6,7 +6,7 @@
  *   sandbox_move.c      movement rules for powders, liquids, gases, fire, rays and crawlers
  *   sandbox_react.c     chemistry: fire, lava, acid, plants, explosives, uranium, termites, life
  *   sandbox_heat.c      temperature: conduction, insulators, phase changes, auto-ignition
- *   sandbox_blast.c     explosions: shock waves that shatter, push and burn what is around them
+ *   sandbox_burst.c     explosions and radiation: sparks that fly out, plough through things and burn
  *   sandbox_color.c     the colour of one cell (shading, glow, heat view) so renderers stay trivial
  *
  * To add an element:
@@ -67,8 +67,10 @@ typedef enum ElementId {
     EL_TERMITE,
     EL_LIFE,
     /* hidden: only made by reactions, never listed in the palette */
-    EL_GAMMA,
-    EL_MOLTEN_URANIUM,
+    EL_GAMMA,          /* a ray of radiation: flies far and burns through everything but walls */
+    EL_MOLTEN_URANIUM, /* uranium that got hot enough to melt */
+    EL_SPARK,          /* a fragment thrown out by an explosion */
+    EL_BASALT,         /* the dark rock that lava turns into when it cools */
     EL_COUNT
 } ElementId;
 
@@ -78,7 +80,7 @@ typedef enum MoveKind {
     MOVE_LIQUID,   /* falls, then flows sideways towards the nearest drop */
     MOVE_GAS,      /* rises and drifts; the mirror image of a liquid */
     MOVE_FIRE,     /* flickers upwards and burns out */
-    MOVE_RAY,      /* flies in a straight line (gamma rays) */
+    MOVE_RAY,      /* flies in a straight line (sparks and gamma rays) */
     MOVE_CRAWL     /* clings to surfaces and walks along them (termites) */
 } MoveKind;
 
@@ -107,18 +109,6 @@ typedef struct ElementDef {
 #define SANDBOX_TEMP_MIN (-273)
 #define SANDBOX_TEMP_MAX 9000
 
-/* A shock wave that is still travelling outwards (only big blasts are spread over several ticks; small ones
- * finish within the tick that made them). One ray per cell on the border of a square around the centre. */
-#define SANDBOX_MAX_RAYS 1400
-typedef struct Shock {
-    bool active;
-    int cx, cy;
-    int reach; /* the wave stops after this many steps; the border of the square is `reach` cells away */
-    int front; /* how many steps the wave has travelled so far */
-    int power; /* the energy it started with */
-    int16_t energy[SANDBOX_MAX_RAYS];
-} Shock;
-
 /* Per-cell memory. `aux` means something different for each element (fire: remaining life, plant: growth
  * budget, wood: burn timer, ...). It is 0 for a freshly painted cell. See sandbox_react.c. `temp` is the
  * cell's temperature; it travels with the cell when it moves (see sandbox_heat.c). */
@@ -126,15 +116,14 @@ typedef struct Sandbox {
     int w, h;
     uint8_t cells[SANDBOX_MAX_W * SANDBOX_MAX_H];
     uint8_t aux[SANDBOX_MAX_W * SANDBOX_MAX_H];
-    /* scratch: bit 0 = moved this tick, bit 1 = moved last tick (travels with the cell) */
+    /* scratch: bit 0 = moved this tick, bit 1 = moved last tick, bits 3-6 = the heading of a flying spark or
+     * ray (see sandbox_internal.h); all of it travels with the cell */
     uint8_t moved[SANDBOX_MAX_W * SANDBOX_MAX_H];
     int16_t temp[SANDBOX_MAX_W * SANDBOX_MAX_H];
     int16_t heat_flow[SANDBOX_MAX_W * SANDBOX_MAX_H]; /* scratch for the conduction pass */
     uint8_t heat_rows[SANDBOX_MAX_H];                 /* 1 = this row may hold something not at ambient */
-    Shock shock;
-    int flash;        /* 0..255: the white-out after a huge blast; fades by itself */
-    int blast_budget; /* TNT blasts still allowed this tick: a huge stack rolls on over several ticks */
-    bool heat_view;   /* render as a thermal map instead of the normal colours */
+    int flash;      /* 0..255: the white-out after a huge explosion; fades by itself */
+    bool heat_view; /* render as a thermal map instead of the normal colours */
     unsigned tick;
     Rng rng;
 } Sandbox;
@@ -157,9 +146,12 @@ int sandbox_temp(const Sandbox *sb, int x, int y);
 /* Set or change the temperature of a non-empty cell (clamped to the allowed range). */
 void sandbox_set_temp(Sandbox *sb, int x, int y, int degrees);
 void sandbox_add_heat(Sandbox *sb, int x, int y, int degrees);
-/* A blast of the given power at (x, y): a shock wave reaches about `power` cells in open air and loses energy
- * on everything it crosses. Walls stop it; stone, wood and glass shatter; sand, water and gas are thrown. */
-void sandbox_blast(Sandbox *sb, int x, int y, int power);
+/* Throw `sparks` sparks out from (x, y) in random directions; they start in the cells around that point,
+ * replacing whatever is there except walls and steel. A spark flies one cell per tick for 32 to 159
+ * ticks, leaves flames behind it and ploughs through nearly everything in its way; only walls and steel stop
+ * it. This is what an exploding charge is made of (see sandbox_burst.c); the call is public so tools and
+ * tests can set off a blast without building a charge. */
+void sandbox_burst(Sandbox *sb, int x, int y, int sparks);
 
 /* The on-screen colour of cell (x, y) as 0xRRGGBB. Pure: same cell, same tick => same colour. */
 uint32_t sandbox_pixel(const Sandbox *sb, int x, int y);
