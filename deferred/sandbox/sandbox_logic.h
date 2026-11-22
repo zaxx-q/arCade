@@ -25,10 +25,12 @@
 
 typedef struct sbx_State {
     Sandbox world;
-    ElementId element; /* what the left mouse button paints (never a hidden element) */
-    int brush;         /* brush radius in cells */
+    ElementId element;  /* what the left mouse button paints (never a hidden element) */
+    ElementId element2; /* what the right mouse button paints: the eraser until another one is assigned */
+    int brush;          /* brush radius in cells */
     bool paused;
-    bool pal_hold; /* the mouse press started on the palette: it must not paint when dragged onto the world */
+    bool pal_hold;  /* the left press started on the palette: it must not paint when dragged onto the world */
+    bool pal_hold2; /* the same for the right button */
     unsigned ticks;
 } sbx_State;
 
@@ -38,9 +40,10 @@ bool sbx_is_over(const sbx_State *s); /* a sandbox never ends: always false */
 int sbx_score(const sbx_State *s);    /* number of non-empty cells (unranked, just for display) */
 
 /* Palette helpers. Pointer positions are in window pixels. */
-bool sbx_over_panel(float px, float py);          /* is the pointer on the palette panel? */
-int sbx_palette_slot_at(float px, float py);      /* palette index under the pointer, or -1 */
-void sbx_select(sbx_State *s, int palette_index); /* ignores out-of-range indices */
+bool sbx_over_panel(float px, float py);           /* is the pointer on the palette panel? */
+int sbx_palette_slot_at(float px, float py);       /* palette index under the pointer, or -1 */
+void sbx_select(sbx_State *s, int palette_index);  /* left mouse: ignores out-of-range indices */
+void sbx_select2(sbx_State *s, int palette_index); /* right mouse: the same for the second slot */
 
 /* What is under the pointer: the element and its temperature in degrees Celsius. False when the pointer is
  * not over the world (on the palette, or outside the window). Empty space reports EL_EMPTY at the air

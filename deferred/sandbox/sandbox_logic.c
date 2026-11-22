@@ -51,9 +51,11 @@ static void build_scene(sbx_State *s) {
 void sbx_init(sbx_State *s, unsigned seed) {
     sandbox_init(&s->world, SBX_W, SBX_H, seed);
     s->element = EL_SAND;
+    s->element2 = EL_EMPTY;
     s->brush = 3;
     s->paused = false;
     s->pal_hold = false;
+    s->pal_hold2 = false;
     s->ticks = 0;
     build_scene(s);
 }
@@ -90,6 +92,11 @@ void sbx_select(sbx_State *s, int palette_index) {
         s->element = sandbox_palette_id(palette_index);
 }
 
+void sbx_select2(sbx_State *s, int palette_index) {
+    if (palette_index >= 0 && palette_index < sandbox_palette_count())
+        s->element2 = sandbox_palette_id(palette_index);
+}
+
 /* Move the selection by `steps` palette slots, wrapping around. */
 static void cycle(sbx_State *s, int steps) {
     int n = sandbox_palette_count();
@@ -106,6 +113,11 @@ static void handle_keys(sbx_State *s, const ArcadeInput *in) {
         cycle(s, 1);
     if (in->typed == '[')
         cycle(s, -1);
+    if (in->typed == 'x' || in->typed == 'X') { /* swap the two mouse buttons' elements */
+        ElementId t = s->element;
+        s->element = s->element2;
+        s->element2 = t;
+    }
     if (in->typed == 'c' || in->typed == 'C')
         sandbox_clear(&s->world);
     if (in->typed == 'r' || in->typed == 'R')
@@ -130,14 +142,20 @@ void sbx_step(sbx_State *s, const ArcadeInput *in, float dt) {
         sbx_select(s, sbx_palette_slot_at(in->aim_x, in->aim_y));
         s->pal_hold = true;
     }
+    if (in->alt_pressed && on_panel) {
+        sbx_select2(s, sbx_palette_slot_at(in->aim_x, in->aim_y)); /* right-click a slot: second element */
+        s->pal_hold2 = true;
+    }
     if (!in->fire)
         s->pal_hold = false;
+    if (!in->alt)
+        s->pal_hold2 = false;
     int cx = (int)(in->aim_x / SBX_CELL), cy = (int)(in->aim_y / SBX_CELL);
     if (!on_panel) {
         if (in->fire && !s->pal_hold)
             sandbox_paint(&s->world, cx, cy, s->brush, s->element);
-        if (in->alt)
-            sandbox_paint(&s->world, cx, cy, s->brush, EL_EMPTY);
+        if (in->alt && !s->pal_hold2)
+            sandbox_paint(&s->world, cx, cy, s->brush, s->element2);
     }
     if (!s->paused) {
         sandbox_step(&s->world);

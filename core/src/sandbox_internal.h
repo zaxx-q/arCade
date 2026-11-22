@@ -8,11 +8,9 @@
 /* Bits of Sandbox.moved. A cell that already acted this tick is skipped, so nothing moves twice. */
 #define MOVED_NOW 1u
 #define MOVED_LAST 2u
-#define EXCITED 4u /* uranium hit by a gamma ray: it splits on its next turn (kept across ticks) */
-#define BLASTED 8u /* already hit by a shock wave this tick: a cell is pushed at most once per tick */
-#define SANDBOX_BLASTS_PER_TICK                                                                              \
-    12 /* TNT cells that may go off in one tick; the rest of a big stack waits                               \
-        */
+#define HEADING_SHIFT 3
+#define HEADING_MASK 0x78u /* sparks and rays: 4 bits that say which way the particle flies */
+#define VISITED 0x80u      /* scratch mark for the flood fill that gathers a charge; cleared next tick */
 
 /* Wood, plants, fuse and oil burn in place: bit 7 of aux says "burning", the low 7 bits are a timer. */
 #define BURN_BIT 0x80u
@@ -46,15 +44,13 @@ static inline bool sandbox_is_fluid(ElementId id) {
     return k == MOVE_LIQUID || k == MOVE_GAS || k == MOVE_FIRE;
 }
 
-/* How an element deals with heat and with blasts (sandbox_heat.c). */
+/* How an element deals with heat: conduction, phase changes, self-ignition (sandbox_heat.c). */
 typedef struct ThermalDef {
     int16_t temp0; /* temperature of a freshly made cell, in degrees C */
     uint8_t cond;  /* conductivity: 0 insulates, 62 is a very good conductor */
     uint8_t cap;   /* heat capacity: how much heat it takes to warm it by one degree (1..16) */
     uint8_t loss; /* heat lost to open air through each exposed face, in 1/16384 of the difference per tick */
     int16_t autoignite; /* catches fire by itself above this temperature; 0 = never */
-    uint8_t resist;     /* blast: energy a shock wave loses crossing the cell */
-    uint8_t tough;      /* blast: energy needed to break the cell (255 = nothing can) */
     int16_t cold_t;     /* at or below this temperature it turns into cold_to ... */
     ElementId cold_to;
     int16_t hot_t; /* ... and at or above this one into hot_to */
@@ -84,14 +80,16 @@ void sandbox_heat_on_put(Sandbox *sb, int i, ElementId id); /* temperature of a 
 void sandbox_heat_step(Sandbox *sb);                        /* conduction + cooling for the whole grid */
 bool sandbox_heat_react(Sandbox *sb, int x, int y); /* phase change / self-ignition; true = cell changed */
 
-/* ---- sandbox_blast.c ---- */
-void sandbox_blast_step(Sandbox *sb); /* advance a travelling shock wave and fade the flash */
+/* ---- sandbox_burst.c ---- */
+void sandbox_fly(Sandbox *sb, int x, int y);         /* one tick of a spark or a gamma ray */
+void sandbox_detonate(Sandbox *sb, int x, int y);    /* set off the charge at (x, y) and all touching it */
+void sandbox_go_critical(Sandbox *sb, int x, int y); /* a uranium cell flies apart as a gamma ray */
+bool sandbox_explosive(ElementId id);
 
 /* ---- sandbox_react.c ---- */
 void sandbox_react(Sandbox *sb, int x, int y);
 void sandbox_life_step(Sandbox *sb);
-void sandbox_gamma_hit(Sandbox *sb, int x, int y); /* a gamma ray just reached cell (x, y) */
-void sandbox_ignite(Sandbox *sb, int x, int y);    /* set a flammable cell alight */
+void sandbox_ignite(Sandbox *sb, int x, int y); /* set a flammable cell alight */
 bool sandbox_flammable_now(const Sandbox *sb, int i);
 
 #endif

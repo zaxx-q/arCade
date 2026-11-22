@@ -138,6 +138,85 @@ static void test_cannot_paint_through_the_panel(void) {
     CHECK_EQ_INT(g_s.element, EL_SAND); /* clicking an empty slot does not change the selection */
 }
 
+static void test_right_mouse_erases_by_default(void) {
+    sbx_init(&g_s, 1);
+    sandbox_clear(&g_s.world);
+    CHECK_EQ_INT(g_s.element2, EL_EMPTY); /* the second slot starts as the eraser */
+    sandbox_paint(&g_s.world, 100, 30, 6, EL_STONE);
+    int before = sbx_score(&g_s);
+    ArcadeInput in = idle();
+    in.alt = true;
+    in.aim_x = 100.0f * SBX_CELL;
+    in.aim_y = 30.0f * SBX_CELL;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sbx_score(&g_s) < before);
+}
+
+static void test_right_click_on_a_slot_sets_the_second_element(void) {
+    sbx_init(&g_s, 1);
+    sandbox_clear(&g_s.world);
+    int water = sandbox_palette_index(EL_WATER);
+    ArcadeInput in = idle();
+    in.aim_x = slot_x(water);
+    in.aim_y = slot_y(water);
+    in.alt = in.alt_pressed = true;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK_EQ_INT(g_s.element2, EL_WATER);
+    CHECK_EQ_INT(g_s.element, EL_SAND); /* the left button's element is untouched */
+    CHECK_EQ_INT(sbx_score(&g_s), 0);   /* and the click painted nothing */
+    /* dragging the pressed right button up onto the world must not paint either */
+    in = idle();
+    in.alt = true;
+    in.aim_x = 600.0f;
+    in.aim_y = 200.0f;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK_EQ_INT(sandbox_count(&g_s.world, EL_WATER), 0);
+    /* a fresh right press over the world now paints the second element ... */
+    in = idle();
+    sbx_step(&g_s, &in, ARC_DT);
+    in.alt = in.alt_pressed = true;
+    in.aim_x = 600.0f;
+    in.aim_y = 200.0f;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sandbox_count(&g_s.world, EL_WATER) > 0);
+    CHECK_EQ_INT(sandbox_count(&g_s.world, EL_SAND), 0); /* ... and the left element stays out of it */
+}
+
+static void test_left_and_right_buttons_paint_their_own_element(void) {
+    sbx_init(&g_s, 1);
+    sandbox_clear(&g_s.world);
+    sbx_select(&g_s, sandbox_palette_index(EL_STONE));
+    sbx_select2(&g_s, sandbox_palette_index(EL_LAVA));
+    ArcadeInput in = idle();
+    in.fire = true;
+    in.aim_x = 60.0f * SBX_CELL;
+    in.aim_y = 30.0f * SBX_CELL;
+    sbx_step(&g_s, &in, ARC_DT);
+    in = idle();
+    in.alt = true;
+    in.aim_x = 200.0f * SBX_CELL;
+    in.aim_y = 30.0f * SBX_CELL;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sandbox_count(&g_s.world, EL_STONE) > 0);
+    CHECK(sandbox_count(&g_s.world, EL_LAVA) > 0);
+    sbx_select2(&g_s, 9999); /* out of range: ignored */
+    CHECK_EQ_INT(g_s.element2, EL_LAVA);
+}
+
+static void test_x_swaps_the_two_elements(void) {
+    sbx_init(&g_s, 1);
+    sbx_select2(&g_s, sandbox_palette_index(EL_FIRE));
+    ArcadeInput in = idle();
+    in.typed = 'x';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK_EQ_INT(g_s.element, EL_FIRE);
+    CHECK_EQ_INT(g_s.element2, EL_SAND);
+    in.typed = 'X';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK_EQ_INT(g_s.element, EL_SAND);
+    CHECK_EQ_INT(g_s.element2, EL_FIRE);
+}
+
 static void test_number_keys_pick_the_first_row(void) {
     sbx_init(&g_s, 1);
     for (int k = 0; k <= 9; k++) {
@@ -291,6 +370,10 @@ int main(void) {
     RUN(test_palette_geometry);
     RUN(test_click_on_palette_selects_without_painting);
     RUN(test_cannot_paint_through_the_panel);
+    RUN(test_right_mouse_erases_by_default);
+    RUN(test_right_click_on_a_slot_sets_the_second_element);
+    RUN(test_left_and_right_buttons_paint_their_own_element);
+    RUN(test_x_swaps_the_two_elements);
     RUN(test_number_keys_pick_the_first_row);
     RUN(test_bracket_keys_and_wheel_cycle_and_wrap);
     RUN(test_starter_scene_and_reset);
