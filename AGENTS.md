@@ -86,6 +86,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 | Large struct (> ~50 KB) | `static` storage in `*_game.c`, never a local |
 | raylib function unsure | `docs/raylib_subset.md`, else `build/<preset>/_deps/raylib-src/src/raylib.h` (6.x differs from 5.x) |
 | Need file/network/OS API | don't: standard C only |
+| Need the network | not in games or core: only the hub, through `app/net_curl.c` (libcurl, optional via `ARCADE_ONLINE`); the protocol and retries are plain C in `core/src/lbnet.c` |
 | Adding dependency | Ask first |
 
 ## Key Decisions

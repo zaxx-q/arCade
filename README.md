@@ -219,7 +219,8 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 ## Sorotan
 
 - Background hub menjalankan simulasi falling-sand yang aktif.
-- Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search. Game dengan beberapa mode atau level (Beat Dodge & Catch) punya papan skor terpisah per mode, lagu, dan kesulitan.
+- Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search. Game dengan beberapa mode atau level (Beat Dodge & Catch) punya papan skor terpisah per mode, lagu, dan kesulitan. Setiap papan menampilkan skor terbaik tiap pemain (bukan semua percobaan), daftarnya bisa digulir, dan baris pemain yang sedang main ditandai.
+- Leaderboard online (opsional): tab Online di leaderboard (tombol Tab) menampilkan skor semua pemain dari server. Fitur ini menyala secara bawaan (kalau libcurl ada), tetapi saat game pertama kali dibuka ada layar pemberitahuan yang menjelaskan apa yang dikirim (nama pemain, game, skor, dan ID install acak dari server; hanya untuk permainan dari saat itu) beserta alamat servernya, dan pemain bisa mematikannya sebelum ada yang terkirim (N atau Esc). Mematikannya juga bisa kapan saja lewat tab Online (tombol O), atau dengan membuat file `online.cfg` berisi `enabled|0` di folder data; mematikan juga membuang skor yang masih mengantre. Skor ditulis ke antrean di disk lebih dulu lalu dikirim satu per satu di latar belakang, jadi game tidak pernah menunggu server. Kalau server tidak terjangkau skor dikirim nanti, dan tabel terakhir yang diterima tetap bisa dilihat. Skor online bergantung pada kejujuran klien (kode game publik dan file di komputer pemain bisa diubah), jadi server hanya membatasi skor ke yang mungkin di tiap game. Fitur ini memakai libcurl (opsional, lihat `docs/DEVELOPMENT.md`); tanpa libcurl game tetap dibangun, hanya tanpa tab Online. Servernya (Cloudflare Worker + D1) ada di repositori terpisah, `zaxx-q/arcade-leaderboard-server`, supaya repositori ini tetap C murni.
 - Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
 - Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
 - Game terdaftar otomatis dari folder di games/ (tampil di menu) dan deferred/ (ditunda, hanya lewat arsip); menambah atau memindahkan game tidak perlu mengubah file source hub yang sudah ada.
@@ -261,7 +262,7 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 | ----------------------- | ---------------------------------------------- |
 | Up / Down atau W / S    | Memilih game di menu (mouse dan scroll juga bisa) |
 | Enter atau klik         | Memulai game yang dipilih                      |
-| L                       | Membuka leaderboard (Left / Right: ganti game, Up / Down: ganti papan skor game yang punya papan per mode/lagu) |
+| L                       | Membuka leaderboard (Left / Right: ganti game, Up / Down: ganti papan skor game yang punya papan per mode/lagu, PgUp / PgDn atau roda mouse: gulir daftar, Tab: pindah antara skor lokal dan online, R: segarkan tab Online, O: matikan skor online) |
 | N                       | Mengganti nama pemain                          |
 | Esc                     | Keluar dari hub (di dalam game: kembali ke menu) |
 
