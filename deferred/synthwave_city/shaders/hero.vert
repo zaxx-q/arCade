@@ -1,4 +1,3 @@
-// Synthwave City (c) Kris E. Granholm, MIT licence - https://github.com/highsierralabs/Synthwave_City
 // Shader text taken from the web version (src/layers/airtraffic/), adapted to GLSL 3.30 only by the prelude files.
 
 // fract(n * loop) for a whole number n, keeping the low bits of loop that n * loop would round away.

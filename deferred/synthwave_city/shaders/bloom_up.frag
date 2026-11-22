@@ -1,5 +1,5 @@
 #version 330 core
-// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; notices in THIRD_PARTY_NOTICES.md.
+// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; credited in THIRD_PARTY_NOTICES.md.
 // Bloom, step 3: 9-tap tent upsample, mixed with the matching downsampled level (pmndrs UpsamplingMaterial).
 // texelSize is that of the INPUT (the smaller) image.
 uniform sampler2D inputBuffer;

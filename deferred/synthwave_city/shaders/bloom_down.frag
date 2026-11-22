@@ -1,5 +1,5 @@
 #version 330 core
-// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; notices in THIRD_PARTY_NOTICES.md.
+// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; credited in THIRD_PARTY_NOTICES.md.
 // Bloom, step 2: 13-tap downsample (pmndrs DownsamplingMaterial). texelSize is that of the INPUT image.
 uniform sampler2D inputBuffer;
 uniform vec2 texelSize;

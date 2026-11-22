@@ -44,7 +44,7 @@ Synthwave City: a C99 port of the procedural neon megacity of `highsierralabs/Sy
 - Pure files (everything except `*_game.c`) never include raylib, rlgl, `arcade/gfx.h` or call `rand/srand/time/clock`.
 - The CPU renderer is camera-relative and uses only rlgl immediate mode (no shaders): solid pass first, then an additive pass with the depth mask off. Keep the clip planes set and restored around `BeginMode3D`. Leave its output alone: it is the fallback and the smoke image.
 - The GPU renderer draws in linear light into an RGBA16F target and does tone, grade and sRGB only in the last pass (`post.frag`), as the web version does. Shader text lives in `shaders/`; a new file there is picked up at the next CMake configure. Only `*_game.c` files include raylib or rlgl; `swc_gpu.h` and `swc_look.h` stay plain C. A GPU failure (shader compile, incomplete framebuffer) must fall back to the CPU renderer, never abort.
-- Shaders taken from the web version keep their MIT attribution header; the layer-by-layer match against the web version is the acceptance test of every GPU layer, so keep the reference method above working.
+- Shaders taken from the web version need no per-file attribution header: the MIT notice in `THIRD_PARTY_NOTICES.md` covers them. The layer-by-layer match against the web version is the acceptance test of every GPU layer, so keep the reference method above working.
 - Smoke runs use `scripted_input()` (the headless monkey would stick to walls); keep it touching every control.
 - Keep `GAME.md` in sync when mechanics change (the report is written from it).
 - Follow the game contract in `../AGENTS.md` (loop pattern, determinism, fixed arrays, `finished` semantics).

@@ -1,5 +1,5 @@
 #version 330 core
-// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; notices in THIRD_PARTY_NOTICES.md.
+// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; credited in THIRD_PARTY_NOTICES.md.
 // The last pass, in the web version's order: chromatic aberration of the HDR frame, bloom added with the
 // SCREEN blend, the grade (exposure, vignette, neon curve, grain), the sRGB encoding and three.js's dither.
 uniform sampler2D inputBuffer;

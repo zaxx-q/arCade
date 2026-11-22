@@ -1,4 +1,3 @@
-// Synthwave City (c) Kris E. Granholm, MIT licence - https://github.com/highsierralabs/Synthwave_City
 // Shader text taken from the web version (src/layers/streetlife/), adapted to GLSL 3.30 by the prelude files; the one other change is sl_pull() below.
 
 

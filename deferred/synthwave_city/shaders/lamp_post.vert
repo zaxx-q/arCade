@@ -1,4 +1,3 @@
-// Synthwave City (c) Kris E. Granholm, MIT licence - https://github.com/highsierralabs/Synthwave_City
 // Shader text taken from the web version (src/layers/ground/), adapted to GLSL 3.30 only by the prelude files.
 // Base of the pole in lamp-pattern coordinates (plus the lattice offset), and the unit direction to the road.
 attribute vec4 aLamp;

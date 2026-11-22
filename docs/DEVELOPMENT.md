@@ -23,7 +23,7 @@ Dokumen untuk manusia (`README.md`, `docs/`, `GAME.md`) ditulis dalam bahasa Ind
 - Semua `AGENTS.md` sengaja tetap berbahasa Inggris karena dibaca oleh AI agent.
 - `docs/raylib_subset.md` dibuat otomatis (`tools/gen_raylib_subset.sh`), jangan diedit manual.
 - Komentar di dalam kode (`*.c`, `*.h`) masih berbahasa Inggris.
-- Teks lisensi di `LICENSE` dan `THIRD_PARTY_NOTICES.md` tetap dalam bahasa aslinya.
+- `LICENSE` dan `THIRD_PARTY_NOTICES.md` ditulis dalam bahasa Inggris.
 
 ## 1. Pasang tool
 

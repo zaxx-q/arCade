@@ -1,5 +1,5 @@
 #version 330 core
-// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; notices in THIRD_PARTY_NOTICES.md.
+// Written after pmndrs/postprocessing (zlib) and three.js (MIT) algorithms; credited in THIRD_PARTY_NOTICES.md.
 // Bloom, step 1: keep what is brighter than the threshold (pmndrs LuminanceMaterial, colour output).
 uniform sampler2D inputBuffer;
 uniform float threshold;
