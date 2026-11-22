@@ -4,6 +4,7 @@
 
 #include "arcade/cli.h"
 #include "arcade/game.h"
+#include "arcade/lbnet.h"
 #include "arcade/leaderboard.h"
 #include "arcade/sandbox.h"
 
@@ -27,8 +28,15 @@ typedef struct AppState {
     const GameDef *last_game; /* shown by SCR_RESULT */
     GameResult last_result;
     char last_board[GAME_BOARD_LEN]; /* high-score table of the last result ("" = the game has one table) */
-    int last_rank; /* 1-based rank of the last score within its table (its board, or the game), 0 if none */
+    int last_rank; /* 1-based place of the player's best score among the players of the table (its board, or
+                      the game), 0 if the run did not make it */
+    int last_best; /* that best score: higher than last_result.score after a worse run */
+    bool last_improved; /* the last result is a new personal best in its table */
     unsigned launch_counter;
+    LbnClient lbn;             /* the online leaderboard: outbox, cache, retries (about 26 KB) */
+    bool online_ready;         /* this build can reach a server (libcurl found, address accepted) */
+    bool online_first_run;     /* online scores are on by default: the player has not been told yet */
+    char online_cfg_path[600]; /* online.cfg: the player's choice */
 } AppState;
 
 /* main.c */
@@ -44,6 +52,7 @@ Screen screen_menu(AppState *app);
 Screen screen_launch(AppState *app);
 Screen screen_result(AppState *app);
 Screen screen_leaderboard(AppState *app);
+void screen_online_first_run(AppState *app); /* once, before the first screen, if online_first_run() */
 
 typedef enum ScreenPreview {
     PREVIEW_NAME,
@@ -53,6 +62,12 @@ typedef enum ScreenPreview {
     PREVIEW_RESULT,
     PREVIEW_LEADERBOARD,
     PREVIEW_LEADERBOARD_BOARD, /* a game's tab on one of its boards (needs scores saved under boards) */
+    PREVIEW_LEADERBOARD_YOU,   /* a long board: the current player's row is pinned under the visible ones */
+    PREVIEW_ONLINE_OFF,     /* the Online tab before the player turned it on: what is sent, and the choice */
+    PREVIEW_ONLINE_TABLE,   /* the Online tab with a table from the server */
+    PREVIEW_ONLINE_OFFLINE, /* the Online tab while the server cannot be reached: cached table, waiting scores
+                             */
+    PREVIEW_ONLINE_FIRST_RUN, /* the one-time notice that online scores are on, before anything is sent */
     PREVIEW_COUNT
 } ScreenPreview;
 const char *screens_preview_name(int which);

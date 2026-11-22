@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "app.h"
+#include "online.h"
 #include "arcade/gfx.h"
 #include "arcade/str.h"
 #include "arcade/version.h"
@@ -27,8 +28,6 @@
 #define HINT_SIZE 14
 #define HINT_KEY_SIZE 13
 #define HINT_GAP 22
-
-static Leaderboard g_view; /* scratch copy for sorted views (28 KB: keep off the stack) */
 
 typedef struct Hint {
     const char *key;  /* drawn on a keycap */
@@ -132,6 +131,7 @@ Screen screen_name(AppState *app) {
     float t = 0.0f;
     arcade_flush_input();
     while (!arcade_quit_requested()) {
+        online_tick(app);
         t += ARC_DT;
         for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
             if (c >= 32 && c < 127 && c != '|' && len < LB_NAME_LEN - 1) {
@@ -301,6 +301,7 @@ Screen screen_menu(AppState *app) {
     g_panel_h =
         panel_target_h(app, first); /* coming back from a game: no unfolding, just the panel as it was */
     while (!arcade_quit_requested()) {
+        online_tick(app);
         t += ARC_DT;
 
         /* the vault was filled with the sand toy: unlock the archive and announce it */
@@ -389,22 +390,25 @@ Screen screen_launch(AppState *app) {
     app->last_game = g;
     app->last_result = r;
     app->last_rank = 0;
+    app->last_best = 0;
+    app->last_improved = false;
     arc_strlcpy(app->last_board, board, sizeof(app->last_board));
     if (g->ranked) {
         /* the score goes into the table of this mode/level ("beat_dodge:Dodge / Bopeebo / normal"), or into
          * the game's one table ("echo_maze") when the game did not name a board */
         char key[LB_GAME_LEN];
         lb_board_key(key, sizeof(key), g->id, board);
+        int before =
+            lb_best_of(&app->lb, key, app->player); /* -1: the first run of this player in the table */
         lb_add(&app->lb, key, app->player, r.score, (long long)time(NULL));
         if (!lb_save(&app->lb, app->scores_path))
             fprintf(stderr, "warning: could not write %s\n", app->scores_path);
-        ScoreEntry top[LB_MAX_ENTRIES];
-        int n = lb_top_for_game(&app->lb, key, top, LB_MAX_ENTRIES); /* rank among THIS table only */
-        for (int i = 0; i < n; i++)
-            if (top[i].score <= r.score) {
-                app->last_rank = i + 1;
-                break;
-            }
+        online_submit(app, key, r.score); /* queued for the server, when the player turned online scores on */
+        /* the place of this player's BEST run among the players of THIS table only; 0 when the run did not
+         * make the table (it was full and this was the lowest score) */
+        app->last_rank = lb_rank_of(&app->lb, key, app->player);
+        app->last_best = lb_best_of(&app->lb, key, app->player);
+        app->last_improved = app->last_rank > 0 && r.score > before;
     }
     return SCR_RESULT;
 }
@@ -413,30 +417,49 @@ static void draw_result_view(const AppState *app, float t) {
     gfx_backdrop(t);
     backdrop_draw(0.5f);
     draw_title(NULL);
-    draw_panel((Rectangle){360, 190, 560, 340}, 0.94f);
+    draw_panel((Rectangle){360, 190, 560, 360}, 0.94f);
     gfx_text_center(app->last_game->title, ARC_SCREEN_W / 2, 214, 30, ARC_COL_CYAN);
     gfx_text_center("Game over", ARC_SCREEN_W / 2, 262, 22, ARC_COL_DIM);
     gfx_text_center(TextFormat("%d", app->last_result.score), ARC_SCREEN_W / 2, 306, 80, ARC_COL_YELLOW);
     bool boarded = app->last_board[0] != '\0'; /* the rank is within one mode/level, not the whole game */
-    if (app->last_game->ranked && app->last_rank > 0)
-        gfx_text_center(
-            app->last_rank == 1
-                ? "New high score!"
-                : TextFormat(boarded ? "rank #%d on this board" : "rank #%d for this game", app->last_rank),
-            ARC_SCREEN_W / 2, 410, 24, ARC_COL_GREEN);
+    if (app->last_game->ranked && app->last_rank > 0) {
+        const char *where = boarded ? "on this board" : "for this game";
+        const char *line;
+        if (app->last_improved && app->last_rank == 1)
+            line = "New high score!";
+        else if (app->last_improved)
+            line = TextFormat("Personal best! rank #%d %s", app->last_rank, where);
+        else /* a worse run than before: the rank is that of the player's best */
+            line = TextFormat("rank #%d %s - your best: %d", app->last_rank, where, app->last_best);
+        gfx_text_center(line, ARC_SCREEN_W / 2, 410, 24, ARC_COL_GREEN);
+    }
     if (boarded) {
         char label[GAME_BOARD_LEN];
         fit_text(app->last_board, 18, 500, label, sizeof(label));
         gfx_text_center(label, ARC_SCREEN_W / 2, 442, 18, ARC_COL_DIM);
     }
+    if (app->last_game->ranked && online_enabled(app)) { /* what became of this score online */
+        char key[LB_GAME_LEN];
+        lb_board_key(key, sizeof(key), app->last_game->id, app->last_board);
+        const LbnAck *ack = &app->lbn.ack;
+        if (ack->valid && strcmp(ack->table, key) == 0 && arc_stricmp(ack->player, app->player) == 0 &&
+            ack->score == app->last_result.score)
+            gfx_text_center(TextFormat("worldwide: #%d of %d players", ack->rank, ack->players),
+                            ARC_SCREEN_W / 2, 470, 18, ARC_COL_CYAN);
+        else if (app->lbn.outbox.count > 0)
+            gfx_text_center(lbn_status(&app->lbn) == LBN_OFFLINE ? "offline - this score will be sent later"
+                                                                 : "sending to the online leaderboard...",
+                            ARC_SCREEN_W / 2, 470, 18, ARC_COL_DIM);
+    }
     const Hint hints[] = {{"R", "play again"}, {"Enter", "menu"}, {"L", "leaderboard"}};
-    draw_hint_row_centered(478, hints, (int)ARC_ARRAY_LEN(hints));
+    draw_hint_row_centered(506, hints, (int)ARC_ARRAY_LEN(hints));
 }
 
 Screen screen_result(AppState *app) {
     float t = 0.0f;
     arcade_flush_input();
     while (!arcade_quit_requested()) {
+        online_tick(app);
         t += ARC_DT;
         if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
             return SCR_MENU;
@@ -472,136 +495,551 @@ static int tab_boards(const AppState *app, int tab) {
     return 0;
 }
 
-static void draw_leaderboard_view(AppState *app, int tab, int board, bool searching, const char *query,
-                                  float t) {
-    /* build the rows to show */
-    ScoreEntry rows[10];
-    int n = 0;
-    const char *heading;
-    char sub[GAME_BOARD_LEN + 24] = ""; /* small line under the heading: which board is shown */
-    int boards = 0;                     /* tables of this game (0 = no selector) */
-    bool one_table = false;             /* every row is from the same table: no need for a game column */
-    if (searching || query[0] != '\0') {
-        int idx[10];
-        int found = lb_find_player(&app->lb, query, idx, 10);
-        for (int i = 0; i < found; i++)
-            rows[n++] = app->lb.items[idx[i]];
-        heading = "search results";
-    } else if (tab == 0) {
-        g_view = app->lb;
-        lb_sort(&g_view, LB_SORT_SCORE_DESC);
-        n = g_view.count < 10 ? g_view.count : 10;
-        memcpy(rows, g_view.items, (size_t)n * sizeof(ScoreEntry));
-        heading = "all games";
-    } else {
-        const GameDef *g = app->games[tab - 1];
-        heading = g->title;
-        boards = tab_boards(app, tab);
-        if (boards > 0 && board >= 1 && board <= boards) {
-            const char *name = lb_key_board(g_boards[board - 1]);
-            n = lb_top_for_game(&app->lb, g_boards[board - 1], rows, 10);
-            one_table = true;
-            snprintf(sub, sizeof(sub), "board %d/%d: %s", board, boards,
-                     name[0] != '\0' ? name : "older scores");
-        } else {
-            n = lb_top_for_all_boards(&app->lb, g->id, rows,
-                                      10); /* the same as before for games without boards */
-            if (boards > 0)
-                snprintf(sub, sizeof(sub), "all boards (%d)", boards);
-        }
-    }
+/* Every list shows the BEST row of each player (lb_top_best). The rows are built once when the tab, the board
+ * or the search changes (not every frame) and kept in g_lbv; Up/Down (on a list without boards), PgUp/PgDn
+ * and the mouse wheel scroll through them. */
+#define VIEW_MAX 100 /* rows a list keeps */
+#define VIEW_ROWS 10 /* rows on screen at once */
+#define VIEW_Y 222   /* y of the first row */
+#define VIEW_ROW_H 34
 
+/* ---------------------------------------------------------------- first launch */
+/* Online scores are ON by default, so the first time the game runs the player is told what is shared and
+ * where it goes, and can turn it off before anything is sent. */
+static void draw_first_run(float t) {
     gfx_backdrop(t);
     backdrop_draw(0.4f);
-    draw_title("leaderboard");
+    draw_title("online scores");
     draw_panel((Rectangle){180, 120, 920, 520}, 0.93f);
-    gfx_text_center(heading, ARC_SCREEN_W / 2, 130, 28, ARC_COL_YELLOW);
-    if (sub[0] != '\0')
-        gfx_text_center(sub, ARC_SCREEN_W / 2, 166, 17, ARC_COL_CYAN);
-    gfx_text("#", 220, 190, 18, ARC_COL_DIM);
-    gfx_text("player", 270, 190, 18, ARC_COL_DIM);
-    if (!one_table)
-        gfx_text(boards > 0 ? "board" : "game", 520, 190, 18, ARC_COL_DIM);
-    gfx_text_right("score", 1060, 190, 18, ARC_COL_DIM);
-    for (int i = 0; i < n; i++) {
-        int y = 224 + i * 38;
-        Color c = i == 0 ? ARC_COL_YELLOW : ARC_COL_TEXT;
-        gfx_text(TextFormat("%d", i + 1), 220, y, 22, c);
-        gfx_text(rows[i].player, 270, y, 22, c);
-        if (!one_table) {
-            /* a plain game id, or "id:board" fitted so that it never runs into the score; on a game's own tab
-             * the board name alone is enough */
-            const char *shown = rows[i].game;
-            if (boards > 0) /* a game with boards: the board name, or "older scores" for the plain id */
-                shown = lb_key_board(shown)[0] != '\0' ? lb_key_board(shown) : "older scores";
-            draw_in_column(shown, 520, y, 22, 440, ARC_COL_DIM);
-        }
-        gfx_text_right(TextFormat("%d", rows[i].score), 1060, y, 22, c);
-    }
-    if (n == 0)
-        gfx_text_center("no scores yet - go play something!", ARC_SCREEN_W / 2, 330, 22, ARC_COL_DIM);
-    if (searching || query[0] != '\0')
-        gfx_text_center(TextFormat("find player: %s%s", query, searching ? "_" : ""), ARC_SCREEN_W / 2, 600,
-                        20, ARC_COL_GREEN);
-    else {
-        Hint hints[4];
-        int hn = 0;
-        hints[hn++] = (Hint){"Left/Right", "switch game"};
-        if (boards > 0)
-            hints[hn++] = (Hint){"Up/Down", "switch board"};
-        hints[hn++] = (Hint){"F", "find player"};
-        hints[hn++] = (Hint){"Esc", "back"};
-        draw_hint_row_centered(596, hints, hn);
-    }
+    const int cx = ARC_SCREEN_W / 2;
+    char server[96];
+    fit_text(online_server(), 18, 780, server, sizeof(server));
+    gfx_text_center("Online leaderboard is on", cx, 150, 32, ARC_COL_YELLOW);
+    gfx_text_center("arCade shares your scores with other players, so you can see where you rank.", cx, 226,
+                    18, ARC_COL_TEXT);
+    gfx_text_center("What is sent: your player name, the game and your score, and a random", cx, 280, 18,
+                    ARC_COL_DIM);
+    gfx_text_center("install ID that the server gives you. Nothing else. Names and scores are", cx, 306, 18,
+                    ARC_COL_DIM);
+    gfx_text_center("visible to everyone, and only runs from now on are sent.", cx, 332, 18, ARC_COL_DIM);
+    gfx_text_center("Server:", cx, 380, 18, ARC_COL_DIM);
+    gfx_text_center(server, cx, 406, 18, ARC_COL_CYAN);
+    gfx_text_center("Your scores on this computer always stay here. You can change this at any time:", cx,
+                    454, 18, ARC_COL_DIM);
+    gfx_text_center("press L for the leaderboard, Tab for Online, then O.", cx, 480, 18, ARC_COL_DIM);
+    const Hint hints[] = {{"Enter", "keep it on"}, {"N", "turn it off"}};
+    draw_hint_row_centered(600, hints, (int)ARC_ARRAY_LEN(hints));
 }
 
-Screen screen_leaderboard(AppState *app) {
-    int tab = 0;   /* 0 = all games, 1.. = one game from the registry */
-    int board = 0; /* on a game with boards: 0 = all boards, 1.. = one board (see tab_boards) */
-    bool searching = false;
-    char query[LB_NAME_LEN] = "";
-    int qlen = 0;
+/* Called once from main(), before the first screen. Enter keeps it on; N or Esc turns it off; closing the
+ * window answers nothing, so the next start asks again. Nothing is sent before the answer (online_enabled()).
+ */
+void screen_online_first_run(AppState *app) {
     float t = 0.0f;
     arcade_flush_input();
     while (!arcade_quit_requested()) {
         t += ARC_DT;
+        if (IsKeyPressed(KEY_ENTER)) {
+            online_answer_first_run(app, true);
+            return;
+        }
+        if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+            online_answer_first_run(app, false);
+            return;
+        }
+        backdrop_update(false, false, 0, 0);
+        BeginDrawing();
+        draw_first_run(t);
+        EndDrawing();
+    }
+}
+
+typedef enum LbMode {
+    LV_LOCAL,    /* the scores on this computer */
+    LV_ONLINE,   /* one table from the server (what lbnet cached) */
+    LV_CONSENT,  /* the Online tab, but the player has not turned online scores on */
+    LV_NO_ONLINE /* the Online tab, but this build has no libcurl */
+} LbMode;
+
+typedef struct LbView {
+    LbMode mode;
+    ScoreEntry rows[VIEW_MAX];
+    int count;
+    int scroll; /* index of the first row on screen */
+    const char *heading;
+    char sub[GAME_BOARD_LEN + 24]; /* small line under the heading: which board is shown */
+    int boards;                    /* tables of this game (0 = no selector) */
+    bool one_table;                /* every row is from the same table: no need for a game/board column */
+    int you_rank;          /* the current player's place in this one table, 0 = not in it (or no table) */
+    ScoreEntry you;        /* ... and the row that goes with it (player, score, table) */
+    char key[LB_GAME_LEN]; /* online: the table shown, which is also the one to ask the server for */
+    long long fetched;     /* online: when that copy was received (0 = none); a newer one rebuilds the view */
+    int online_players;    /* online: players on the whole table at the server */
+} LbView;
+static LbView g_lbv; /* about 10 KB: static, like g_boards */
+
+static void build_view(const AppState *app, LbView *v, int tab, int board, bool searching,
+                       const char *query) {
+    v->mode = LV_LOCAL;
+    v->key[0] = '\0';
+    v->fetched = 0;
+    v->online_players = 0;
+    v->count = 0;
+    v->scroll = 0;
+    v->sub[0] = '\0';
+    v->boards = 0;
+    v->one_table = false;
+    v->you_rank = 0;
+    const char *you_key = NULL; /* the table that "you" is looked up in: only when the list IS one table */
+    if (searching || query[0] != '\0') {
+        v->count = lb_search_best(&app->lb, query, v->rows, VIEW_MAX);
+        v->heading = "search results";
+    } else if (tab == 0) {
+        v->count = lb_top_best(&app->lb, LB_SCOPE_ALL, NULL, v->rows, VIEW_MAX);
+        v->heading = "all games";
+    } else {
+        const GameDef *g = app->games[tab - 1];
+        v->heading = g->title;
+        v->boards = tab_boards(app, tab);
+        if (v->boards > 0 && board >= 1 && board <= v->boards) {
+            const char *name = lb_key_board(g_boards[board - 1]);
+            v->count = lb_top_best(&app->lb, LB_SCOPE_TABLE, g_boards[board - 1], v->rows, VIEW_MAX);
+            v->one_table = true;
+            you_key = g_boards[board - 1];
+            snprintf(v->sub, sizeof(v->sub), "board %d/%d: %s", board, v->boards,
+                     name[0] != '\0' ? name : "older scores");
+        } else {
+            v->count = lb_top_best(&app->lb, LB_SCOPE_GAME, g->id, v->rows, VIEW_MAX);
+            if (v->boards > 0)
+                snprintf(v->sub, sizeof(v->sub), "all boards (%d)", v->boards);
+            else { /* a game without boards has one table: no column to say which */
+                v->one_table = true;
+                you_key = g->id;
+            }
+        }
+    }
+    if (you_key != NULL) {
+        v->you_rank = lb_rank_of(&app->lb, you_key, app->player);
+        memset(&v->you, 0, sizeof(v->you));
+        arc_strlcpy(v->you.game, you_key, sizeof(v->you.game));
+        arc_strlcpy(v->you.player, app->player, sizeof(v->you.player));
+        v->you.score = lb_best_of(&app->lb, you_key, app->player);
+    }
+}
+
+/* ---- the Online tab ---- */
+/* The boards of a game that the Online tab can show: the ones with scores on this computer (that is how the
+ * hub knows their names), without the old plain table of a game that has boards: the server has no such
+ * table. They are left in g_boards. */
+static int online_boards(const AppState *app, int tab) {
+    int n = tab_boards(app, tab);
+    int kept = 0;
+    for (int i = 0; i < n; i++)
+        if (lb_key_board(g_boards[i])[0] != '\0') {
+            if (kept != i)
+                arc_strlcpy(g_boards[kept], g_boards[i], LB_GAME_LEN);
+            kept++;
+        }
+    return kept;
+}
+
+/* A table from the server, as the same kind of rows the local lists use. tab is 1.., board is 1.. */
+static void build_online_view(const AppState *app, LbView *v, int tab, int board) {
+    v->mode = LV_ONLINE;
+    v->count = 0;
+    v->scroll = 0;
+    v->sub[0] = '\0';
+    v->one_table = true;
+    v->you_rank = 0;
+    v->fetched = 0;
+    v->online_players = 0;
+    v->key[0] = '\0';
+    v->boards = 0;
+    if (tab < 1 || tab > app->game_count) {
+        v->heading = "online";
+        return;
+    }
+    const GameDef *g = app->games[tab - 1];
+    v->heading = g->title;
+    v->boards = online_boards(app, tab);
+    if (v->boards > 0) {
+        if (board < 1 || board > v->boards)
+            board = 1;
+        arc_strlcpy(v->key, g_boards[board - 1], sizeof(v->key));
+        snprintf(v->sub, sizeof(v->sub), "board %d/%d: %s", board, v->boards, lb_key_board(v->key));
+    } else {
+        arc_strlcpy(v->key, g->id, sizeof(v->key));
+    }
+    const OnlineTable *t = lbn_table(&app->lbn, v->key);
+    if (t == NULL)
+        return;
+    v->fetched = t->fetched;
+    v->online_players = t->players;
+    for (int i = 0; i < t->count && i < VIEW_MAX; i++) {
+        ScoreEntry *e = &v->rows[v->count++];
+        memset(e, 0, sizeof(*e));
+        arc_strlcpy(e->game, v->key, sizeof(e->game));
+        arc_strlcpy(e->player, t->rows[i].player, sizeof(e->player));
+        e->score = t->rows[i].score;
+        e->stamp = t->rows[i].stamp;
+        if (v->you_rank == 0 &&
+            arc_stricmp(e->player, app->player) == 0) { /* the first row is the best one */
+            v->you_rank = i + 1;
+            v->you = *e;
+        }
+    }
+}
+
+/* The Online tab without a table: why there is none, and what to do about it. */
+static void build_notice_view(LbView *v, LbMode mode) {
+    v->mode = mode;
+    v->heading = "online scores";
+    v->sub[0] = '\0';
+    v->key[0] = '\0';
+    v->count = 0;
+    v->scroll = 0;
+    v->boards = 0;
+    v->one_table = true;
+    v->you_rank = 0;
+    v->fetched = 0;
+    v->online_players = 0;
+}
+
+/* Rebuilds the view after a change: the local lists, a table from the server, or the notice. */
+static void rebuild_view(const AppState *app, bool online, int tab, int board, bool searching,
+                         const char *query) {
+    if (!online)
+        build_view(app, &g_lbv, tab, board, searching, query);
+    else if (!online_ready(app))
+        build_notice_view(&g_lbv, LV_NO_ONLINE);
+    else if (!online_enabled(app))
+        build_notice_view(&g_lbv, LV_CONSENT);
+    else
+        build_online_view(app, &g_lbv, tab, board);
+}
+
+static void scroll_view(LbView *v, int delta) {
+    int max_scroll = v->count > VIEW_ROWS ? v->count - VIEW_ROWS : 0;
+    v->scroll = (int)arc_clampf((float)(v->scroll + delta), 0.0f, (float)max_scroll);
+}
+
+/* One row of the list: place, player, (board), score. */
+static void draw_lb_row(const LbView *v, const ScoreEntry *e, int place, int y, Color c) {
+    gfx_text(TextFormat("%d", place), 220, y, 22, c);
+    gfx_text(e->player, 270, y, 22, c);
+    if (!v->one_table) {
+        /* a plain game id, or "id:board" fitted so that it never runs into the score; on a game's own tab the
+         * board name alone is enough */
+        const char *shown = e->game;
+        if (v->boards > 0) /* a game with boards: the board name, or "older scores" for the plain id */
+            shown = lb_key_board(shown)[0] != '\0' ? lb_key_board(shown) : "older scores";
+        draw_in_column(shown, 520, y, 22, 440, ARC_COL_DIM);
+    }
+    gfx_text_right(TextFormat("%d", e->score), 1060, y, 22, c);
+}
+
+/* "just now", "40 s ago", "5 min ago", "3 h ago", "2 d ago" */
+static void format_age(char *out, size_t size, long long secs) {
+    if (secs < 10)
+        snprintf(out, size, "just now");
+    else if (secs < 60)
+        snprintf(out, size, "%lld s ago", secs);
+    else if (secs < 3600)
+        snprintf(out, size, "%lld min ago", secs / 60);
+    else if (secs < 86400)
+        snprintf(out, size, "%lld h ago", secs / 3600);
+    else
+        snprintf(out, size, "%lld d ago", secs / 86400);
+}
+
+/* Top right of the Online tab: is the server reachable, how old is this copy, what is still waiting. */
+static void draw_online_status(const AppState *app, const LbView *v) {
+    const LbnClient *c = &app->lbn;
+    LbnStatus st = lbn_status(c);
+    const char *what = "online";
+    Color col = ARC_COL_GREEN;
+    if (st == LBN_SYNCING) {
+        what = "syncing...";
+        col = ARC_COL_CYAN;
+    } else if (st == LBN_OFFLINE) {
+        what = "offline";
+        col = ARC_COL_YELLOW;
+    }
+    char line[112];
+    int n = snprintf(line, sizeof(line), "%s", what);
+    if (v->fetched > 0) {
+        char age[24];
+        format_age(age, sizeof(age), (long long)time(NULL) - v->fetched);
+        n += snprintf(line + n, sizeof(line) - (size_t)n, ", updated %s", age);
+    }
+    if (c->outbox.count > 0)
+        snprintf(line + n, sizeof(line) - (size_t)n, ", %d waiting", c->outbox.count);
+    gfx_text_right(line, 1060, 138, 17, col);
+}
+
+/* What an empty online list means. */
+static const char *online_empty_message(const AppState *app, const LbView *v) {
+    LbnStatus st = lbn_status(&app->lbn);
+    if (v->fetched > 0)
+        return "nobody has a score here yet";
+    if (st == LBN_SYNCING || app->lbn.wanted[0] != '\0')
+        return "loading...";
+    if (st == LBN_OFFLINE)
+        return "offline - no copy of this table yet";
+    return "no online table here yet - play a run first";
+}
+
+static void draw_notice(const AppState *app, const LbView *v) {
+    (void)app;
+    const int cx = ARC_SCREEN_W / 2;
+    if (v->mode == LV_NO_ONLINE) {
+        gfx_text_center("Online scores are not available in this build.", cx, 270, 24, ARC_COL_TEXT);
+        gfx_text_center("It was built without libcurl, the library that talks to the server.", cx, 320, 18,
+                        ARC_COL_DIM);
+        return;
+    }
+    char server[96];
+    fit_text(online_server(), 18, 780, server, sizeof(server));
+    gfx_text_center("Share your scores with other players?", cx, 210, 28, ARC_COL_TEXT);
+    gfx_text_center("What is sent: your player name, the game and your score, and a random", cx, 268, 18,
+                    ARC_COL_DIM);
+    gfx_text_center("install ID that the server gives you. Nothing else, and only for runs you", cx, 294, 18,
+                    ARC_COL_DIM);
+    gfx_text_center("finish after turning this on. Names and scores are visible to everyone.", cx, 320, 18,
+                    ARC_COL_DIM);
+    gfx_text_center("Server:", cx, 366, 18, ARC_COL_DIM);
+    gfx_text_center(server, cx, 392, 18, ARC_COL_CYAN);
+    gfx_text_center("Your scores on this computer always stay here. You can turn this off again at any time.",
+                    cx, 436, 18, ARC_COL_DIM);
+    gfx_text_center("Press Enter to turn online scores on", cx, 490, 24, ARC_COL_GREEN);
+}
+
+static void draw_leaderboard_view(const AppState *app, const LbView *v, bool searching, const char *query,
+                                  float t) {
+    gfx_backdrop(t);
+    backdrop_draw(0.4f);
+    draw_title("leaderboard");
+    draw_panel((Rectangle){180, 120, 920, 520}, 0.93f);
+    bool on_online_tab = v->mode != LV_LOCAL;
+    gfx_text("LOCAL", 200, 138, 17, on_online_tab ? ARC_COL_DIM : ARC_COL_CYAN);
+    gfx_text("ONLINE", 262, 138, 17, on_online_tab ? ARC_COL_CYAN : ARC_COL_DIM);
+    gfx_text_center(v->heading, ARC_SCREEN_W / 2, 130, 28, ARC_COL_YELLOW);
+    if (v->mode == LV_CONSENT || v->mode == LV_NO_ONLINE) {
+        draw_notice(app, v);
+        const Hint consent[] = {{"Enter", "turn on"}, {"Tab", "local scores"}, {"Esc", "back"}};
+        const Hint none[] = {{"Tab", "local scores"}};
+        if (v->mode == LV_CONSENT)
+            draw_hint_row_centered(600, consent, (int)ARC_ARRAY_LEN(consent));
+        else
+            draw_hint_row_centered(600, none, (int)ARC_ARRAY_LEN(none));
+        return;
+    }
+    if (v->sub[0] != '\0')
+        gfx_text_center(v->sub, ARC_SCREEN_W / 2, 166, 17, ARC_COL_CYAN);
+    if (v->mode == LV_ONLINE)
+        draw_online_status(app, v);
+    if (v->count > VIEW_ROWS) { /* which rows are on screen */
+        int last = v->scroll + VIEW_ROWS < v->count ? v->scroll + VIEW_ROWS : v->count;
+        gfx_text_right(TextFormat("%d-%d of %d", v->scroll + 1, last, v->count), 1060, 166, 17, ARC_COL_DIM);
+    }
+    gfx_text("#", 220, 190, 18, ARC_COL_DIM);
+    gfx_text("player", 270, 190, 18, ARC_COL_DIM);
+    if (!v->one_table)
+        gfx_text(v->boards > 0 ? "board" : "game", 520, 190, 18, ARC_COL_DIM);
+    gfx_text_right("score", 1060, 190, 18, ARC_COL_DIM);
+    for (int i = 0; i < VIEW_ROWS && v->scroll + i < v->count; i++) {
+        int place = v->scroll + i + 1;
+        int y = VIEW_Y + i * VIEW_ROW_H;
+        bool mine = arc_stricmp(v->rows[place - 1].player, app->player) == 0;
+        if (mine) /* the current player's rows stand out */
+            DrawRectangleRounded((Rectangle){196.0f, (float)y - 4.0f, 888.0f, 32.0f}, 0.3f, 6,
+                                 Fade(ARC_COL_GREEN, 0.12f));
+        draw_lb_row(v, &v->rows[place - 1], place, y, place == 1 ? ARC_COL_YELLOW : ARC_COL_TEXT);
+    }
+    if (v->count == 0) {
+        const char *message = "no scores yet - go play something!";
+        if (searching || query[0] != '\0')
+            message = "no player matches";
+        else if (v->mode == LV_ONLINE)
+            message = online_empty_message(app, v);
+        gfx_text_center(message, ARC_SCREEN_W / 2, 330, 22, ARC_COL_DIM);
+    }
+    /* "you" stays visible when the player's own row is scrolled out of the window */
+    if (v->you_rank > 0 && (v->you_rank <= v->scroll || v->you_rank > v->scroll + VIEW_ROWS)) {
+        DrawRectangle(200, 557, 880, 1, Fade(ARC_COL_DIM, 0.40f));
+        DrawRectangleRounded((Rectangle){196.0f, 561.0f, 888.0f, 32.0f}, 0.3f, 6, Fade(ARC_COL_GREEN, 0.12f));
+        draw_lb_row(v, &v->you, v->you_rank, 565, ARC_COL_GREEN);
+    }
+    if (searching || query[0] != '\0') {
+        gfx_text_center(TextFormat("find player: %s%s", query, searching ? "_" : ""), ARC_SCREEN_W / 2, 600,
+                        20, ARC_COL_GREEN);
+        return;
+    }
+    Hint hints[7];
+    int hn = 0;
+    hints[hn++] = (Hint){"Left/Right", v->mode == LV_ONLINE ? "game" : "switch game"};
+    if (v->boards > 0)
+        hints[hn++] = (Hint){"Up/Down", v->mode == LV_ONLINE ? "board" : "switch board"};
+    if (v->count > VIEW_ROWS)
+        hints[hn++] = (Hint){"PgUp/PgDn", "scroll"};
+    if (v->mode == LV_ONLINE) {
+        hints[hn++] = (Hint){"R", "refresh"};
+        hints[hn++] = (Hint){"O", "turn off"};
+        hints[hn++] = (Hint){"Tab", "local"};
+    } else {
+        hints[hn++] = (Hint){"F", "find player"};
+        hints[hn++] = (Hint){"Tab", "online"};
+    }
+    hints[hn++] = (Hint){"Esc", "back"};
+    draw_hint_row_centered(600, hints, hn);
+}
+
+Screen screen_leaderboard(AppState *app) {
+    int tab = 0;   /* 0 = all games, 1.. = one game from the registry (the Online tab has no "all games") */
+    int board = 0; /* on a game with boards: 0 = all boards, 1.. = one board (see tab_boards) */
+    bool online = false; /* Local / Online tab */
+    bool searching = false;
+    char query[LB_NAME_LEN] = "";
+    int qlen = 0;
+    float t = 0.0f;
+    rebuild_view(app, online, tab, board, searching, query);
+    arcade_flush_input();
+    while (!arcade_quit_requested()) {
+        t += ARC_DT;
+        online_tick(app);
+        bool rebuild = false; /* the tab, the board, the search text or the mode changed */
+        bool ask = false;     /* ask the server for the table now shown */
+        bool refresh = false; /* ... even if the copy is fresh */
+        int scroll = 0;       /* rows to scroll this frame */
         if (searching) {
             for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
                 if (c >= 32 && c < 127 && c != '|' && qlen < LB_NAME_LEN - 1) {
                     query[qlen++] = (char)c;
                     query[qlen] = '\0';
+                    rebuild = true;
                 }
-            if (IsKeyPressed(KEY_BACKSPACE) && qlen > 0)
+            if (IsKeyPressed(KEY_BACKSPACE) && qlen > 0) {
                 query[--qlen] = '\0';
+                rebuild = true;
+            }
             if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
                 searching = false;
-        } else {
+        } else if (g_lbv.mode == LV_CONSENT || g_lbv.mode == LV_NO_ONLINE) {
+            if (IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE) ||
+                (g_lbv.mode == LV_NO_ONLINE && IsKeyPressed(KEY_ENTER))) {
+                online = false; /* back to the local scores; the next Esc leaves the screen */
+                board = 0;
+                rebuild = true;
+            } else if (g_lbv.mode == LV_CONSENT && IsKeyPressed(KEY_ENTER)) {
+                online_set_enabled(app, true); /* the player's choice, remembered in online.cfg */
+                if (tab == 0 && app->game_count > 0)
+                    tab = 1;
+                board = 1;
+                rebuild = true;
+                ask = true;
+            }
+        } else if (IsKeyPressed(KEY_TAB)) {
+            online = !online;
+            if (online && tab == 0 && app->game_count > 0)
+                tab = 1; /* tables are per game: there is no "all games" online */
+            board = online ? 1 : 0;
+            query[0] = '\0';
+            qlen = 0;
+            rebuild = true;
+            ask = online;
+        } else if (g_lbv.mode == LV_ONLINE) {
             if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
                 return SCR_MENU;
-            if (IsKeyPressed(KEY_RIGHT)) {
-                tab = (tab + 1) % (app->game_count + 1);
-                board = 0; /* every game starts on "all boards" */
+            if (app->game_count > 0 && (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_LEFT))) {
+                int n = app->game_count; /* tabs 1..n */
+                tab = IsKeyPressed(KEY_RIGHT) ? tab % n + 1 : (tab + n - 2) % n + 1;
+                board = 1;
+                rebuild = true;
+                ask = true;
             }
-            if (IsKeyPressed(KEY_LEFT)) {
-                tab = (tab + app->game_count) % (app->game_count + 1);
-                board = 0;
+            if (g_lbv.boards > 0 && IsKeyPressed(KEY_DOWN)) {
+                board = board % g_lbv.boards + 1;
+                rebuild = true;
+                ask = true;
             }
-            int boards = tab_boards(app, tab);
-            if (boards > 0 && IsKeyPressed(KEY_DOWN))
-                board = (board + 1) % (boards + 1);
-            if (boards > 0 && IsKeyPressed(KEY_UP))
-                board = (board + boards) % (boards + 1);
+            if (g_lbv.boards > 0 && IsKeyPressed(KEY_UP)) {
+                board = (board + g_lbv.boards - 2) % g_lbv.boards + 1;
+                rebuild = true;
+                ask = true;
+            }
+            if (g_lbv.boards == 0) { /* no board selector: Up/Down scroll the list */
+                scroll += IsKeyPressed(KEY_DOWN) ? 1 : 0;
+                scroll -= IsKeyPressed(KEY_UP) ? 1 : 0;
+            }
+            scroll += IsKeyPressed(KEY_PAGE_DOWN) ? VIEW_ROWS : 0;
+            scroll -= IsKeyPressed(KEY_PAGE_UP) ? VIEW_ROWS : 0;
+            float wheel = GetMouseWheelMove();
+            if (wheel != 0.0f)
+                scroll += wheel > 0.0f ? -3 : 3;
+            refresh = IsKeyPressed(KEY_R);
+            if (IsKeyPressed(KEY_O)) {
+                online_set_enabled(app, false); /* off: the next page offers to turn it on again */
+                rebuild = true;
+            }
+        } else { /* LV_LOCAL */
+            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+                return SCR_MENU;
+            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_LEFT)) {
+                int step = IsKeyPressed(KEY_RIGHT) ? 1 : app->game_count; /* +1, or -1 modulo the tab count */
+                tab = (tab + step) % (app->game_count + 1);
+                board = 0;       /* every game starts on "all boards" */
+                query[0] = '\0'; /* moving to another game ends a search */
+                qlen = 0;
+                rebuild = true;
+            }
+            if (g_lbv.boards > 0 && IsKeyPressed(KEY_DOWN)) {
+                board = (board + 1) % (g_lbv.boards + 1);
+                rebuild = true;
+            }
+            if (g_lbv.boards > 0 && IsKeyPressed(KEY_UP)) {
+                board = (board + g_lbv.boards) % (g_lbv.boards + 1);
+                rebuild = true;
+            }
+            if (g_lbv.boards == 0) { /* no board selector: Up/Down scroll the list */
+                scroll += IsKeyPressed(KEY_DOWN) ? 1 : 0;
+                scroll -= IsKeyPressed(KEY_UP) ? 1 : 0;
+            }
+            scroll += IsKeyPressed(KEY_PAGE_DOWN) ? VIEW_ROWS : 0;
+            scroll -= IsKeyPressed(KEY_PAGE_UP) ? VIEW_ROWS : 0;
+            float wheel = GetMouseWheelMove();
+            if (wheel != 0.0f)
+                scroll += wheel > 0.0f ? -3 : 3;
             if (IsKeyPressed(KEY_F) || IsKeyPressed(KEY_SLASH)) {
                 searching = true;
                 qlen = 0;
                 query[0] = '\0';
+                rebuild = true;
                 (void)GetCharPressed(); /* swallow the key that opened the search box */
             }
         }
+        if (rebuild) {
+            rebuild_view(app, online, tab, board, searching, query);
+        } else if (g_lbv.mode ==
+                   LV_ONLINE) { /* did a newer copy of the table arrive? keep the scroll position */
+            const OnlineTable *copy = lbn_table(&app->lbn, g_lbv.key);
+            if ((copy != NULL ? copy->fetched : 0) != g_lbv.fetched) {
+                int keep = g_lbv.scroll;
+                rebuild_view(app, online, tab, board, searching, query);
+                scroll_view(&g_lbv, keep);
+            }
+        }
+        if (g_lbv.mode == LV_ONLINE && g_lbv.key[0] != '\0') {
+            if (refresh)
+                online_refresh(app, g_lbv.key);
+            else if (ask)
+                online_want(app, g_lbv.key);
+        }
+        if (scroll != 0)
+            scroll_view(&g_lbv, scroll);
         backdrop_update(false, false, 0, 0);
 
         BeginDrawing();
-        draw_leaderboard_view(app, tab, board, searching, query, t);
+        draw_leaderboard_view(app, &g_lbv, searching, query, t);
         EndDrawing();
     }
     return SCR_QUIT;
@@ -610,8 +1048,9 @@ Screen screen_leaderboard(AppState *app) {
 /* ---------------------------------------------------------------- previews (smoke runner / screenshots) */
 const char *screens_preview_name(int which) {
     static const char *const names[PREVIEW_COUNT] = {
-        "hub_name",   "hub_menu",        "hub_archive",          "hub_archive_end",
-        "hub_result", "hub_leaderboard", "hub_leaderboard_board"};
+        "hub_name",       "hub_menu",         "hub_archive",           "hub_archive_end",
+        "hub_result",     "hub_leaderboard",  "hub_leaderboard_board", "hub_leaderboard_you",
+        "hub_online_off", "hub_online_table", "hub_online_offline",    "hub_online_first_run"};
     return (which >= 0 && which < PREVIEW_COUNT) ? names[which] : "hub_unknown";
 }
 
@@ -630,13 +1069,52 @@ void screens_draw_preview(AppState *app, int which, float t) {
         draw_result_view(app, t);
         break;
     case PREVIEW_LEADERBOARD:
-        draw_leaderboard_view(app, 0, 0, false, "", t);
+        build_view(app, &g_lbv, 0, 0, false, "");
+        draw_leaderboard_view(app, &g_lbv, false, "", t);
         break;
-    case PREVIEW_LEADERBOARD_BOARD: {          /* the first game that has boards, on its second board */
+    case PREVIEW_LEADERBOARD_BOARD:
+    case PREVIEW_LEADERBOARD_YOU: {            /* the first game that has boards */
         int tab = app->game_count > 0 ? 1 : 0; /* tab 0 = all games, also what an empty registry shows */
         while (tab > 0 && tab < app->game_count && tab_boards(app, tab) == 0)
             tab++;
-        draw_leaderboard_view(app, tab, tab_boards(app, tab) > 1 ? 2 : 0, false, "", t);
+        int boards = tab_boards(app, tab);
+        /* BOARD: its second board. YOU: its last board, which has more players than fit on screen, with the
+         * current player below the visible rows */
+        int board = which == PREVIEW_LEADERBOARD_YOU ? boards : (boards > 1 ? 2 : 0);
+        build_view(app, &g_lbv, tab, board, false, "");
+        draw_leaderboard_view(app, &g_lbv, false, "", t);
+        break;
+    }
+    case PREVIEW_ONLINE_FIRST_RUN:
+        draw_first_run(t);
+        break;
+    case PREVIEW_ONLINE_OFF:
+    case PREVIEW_ONLINE_TABLE:
+    case PREVIEW_ONLINE_OFFLINE: {
+        /* The Online tab in its three states, from a client that has no network (see smoke.c). The state that
+         * a state needs is set for this one frame and put back. */
+        LbnClient *c = &app->lbn;
+        const bool was_enabled = c->enabled;
+        const int was_failures = c->failures;
+        static Outbox saved;
+        saved = c->outbox;
+        int tab = 1; /* the game whose table smoke.c cached: different_color, or loop_lap when offline */
+        const char *wanted = which == PREVIEW_ONLINE_OFFLINE ? "loop_lap" : "different_color";
+        for (int i = 0; i < app->game_count; i++)
+            if (strcmp(app->games[i]->id, wanted) == 0)
+                tab = i + 1;
+        if (which == PREVIEW_ONLINE_OFF)
+            c->enabled = false;
+        if (which == PREVIEW_ONLINE_OFFLINE) {
+            c->failures = 3;
+            lbn_outbox_add(&c->outbox, "different_color", app->player, 250, 0);
+            lbn_outbox_add(&c->outbox, "loop_lap", app->player, 40, 0);
+        }
+        rebuild_view(app, true, tab, 1, false, "");
+        draw_leaderboard_view(app, &g_lbv, false, "", t);
+        c->enabled = was_enabled;
+        c->failures = was_failures;
+        c->outbox = saved;
         break;
     }
     default:

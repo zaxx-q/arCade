@@ -11,6 +11,10 @@ compile_commands.json
 CMakeUserPresets.json
 # runtime data written next to the executable
 scores.txt
+online.cfg
+outbox.txt
+online_cache.txt
+identity.txt
 gritty_save_*.dat
 gritty_save_*.bad
 master_juggler_progress.txt
