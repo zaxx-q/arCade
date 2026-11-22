@@ -75,7 +75,7 @@ Pasang extension yang direkomendasikan (editor akan menawarkannya; daftarnya di 
 
 ## 4. Alur kerja Git
 
-- Kerjakan di branch, buka PR ke `main`, lalu **squash merge**. Judul PR harus berupa Conventional Commit (`feat(echo_maze): add pings`): judul itulah yang menentukan versi berikutnya (`docs/RELEASING.md`).
+- Kerjakan di branch, buka PR ke `main`, lalu **merge commit**. Judul PR harus berupa Conventional Commit (`feat(echo_maze): add pings`): judul itulah yang menjadi judul merge commit dan menentukan versi berikutnya (`docs/RELEASING.md`).
 - Penjaga opsional untuk pesan commit di lokal: `git config core.hooksPath .githooks`.
 - Line ending adalah LF di semua tempat (`.gitattributes`). Jangan commit `build/` dan `scores.txt`.
 

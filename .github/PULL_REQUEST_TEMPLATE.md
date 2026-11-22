@@ -1,4 +1,4 @@
-<!-- The PR title must be a Conventional Commit: it determines the next version when squash-merged.
+<!-- The PR title must be a Conventional Commit: it becomes the merge commit title and determines the next version.
      feat(echo_maze): add sonar ping   -> minor      fix(sandbox): water leak   -> patch
      feat(core)!: change GameContext   -> major      docs/chore/test/ci/refactor -> patch -->
 

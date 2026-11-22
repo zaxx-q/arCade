@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-08 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-22 -->
 
 # AGENTS.md - .github/
 
@@ -31,7 +31,7 @@ Validate workflow YAML locally with actionlint (`actionlint` in the repo root, n
 - Never put `${{ github.event.* }}` (PR title, branch name, labels) directly in a `run:` script: pass it through `env:` and quote it (script injection).
 - `concurrency`: CI cancels superseded runs; `release` serialises (never cancel a running release).
 - All checks are blocking (`windows-msvc` and `smoke` promoted to blocking after verified green run).
-- Branch protection to apply by hand: PRs only, squash merge, require the check **`CI OK`**.
+- Branch protection to apply by hand: PRs only, **merge commit** (squash and rebase disabled — full history preserved), require the check **`CI OK`**.
 - Versioning: tags `vX.Y.Z` only; the bump comes from Conventional Commits (`feat!` major, `feat` minor, else patch; `[skip release]` skips). No bump commits.
 
 ## Security & safety

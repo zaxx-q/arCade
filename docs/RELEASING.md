@@ -2,7 +2,7 @@
 
 ## Cara kerja versi
 - Tag `vMAJOR.MINOR.PATCH` adalah satu-satunya sumber kebenaran. **Tidak ada workflow yang meng-commit** kenaikan versi (itu akan memicu dirinya sendiri lagi dan bentrok dengan PR kalian).
-- Setiap push ke `main` (hasil squash-merge sebuah PR), `release.yml` menjalankan pengecekan **lengkap**, lalu `tools/next_version.sh` menentukan kenaikan versi dari pesan commit sejak tag terakhir:
+- Setiap push ke `main` (hasil merge-commit sebuah PR), `release.yml` menjalankan pengecekan **lengkap**, lalu `tools/next_version.sh` menentukan kenaikan versi dari pesan commit sejak tag terakhir:
 
   | Judul commit/PR | Kenaikan |
   |-----------------|----------|
@@ -17,7 +17,7 @@
 
 ## Setup repository sekali saja (lakukan manual di GitHub)
 1. Buat repository di **akun pribadi kamu** (jatah menit Education plan berlaku untuk pemilik repo; private tidak masalah sampai pengumpulan).
-2. Push `main`. Settings -> General -> Pull Requests: izinkan **hanya squash merging**, dan default ke judul PR.
+2. Push `main`. Settings -> General -> Pull Requests: izinkan **hanya merge commit** (squash dan rebase dinonaktifkan agar seluruh history commit tersimpan), dan default ke judul PR.
 3. Settings -> Actions -> General: izinkan actions dan reusable workflows; Workflow permissions: **read repository contents** (job rilis meminta izin write sendiri).
 4. Settings -> Branches (atau Rulesets): lindungi `main`: wajibkan pull request, wajibkan status check **`CI OK`**, blokir force push. (Repo private butuh plan yang mendukung branch protection: GitHub Pro lewat Education mendukungnya.)
 5. Label: buat `full-ci` (PR dengan label ini juga menjalankan jalur lengkap).

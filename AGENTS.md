@@ -97,7 +97,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 ## Boundaries
 
 ### Always Do
-- Use Conventional Commits: `feat(scope): ...` (minor), `fix: ...` (patch), `feat!: ...` (major). PR titles too: squash-merge decides the release.
+- Use Conventional Commits: `feat(scope): ...` (minor), `fix: ...` (patch), `feat!: ...` (major). The merge commit title decides the release version bump.
 - Add a unit test for every new rule; keep `GAME.md` (pseudocode, flowchart, concept table) in sync.
 - Keep code beginner-readable: small functions, comments on non-obvious lines, course concepts only (see `docs/REPORT_GUIDE.md`).
 
