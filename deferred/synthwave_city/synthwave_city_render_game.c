@@ -48,7 +48,38 @@ static Rgb addc(Rgb a, Rgb b) {
 static unsigned char to_byte(float v) {
     return (unsigned char)(v <= 0.0f ? 0.0f : (v >= 1.0f ? 255.0f : v * 255.0f + 0.5f));
 }
+/* The GPU path draws this geometry into a linear HDR target: colours are written as linear light. */
+static const SwcLegacyOptions *g_opt; /* NULL when the CPU renderer draws everything */
+static bool g_linear_out;
+static bool g_no_buildings; /* the GPU draws the buildings and their lights */
+static bool g_no_beams;     /* the GPU draws the searchlights, pillar beacons and laser fans */
+static bool g_no_ground;    /* the GPU draws the streets, markings, plazas, lamps and the wet mirror */
+static bool g_no_air;       /* the sky lanes' craft: the GPU draws them, or the player switched them off */
+static bool g_no_street;    /* the cars on the streets: the GPU draws them, or the player switched them off */
+static bool g_no_holo;      /* hologram panels, wire solids and ticker rings: same */
+static unsigned g_live_layers = SWC_LIVE_ALL; /* the layers the player has not switched off (the L key) */
+
+static float srgb_to_linear(float v) {
+    return v <= 0.04045f ? v / 12.92f : powf((v + 0.055f) / 1.055f, 2.4f);
+}
+static float linear_to_srgb(float v) {
+    return v <= 0.0031308f ? v * 12.92f : 1.055f * powf(v, 1.0f / 2.4f) - 0.055f;
+}
+static unsigned char lin_byte(float v) {
+    static unsigned char lut[256];
+    static bool ready;
+    if (!ready) {
+        for (int i = 0; i < 256; i++)
+            lut[i] = to_byte(srgb_to_linear((float)i / 255.0f));
+        ready = true;
+    }
+    return lut[to_byte(v)];
+}
 static Color col(Rgb c, float a) {
+    if (g_linear_out) {
+        Color o = {lin_byte(c.r), lin_byte(c.g), lin_byte(c.b), to_byte(a)};
+        return o;
+    }
     Color o = {to_byte(c.r), to_byte(c.g), to_byte(c.b), to_byte(a)};
     return o;
 }
@@ -247,6 +278,18 @@ static float rel_dist(float x, float y, float z) {
  * colour of the sky at the horizon, so far geometry melts into it. */
 static Rgb haze(float dx, float dz) {
     float l = sqrtf(dx * dx + dz * dz);
+    if (g_linear_out &&
+        g_opt->look != NULL) { /* sc_fogColor of the web version, handed over as display colour */
+        const SwcLook *k = g_opt->look;
+        float sl = sqrtf(k->sun_dir[0] * k->sun_dir[0] + k->sun_dir[2] * k->sun_dir[2]);
+        float t = 0.5f;
+        if (l > 1e-4f && sl > 1e-4f)
+            t = 0.5f + 0.5f * (dx * k->sun_dir[0] + dz * k->sun_dir[2]) / (l * sl);
+        t *= t;
+        return rgb(linear_to_srgb(k->fog_cool[0] + (k->fog_warm[0] - k->fog_cool[0]) * t),
+                   linear_to_srgb(k->fog_cool[1] + (k->fog_warm[1] - k->fog_cool[1]) * t),
+                   linear_to_srgb(k->fog_cool[2] + (k->fog_warm[2] - k->fog_cool[2]) * t));
+    }
     float w = 0.0f;
     if (l > 1e-4f) {
         float d = (dx * F.sun_h[0] + dz * F.sun_h[1]) / l;
@@ -831,6 +874,8 @@ static void collect_traffic(void) {
     for (int lane = 0; lane < city->lane_count; lane++) {
         const SwcLane *l = &city->lanes[lane];
         bool sky = l->kind == SWC_LANE_SKY;
+        if (sky ? g_no_air : g_no_street)
+            continue;
         float reach = sky ? SKY_TRAFFIC_DIST : TRAFFIC_DIST;
         double cam_across = l->axis == 0 ? F.camz : F.camx, cam_along = l->axis == 0 ? F.camx : F.camz;
         float across = (float)swc_wrap_delta(l->fixed, cam_across, SWC_TILE);
@@ -973,14 +1018,15 @@ static void line3(const float a[3], const float b[3], Rgb c, float alpha_a, floa
     vtx(b[0], b[1], b[2], col(c, alpha_b));
 }
 
-/* Block outlines, avenue centre lines and the roof trims of nearby buildings. */
+/* Block outlines, avenue centre lines (the ground's) and the roof trims of nearby buildings. */
 static void draw_neon_lines(void) {
     const SwcCity *city = &F.s->city;
     const MoodStyle *m = F.mood;
     float gy = (float)-F.camy + 0.08f;
     rlSetLineWidth(1.5f);
     rlBegin(RL_LINES);
-    for (int i = 0; i < g_cell_count; i++) {
+    int line_cells = g_no_ground ? 0 : g_cell_count;
+    for (int i = 0; i < line_cells; i++) {
         const VisCell *vc = &g_cells[i];
         int cx = vc->index % SWC_CELLS, cz = vc->index / SWC_CELLS;
         const SwcCell *cell = &city->cells[vc->index];
@@ -1169,7 +1215,7 @@ static void draw_sites(void) {
         Rgb c = F.pal[st->color & 7];
         switch (st->kind) {
         case SWC_SITE_HOLO_PANEL: {
-            if (d > 650.0f || !visible(rx, ry, rz, (float)st->w))
+            if (g_no_holo || d > 650.0f || !visible(rx, ry, rz, (float)st->w))
                 break;
             float yaw = (float)st->yaw;
             float ex = cosf(yaw) * (float)st->w * 0.5f, ez = -sinf(yaw) * (float)st->w * 0.5f,
@@ -1183,7 +1229,7 @@ static void draw_sites(void) {
             break;
         }
         case SWC_SITE_SEARCHLIGHT: {
-            if (d > 1500.0f || !visible(rx, ry, rz, (float)st->w))
+            if (g_no_beams || d > 1500.0f || !visible(rx, ry, rz, (float)st->w))
                 break;
             int beams = (int)st->h < 1 ? 1 : ((int)st->h > 3 ? 3 : (int)st->h);
             for (int k = 0; k < beams; k++) {
@@ -1198,7 +1244,8 @@ static void draw_sites(void) {
             break;
         }
         case SWC_SITE_PILLAR: {
-            if (d > 900.0f || !visible(rx, ry + (float)st->h * 0.5f, rz, (float)st->h * 0.5f + 4.0f))
+            if (g_no_beams || d > 900.0f ||
+                !visible(rx, ry + (float)st->h * 0.5f, rz, (float)st->h * 0.5f + 4.0f))
                 break;
             float r = (float)st->w, top = (float)st->h;
             float al = 0.85f * fade(rx, ry, rz);
@@ -1213,7 +1260,7 @@ static void draw_sites(void) {
             break;
         }
         case SWC_SITE_TICKER: {
-            if (d > 700.0f || !visible(rx, ry, rz, (float)fmax(st->w, st->d) + 6.0f))
+            if (g_no_holo || d > 700.0f || !visible(rx, ry, rz, (float)fmax(st->w, st->d) + 6.0f))
                 break;
             float hw = (float)st->w, hd = (float)st->d, hh = (float)st->h * 0.5f;
             float pts[5][2] = {{-hw, -hd}, {hw, -hd}, {hw, hd}, {-hw, hd}, {-hw, -hd}};
@@ -1240,6 +1287,10 @@ static void draw_sites(void) {
     for (int i = 0; i < city->site_count; i++) {
         const SwcSite *st = &city->sites[i];
         if (st->kind != SWC_SITE_LASER && st->kind != SWC_SITE_HOLO_OBJECT && st->kind != SWC_SITE_HOLO_PANEL)
+            continue;
+        if (g_no_beams && st->kind == SWC_SITE_LASER)
+            continue;
+        if (g_no_holo && st->kind != SWC_SITE_LASER)
             continue;
         float rx = (float)swc_wrap_delta(st->x, F.camx, SWC_TILE),
               rz = (float)swc_wrap_delta(st->z, F.camz, SWC_TILE);
@@ -1310,7 +1361,7 @@ static void draw_sites(void) {
         Rgb c = F.pal[st->color & 7];
         switch (st->kind) {
         case SWC_SITE_ROOF_LIGHT: {
-            if (d > 1400.0f || !visible(rx, ry, rz, 4.0f))
+            if (g_no_buildings || d > 1400.0f || !visible(rx, ry, rz, 4.0f))
                 break;
             float ph = fmodf(t * 0.5f + (float)st->seed * 3.0f, 1.0f);
             float on = ph < 0.5f ? 1.0f : 0.2f;
@@ -1318,20 +1369,20 @@ static void draw_sites(void) {
             break;
         }
         case SWC_SITE_PILLAR:
-            if (d < 900.0f && visible(rx, ry + (float)st->h, rz, 6.0f))
+            if (!g_no_beams && d < 900.0f && visible(rx, ry + (float)st->h, rz, 6.0f))
                 glow(rx, ry + (float)st->h, rz, 5.0f, c, 0.7f);
             break;
         case SWC_SITE_SEARCHLIGHT:
         case SWC_SITE_LASER:
-            if (d < 1200.0f && visible(rx, ry, rz, 4.0f))
+            if (!g_no_beams && d < 1200.0f && visible(rx, ry, rz, 4.0f))
                 glow(rx, ry, rz, 3.0f, c, 0.8f);
             break;
         case SWC_SITE_HOLO_OBJECT:
-            if (d < 650.0f && visible(rx, ry, rz, (float)st->w * 2.0f))
+            if (!g_no_holo && d < 650.0f && visible(rx, ry, rz, (float)st->w * 2.0f))
                 glow(rx, ry, rz, (float)st->w * 1.8f, c, 0.35f + 0.2f * F.pulse);
             break;
         case SWC_SITE_TICKER: {
-            if (d > 700.0f || !visible(rx, ry, rz, (float)fmax(st->w, st->d) + 6.0f))
+            if (g_no_holo || d > 700.0f || !visible(rx, ry, rz, (float)fmax(st->w, st->d) + 6.0f))
                 break;
             float hw = (float)st->w, hd = (float)st->d;
             float per = 4.0f * (hw + hd);
@@ -1363,10 +1414,34 @@ static void draw_sites(void) {
 /* ------------------------------------------------------------------------------------------------ */
 
 void swc_render_scene(const synthwave_city_State *s, double time_s) {
+    swc_render_scene_legacy(s, time_s, NULL);
+}
+
+void swc_live_layers_set(unsigned mask) {
+    g_live_layers = mask & SWC_LIVE_ALL;
+}
+
+unsigned swc_live_layers(void) {
+    return g_live_layers;
+}
+
+void swc_render_scene_legacy(const synthwave_city_State *s, double time_s, const SwcLegacyOptions *opt) {
     if (!g_ready)
         return;
+    g_opt = opt;
+    g_linear_out = opt != NULL && (opt->flags & SWC_LEGACY_LINEAR) != 0 && opt->look != NULL;
+    g_no_buildings = opt != NULL && (opt->flags & SWC_LEGACY_NO_BUILDINGS) != 0;
+    g_no_beams =
+        (opt != NULL && (opt->flags & SWC_LEGACY_NO_BEAMS) != 0) || (g_live_layers & SWC_LIVE_BEAMS) == 0;
+    g_no_ground = opt != NULL && (opt->flags & SWC_LEGACY_NO_GROUND) != 0;
+    g_no_air = (opt != NULL && (opt->flags & SWC_LEGACY_NO_AIR) != 0) || (g_live_layers & SWC_LIVE_AIR) == 0;
+    g_no_street =
+        (opt != NULL && (opt->flags & SWC_LEGACY_NO_STREET) != 0) || (g_live_layers & SWC_LIVE_STREET) == 0;
+    g_no_holo =
+        (opt != NULL && (opt->flags & SWC_LEGACY_NO_HOLO) != 0) || (g_live_layers & SWC_LIVE_HOLO) == 0;
     setup_frame(s, time_s);
-    draw_sky();
+    if (opt == NULL || (opt->flags & SWC_LEGACY_NO_SKY) == 0)
+        draw_sky();
 
     double near_plane = rlGetCullDistanceNear(), far_plane = rlGetCullDistanceFar();
     rlSetClipPlanes(0.4, FAR_PLANE);
@@ -1381,9 +1456,15 @@ void swc_render_scene(const synthwave_city_State *s, double time_s) {
 
     collect_cells();
     collect_traffic();
-    draw_ground();
-    draw_buildings_solid();
+    if (!g_no_ground)
+        draw_ground();
+    if (!g_no_buildings) /* no visible boxes means no window overlays, roof trims or building glows either */
+        draw_buildings_solid();
     draw_vehicles_solid();
+    if (opt != NULL && opt->after_solid != NULL) {
+        rlDrawRenderBatchActive();
+        opt->after_solid(opt->user, F.w, F.h);
+    }
 
     /* everything that glows: depth-tested against the solids, never written to the depth buffer */
     rlDrawRenderBatchActive();
@@ -1401,4 +1482,12 @@ void swc_render_scene(const synthwave_city_State *s, double time_s) {
     rlEnableBackfaceCulling();
     EndMode3D();
     rlSetClipPlanes(near_plane, far_plane);
+    g_opt = NULL;
+    g_linear_out = false;
+    g_no_buildings = false;
+    g_no_beams = false;
+    g_no_ground = false;
+    g_no_air = false;
+    g_no_street = false;
+    g_no_holo = false;
 }

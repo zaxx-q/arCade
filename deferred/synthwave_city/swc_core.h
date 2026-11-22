@@ -141,6 +141,18 @@ static inline double swc_hash_unit4(uint32_t a, uint32_t b, uint32_t c, uint32_t
     return (double)swc_hash_ints(v, 4) / 4294967296.0;
 }
 
+/* The seed the web engine gives a layer: hashInts(city seed, hashText(layer id)), hashText being the Java
+ * string hash. Layers draw every random number of theirs from it. */
+static inline uint32_t swc_layer_seed(uint32_t city_seed, const char *layer_id) {
+    uint32_t text = 0;
+    for (const char *c = layer_id; *c; c++)
+        text = text * 31u + (uint32_t)(unsigned char)*c;
+    uint32_t v[2];
+    v[0] = city_seed;
+    v[1] = text;
+    return swc_hash_ints(v, 2);
+}
+
 /* ---- seeded random numbers: "mulberry32", small, fast, good enough for layout decisions ---- */
 typedef struct SwcRng {
     uint32_t state;
