@@ -1,8 +1,12 @@
 /* Hub screens: name entry, menu, launch, result, leaderboard. Each screen runs its own loop and
  * returns the next Screen to show (a tiny state machine driven from main.c).
  *
- * Look: a quiet left rail (wordmark + one panel of compact rows) over the live sand scene. The sand is the
- * loud part; the only other thing that moves on its own is the vault until it is opened (see backdrop.c). */
+ * Look: a quiet left rail (wordmark + one panel of compact rows) over a live scene (see backdrop.c): by
+ * default the Synthwave City game flying itself, or, switched with the button at the top right, the sand toy
+ * with the vault that opens the archive.
+ *
+ * In the city, a click on the background hides the whole menu and hands the camera to the player; Esc brings
+ * the menu back. */
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -153,6 +157,39 @@ Screen screen_name(AppState *app) {
     return SCR_QUIT;
 }
 
+/* ---------------------------------------------------------------- backdrop switch */
+/* The small button under the player's name that swaps the backdrop between the city and the sand scene. It is
+ * only part of the menu: it is gone while the menu is hidden. */
+#define CLICK_SLOP 6.0f /* px the pointer may move while the click that hid the menu is still down */
+#define SWITCH_Y 70
+#define SWITCH_H 32
+
+static const char *switch_label(void) {
+    return backdrop_mode() == BACKDROP_CITY ? "switch to sandbox" : "switch to city";
+}
+
+static int switch_cap_w(void) {
+    return gfx_text_width("B", HINT_KEY_SIZE) + 14; /* the keycap: same recipe as the footer hints */
+}
+
+static Rectangle switch_rect(void) {
+    int w = 10 + switch_cap_w() + 8 + gfx_text_width(switch_label(), HINT_SIZE) + 14;
+    return (Rectangle){(float)(ARC_SCREEN_W - MARGIN - w), (float)SWITCH_Y, (float)w, (float)SWITCH_H};
+}
+
+static void draw_switch(bool hot) {
+    Rectangle r = switch_rect();
+    float rd = round_for(r, 10.0f);
+    DrawRectangleRounded(r, rd, 8, Fade(ARC_COL_PANEL, 0.92f));
+    DrawRectangleRoundedLinesEx(r, rd, 8, 1.0f, hot ? Fade(ARC_COL_CYAN, 0.85f) : Fade(ARC_COL_DIM, 0.45f));
+    Rectangle cap = {r.x + 10.0f, r.y + 4.0f, (float)switch_cap_w(), 24.0f};
+    DrawRectangleRounded(cap, round_for(cap, 6.0f), 6, Fade(ARC_COL_BG, 0.90f));
+    DrawRectangleRoundedLinesEx(cap, round_for(cap, 6.0f), 6, 1.0f, Fade(ARC_COL_DIM, 0.60f));
+    gfx_text("B", (int)cap.x + 7, (int)cap.y + 2, HINT_KEY_SIZE, ARC_COL_TEXT);
+    gfx_text(switch_label(), (int)(cap.x + cap.width) + 8, (int)r.y + 8, HINT_SIZE,
+             hot ? ARC_COL_TEXT : ARC_COL_DIM);
+}
+
 /* ---------------------------------------------------------------- menu */
 /* Layout rules, shared by drawing and mouse hit-testing so they can never disagree:
  *  - rows 0..listed_count-1 come from games/; once the archive is open, the deferred/ rows follow a divider;
@@ -235,6 +272,7 @@ static void draw_menu_view(const AppState *app, int first, float t) {
     backdrop_vault_draw(app->archive_open, t);
     draw_title(NULL);
     draw_player(app);
+    draw_switch(CheckCollisionPointRec(GetMousePosition(), switch_rect()));
 
     if (app->game_count > 0) {
         float ph = g_panel_h > 0.0f ? g_panel_h : panel_target_h(app, first);
@@ -265,20 +303,21 @@ static void draw_menu_view(const AppState *app, int first, float t) {
         gfx_text("No games registered - see docs/ADDING_A_GAME.md", LIST_X, LIST_Y + 20, 22, ARC_COL_RED);
     }
 
-    /* the sand toy: everything right of / below the panel paints */
-    const char *toy = "left mouse: sand    right mouse: water";
+    /* what a click on the background does: it flies the city, or it paints the sand toy */
+    bool city = backdrop_mode() == BACKDROP_CITY;
+    const char *toy = city ? "click the background to fly" : "left mouse: sand    right mouse: water";
     int toy_w = gfx_text_width(toy, 15) + 28;
     Rectangle pill = {(float)(ARC_SCREEN_W - MARGIN - toy_w), (float)ARC_SCREEN_H - 84.0f, (float)toy_w,
                       32.0f};
     DrawRectangleRounded(pill, round_for(pill, 16.0f), 8, Fade(ARC_COL_BG, 0.88f));
     gfx_text_right(toy, ARC_SCREEN_W - MARGIN - 14, ARC_SCREEN_H - 78, 15, ARC_COL_DIM);
 
-    const Hint hints[] = {{"Up/Down", "choose"},
-                          {"Enter", "play"},
-                          {"L", "leaderboard"},
-                          {"N", "change name"},
-                          {"Esc", "quit"}};
-    draw_hint_row(MARGIN, ARC_SCREEN_H - 38, hints, (int)ARC_ARRAY_LEN(hints));
+    Hint hints[6] = {{"Up/Down", "choose"}, {"Enter", "play"}, {"L", "leaderboard"}, {"N", "change name"}};
+    int hint_n = 4;
+    if (city) /* the city has a soundtrack to silence */
+        hints[hint_n++] = (Hint){"M", "mute music"};
+    hints[hint_n++] = (Hint){"Esc", "quit"};
+    draw_hint_row(MARGIN, ARC_SCREEN_H - 38, hints, hint_n);
     gfx_text_right("v" ARCADE_VERSION_STRING, ARC_SCREEN_W - MARGIN, ARC_SCREEN_H - 35, 14, ARC_COL_DIM);
 }
 
@@ -297,11 +336,46 @@ static int row_at(const AppState *app, int first, Vector2 m) {
 Screen screen_menu(AppState *app) {
     int first = first_for(app, 0);
     float t = 0.0f;
+    bool flying = false;     /* the menu is hidden and the player flies the city behind it */
+    bool click_held = false; /* the click that hid the menu is still down, and has not moved yet */
+    Vector2 click_at = {0.0f, 0.0f};
     arcade_flush_input();
+    backdrop_set_flying(false); /* arriving (or coming back from a game): the menu is up, the drone flies */
     g_panel_h =
         panel_target_h(app, first); /* coming back from a game: no unfolding, just the panel as it was */
     while (!arcade_quit_requested()) {
         t += ARC_DT;
+        bool esc = IsKeyPressed(KEY_ESCAPE);
+
+        if (flying) {
+            if (esc) { /* Esc gives the menu back; the same press must not also quit the hub */
+                flying = false;
+                backdrop_set_flying(false);
+                esc = false;
+            } else {
+                /* The whole screen is the game: no menu, no hints, just the city and its own HUD. The first
+                 * frame after the click is where the camera changes hands (set_flying is idempotent). */
+                backdrop_set_flying(true);
+                ArcadeInput in;
+                arcade_poll(&in);
+                if (click_held) {
+                    /* Holding the left button is a look-drag, and any flight control switches the drone off.
+                     * So the click that hid the menu must not count as one while it is only a click, or
+                     * every click would stop the tour. Once it is let go, or dragged away, it is the
+                     * player's. */
+                    float dx = in.aim_x - click_at.x, dy = in.aim_y - click_at.y;
+                    if (in.fire && dx * dx + dy * dy < CLICK_SLOP * CLICK_SLOP)
+                        in.fire = in.fire_pressed = false;
+                    else
+                        click_held = false;
+                }
+                backdrop_fly(&in);
+                BeginDrawing();
+                backdrop_draw(1.0f);
+                EndDrawing();
+                continue;
+            }
+        }
 
         /* the vault was filled with the sand toy: unlock the archive and announce it */
         if (!app->archive_open && backdrop_vault_is_open()) {
@@ -348,10 +422,23 @@ Screen screen_menu(AppState *app) {
             return SCR_LEADERBOARD;
         if (IsKeyPressed(KEY_N))
             return SCR_NAME;
-        if (IsKeyPressed(KEY_ESCAPE))
+        if (esc)
             return SCR_QUIT;
 
-        bool paint = !over_panel;
+        /* the backdrop: B or the small button swaps the city and the sand toy */
+        bool city = backdrop_mode() == BACKDROP_CITY;
+        bool over_switch = CheckCollisionPointRec(m, switch_rect());
+        if (IsKeyPressed(KEY_B) || (over_switch && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)))
+            backdrop_set_mode(city ? BACKDROP_SANDBOX : BACKDROP_CITY);
+        else if (city && IsKeyPressed(KEY_M))
+            backdrop_toggle_mute();
+        else if (city && !over_panel && !over_switch && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            flying = true; /* a click on the background: the menu hides (from the next frame) */
+            click_held = true;
+            click_at = m;
+        }
+
+        bool paint = !over_panel && !over_switch;
         backdrop_update(paint && IsMouseButtonDown(MOUSE_BUTTON_LEFT),
                         paint && IsMouseButtonDown(MOUSE_BUTTON_RIGHT), (int)m.x, (int)m.y);
 
@@ -379,7 +466,9 @@ Screen screen_launch(AppState *app) {
 
     arcade_flush_input(); /* consume the Enter/click that launched the game, or its first frame would see it
                              too */
+    backdrop_pause_audio(true); /* the city's soundtrack must not play under another game */
     GameResult r = g->play(&ctx);
+    backdrop_pause_audio(false);
     arcade_flush_input();
     if (arcade_quit_requested())
         return SCR_QUIT;
@@ -610,8 +699,8 @@ Screen screen_leaderboard(AppState *app) {
 /* ---------------------------------------------------------------- previews (smoke runner / screenshots) */
 const char *screens_preview_name(int which) {
     static const char *const names[PREVIEW_COUNT] = {
-        "hub_name",   "hub_menu",        "hub_archive",          "hub_archive_end",
-        "hub_result", "hub_leaderboard", "hub_leaderboard_board"};
+        "hub_name",   "hub_menu",        "hub_menu_sandbox",      "hub_archive", "hub_archive_end",
+        "hub_result", "hub_leaderboard", "hub_leaderboard_board", "hub_fly"};
     return (which >= 0 && which < PREVIEW_COUNT) ? names[which] : "hub_unknown";
 }
 
@@ -621,6 +710,7 @@ void screens_draw_preview(AppState *app, int which, float t) {
         draw_name_view(app, "Ana", t);
         break;
     case PREVIEW_MENU:
+    case PREVIEW_MENU_SANDBOX:
     case PREVIEW_ARCHIVE:
     case PREVIEW_ARCHIVE_END:
         g_panel_h = 0.0f; /* draw at the final height: previews do not animate */
@@ -639,6 +729,9 @@ void screens_draw_preview(AppState *app, int which, float t) {
         draw_leaderboard_view(app, tab, tab_boards(app, tab) > 1 ? 2 : 0, false, "", t);
         break;
     }
+    case PREVIEW_FLY:
+        backdrop_draw(1.0f); /* the menu is hidden: only the game */
+        break;
     default:
         break;
     }

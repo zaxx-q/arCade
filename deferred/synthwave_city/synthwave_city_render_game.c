@@ -306,6 +306,8 @@ static void tex_vtx(float x, float y, float z, float u, float v, Color c) {
 static Texture2D g_window_tex[WINDOW_TEXTURES];
 static Texture2D g_glow_tex;
 static bool g_ready;
+static int g_users; /* swc_render_init() calls not yet matched by a shutdown: the hub backdrop and a game
+                       started from the archive can both be using the renderer at the same time */
 /* metres covered by one repeat of each texture: across, up */
 static const float TEX_SPAN[WINDOW_TEXTURES][2] = {
     {24.0f, 32.0f}, {24.0f, 32.0f}, {24.0f, 32.0f}, {24.0f, 32.0f}};
@@ -396,14 +398,16 @@ static void init_textures(void) {
 }
 
 void swc_render_init(void) {
+    if (g_users++ > 0)
+        return; /* somebody already built the textures: share them */
     init_moods();
     init_textures();
     g_ready = true;
 }
 
 void swc_render_shutdown(void) {
-    if (!g_ready)
-        return;
+    if (g_users == 0 || --g_users > 0)
+        return; /* nothing to release, or another user still needs the textures */
     for (int i = 0; i < WINDOW_TEXTURES; i++)
         UnloadTexture(g_window_tex[i]);
     UnloadTexture(g_glow_tex);

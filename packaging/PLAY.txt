@@ -8,7 +8,10 @@ Linux:   tar xzf arCade-*.tar.gz && cd arCade-* && ./arCade
 Kontrol ditampilkan di menu untuk game yang sedang dipilih.
   Menu:   Up/Down atau mouse: memilih   Enter atau klik: main   L: leaderboard   N: ganti nama   Esc: keluar
   Di dalam game: Esc kembali ke menu.
-  Background menu: klik kiri mouse menggambar pasir, klik kanan menggambar air (di separuh kanan layar).
+  Background menu: kota neon (Synthwave City) yang terbang sendiri. Klik di latar belakang untuk menyembunyikan
+                   menu dan memainkan kotanya (WASD terbang, seret mouse menoleh, M bisukan lagu); Esc menampilkan
+                   menu lagi. B atau tombol kecil di kanan atas menukar ke sandbox: klik kiri menggambar pasir,
+                   klik kanan menggambar air.
 
 Skor disimpan di scores.txt di sebelah programnya. Hapus file itu untuk mereset leaderboard.
 Beat Dodge & Catch punya papan skor sendiri untuk setiap mode, lagu, dan kesulitan: di leaderboard, pilih game itu dengan Left/Right lalu ganti papan dengan Up/Down.

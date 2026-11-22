@@ -227,6 +227,53 @@ static void test_dragging_looks_around_without_a_jump(void) {
     CHECK(s.cam.pitch <= SWC_MAX_PITCH + 1e-9);
 }
 
+/* The next three tests are what the hub relies on when it runs the game behind its menu (see
+ * synthwave_city_session.h): while the menu is up it feeds empty input, and the pointer reads (0, 0). */
+
+static void test_an_idle_host_leaves_the_drone_flying(void) {
+    synthwave_city_init(&s, 1u);
+    ArcadeInput in = idle();
+    run(1800, &in); /* 30 s of a menu nobody touches */
+    CHECK(s.touring);
+    CHECK(s.distance > 500.0); /* and the drone really flew */
+    CHECK(!camera_in_a_building());
+}
+
+static void test_a_lone_space_press_hands_the_camera_back_to_the_drone(void) {
+    synthwave_city_init(&s, 1u);
+    swc_goto_view(&s, 1); /* the player is flying freely... */
+    ArcadeInput in = idle();
+    in.move_y = -1.0f;
+    run(120, &in);
+    CHECK(!s.touring);
+    double px = s.cam.x, py = s.cam.y, pz = s.cam.z;
+    in = idle(); /* ...and presses Esc: the hub sends one Space press and nothing else */
+    in.action_pressed = true;
+    synthwave_city_step(&s, &in, ARC_DT);
+    CHECK(s.touring);
+    double jump = hypot(hypot(swc_wrap_delta(s.cam.x, px, SWC_TILE), s.cam.y - py),
+                        swc_wrap_delta(s.cam.z, pz, SWC_TILE));
+    CHECK(jump < 3.0); /* the drone takes over from where the player was: no teleport */
+    in = idle();
+    run(1200, &in);
+    CHECK(s.touring);
+    CHECK(!camera_in_a_building());
+}
+
+static void test_the_click_that_takes_the_camera_does_not_turn_it(void) {
+    synthwave_city_init(&s, 1u);
+    swc_goto_view(&s, 3);
+    ArcadeInput in = idle();
+    run(10, &in); /* menu time */
+    double yaw0 = s.cam.yaw, pitch0 = s.cam.pitch;
+    in.fire = in.fire_pressed = true; /* the click that hides the menu: the pointer jumps from (0, 0) */
+    in.aim_x = 1100.0f;
+    in.aim_y = 650.0f;
+    synthwave_city_step(&s, &in, ARC_DT);
+    CHECK_NEAR(s.cam.yaw, yaw0, 1e-12);
+    CHECK_NEAR(s.cam.pitch, pitch0, 1e-12);
+}
+
 static void test_wheel_scales_the_cruise_speed(void) {
     synthwave_city_init(&s, 1u);
     ArcadeInput in = idle();
@@ -327,6 +374,9 @@ int main(void) {
     RUN(test_mood_key_cycles);
     RUN(test_space_toggles_the_tour_and_controls_take_over);
     RUN(test_dragging_looks_around_without_a_jump);
+    RUN(test_an_idle_host_leaves_the_drone_flying);
+    RUN(test_a_lone_space_press_hands_the_camera_back_to_the_drone);
+    RUN(test_the_click_that_takes_the_camera_does_not_turn_it);
     RUN(test_wheel_scales_the_cruise_speed);
     RUN(test_clocks_loop);
     RUN(test_same_input_same_result);

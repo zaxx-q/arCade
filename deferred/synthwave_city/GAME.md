@@ -1,6 +1,6 @@
 # Synthwave City - design brief
 
-**Owner:** Leader  **Folder:** `games/synthwave_city/`  **Created:** 2026-11-16  **Asal mekanik:** port ke C dari `highsierralabs/Synthwave_City` (Kris E. Granholm, lisensi MIT, lihat `THIRD_PARTY_NOTICES.md`): rencana kota, model terbang, lalu lintas, dan komposisi lagu diterjemahkan dari TypeScript ke C99 dan dicocokkan angka demi angka. Tampilan WebGL (shader, pantulan basah, bloom HDR) **tidak** dibawa: diganti render 3D raylib biasa.
+**Owner:** Leader  **Folder:** `deferred/synthwave_city/`  **Created:** 2026-11-16  **Asal mekanik:** port ke C dari `highsierralabs/Synthwave_City` (Kris E. Granholm, lisensi MIT, lihat `THIRD_PARTY_NOTICES.md`): rencana kota, model terbang, lalu lintas, dan komposisi lagu diterjemahkan dari TypeScript ke C99 dan dicocokkan angka demi angka. Tampilan WebGL (shader, pantulan basah, bloom HDR) **tidak** dibawa: diganti render 3D raylib biasa.
 
 ## Hook
 Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam; tidak ada musuh, tidak ada game over, hanya kamera, jalan raya, dan lagu 105 BPM.
@@ -13,7 +13,13 @@ Di balik layar, `synthwave_city_step()` hanya memajukan jam, memindahkan kamera 
 Kalau cuma punya 1 menit: tekan Spasi untuk tur, tekan 1-6 untuk melompat ke titik pandang, T untuk mengganti suasana.
 
 ## Kontrol
-WASD atau panah: terbang (maju, mundur, geser). Tahan klik kiri dan seret mouse: melihat sekeliling. Klik kanan (tahan): dorongan kecepatan (x3.5). Roda mouse: skala kecepatan jelajah (0.25 sampai 4). Spasi: tur otomatis hidup atau mati (kontrol terbang apa pun mematikannya). 1-6: titik pandang (Sunset Avenue, Downtown Canyon, Rooftop, Panorama, Megatower, Plaza). T: ganti suasana. M: bisukan musik. Esc: keluar.
+WASD atau panah: terbang (maju, mundur, geser). Tahan klik kiri dan seret mouse: melihat sekeliling. Klik kanan (tahan): dorongan kecepatan (x3.5). Roda mouse: skala kecepatan jelajah (0.25 sampai 4). Spasi: tur otomatis hidup atau mati (kontrol terbang apa pun mematikannya). 1-6: titik pandang (Sunset Avenue, Downtown Canyon, Rooftop, Panorama, Megatower, Plaza). T: ganti suasana. M: bisukan musik. Esc: keluar (kalau game dimulai dari arsip) atau kembali ke menu (kalau dimainkan di latar belakang hub, lihat bagian berikutnya).
+
+## Dua cara menjalankannya
+1. **`play()`**: game biasa dengan loop-nya sendiri. Muncul di menu setelah arsip dibuka, dan dipakai oleh smoke run.
+2. **Sesi tamu** (`synthwave_city_session.h`): hub menjalankan game yang sama di belakang menunya, di dalam loop hub. Selama menu tampil, hub memberi input kosong, jadi hanya drone tur yang menggerakkan kamera, lagu diputar pelan (volume 0.3), dan HUD disembunyikan. Saat pemain mengklik latar belakang, hub memanggil `swc_session_set_control(true)`: input nyata dibaca, HUD tampil (teksnya "ESC: menu"), dan lagu penuh (0.8). `Esc` memanggil `swc_session_set_control(false)`: sesi mengirim satu tekan `action_pressed` (sama dengan Spasi) bila tur sedang mati, sehingga drone mengambil kamera dari posisi terakhir tanpa lompatan. Klik yang menyembunyikan menu tidak boleh menjadi "seret" (itu kontrol terbang yang mematikan tur); aturan itu ada di `screens.c`, dan tiga tes logic (`test_an_idle_host_leaves_the_drone_flying`, `test_a_lone_space_press_hands_the_camera_back_to_the_drone`, `test_the_click_that_takes_the_camera_does_not_turn_it`) mengunci apa yang diandalkan hub.
+
+Sesi tamu dan `play()` masing-masing punya `synthwave_city_State` dan `Soundtrack` sendiri. Yang dipakai bersama hanya tekstur renderer, dan itu dihitung referensinya (`swc_render_init/shutdown`).
 
 ## Aturan dan skor
 - Kota adalah fungsi dari `seed`; ubin 6400 m berulang, jadi posisi x dan z selalu dibungkus ke `0..6400`.
@@ -31,7 +37,7 @@ WASD atau panah: terbang (maju, mundur, geser). Tahan klik kiri dan seret mouse:
 3. Tur: wortel maju dan kamera dikejar per; atau terbang bebas: kontrol menjadi kecepatan yang diminta, lalu `swc_flight_move()` menggerakkan bola dengan tumbukan.
 4. Jam lalu lintas dan jam ketukan bertambah; front-end menyamakan jam ketukan dengan audio jika selisihnya > 0.06 detik.
 5. `swc_render_scene()` menggambar langit 2D, lalu tanah, gedung, dan kendaraan (solid), lalu garis neon, tekstur jendela, dan sprite kilau (aditif) dengan kamera sebagai pusat.
-6. `draw_overlay()` menggambar HUD; `arcade_frame_end()` menutup frame.
+6. `draw_overlay()` menggambar HUD; `arcade_frame_end()` menutup frame. (Langkah 2 sampai 6 dipakai bersama oleh `play()` dan sesi tamu lewat `game_step()` dan `game_draw()`.)
 
 ## Peta file
 | File | Isinya | Edit di sini kalau ... |
@@ -42,8 +48,9 @@ WASD atau panah: terbang (maju, mundur, geser). Tahan klik kiri dan seret mouse:
 | `swc_song.h`, `swc_song.c` | komposisi (bentuk, akor, nada) dan penerjemah ke `SynthNote` | mengubah lagu |
 | `synthwave_city_logic.h`, `.c` | state, kamera terbang, tur, titik pandang, jam (tanpa raylib) | mengubah kontrol atau aturan terbang |
 | `synthwave_city_front.h` | antarmuka kecil ke penggambar (tanpa tipe raylib) | menambah fungsi gambar publik |
+| `synthwave_city_session.h` | antarmuka untuk hub: sesi tamu (begin/end, siapa yang memegang kamera, update, draw, jeda dan bisukan lagu) | mengubah cara hub menjalankan game ini |
 | `synthwave_city_render_game.c` | seluruh gambar 3D: langit, kabut, gedung, jendela, situs, kilau | mengubah tampilan |
-| `synthwave_city_game.c` | loop raylib, HUD, musik, film skrip smoke run, `GameDef` | mengubah HUD, musik, atau teks di menu |
+| `synthwave_city_game.c` | loop raylib, HUD, musik, film skrip smoke run, sesi tamu, `GameDef` | mengubah HUD, musik, sesi tamu, atau teks di menu |
 | `tests/*.c` | unit test untuk kota, lalu lintas, lagu, dan logic | menambah atau mengubah aturan |
 | `CMakeLists.txt` | `arcade_add_game(...)` | menambah file `.c` atau test baru |
 | `GAME.md` | dokumen ini | aturan atau kode berubah |
@@ -75,8 +82,10 @@ WASD atau panah: terbang (maju, mundur, geser). Tahan klik kiri dan seret mouse:
 | `swc_top_speed` | kecepatan puncak menurut tinggi dan skala | `swc_flight_step`, tes |
 | `swc_flight_step`, `swc_flight_move` | kontrol menjadi kecepatan, lalu gerak dengan sub-langkah dan tumbukan | `synthwave_city_step`, tes |
 | `swc_goto_view` | lompat ke titik pandang | `synthwave_city_step`, tes |
-| `swc_render_scene` | satu frame 3D (clip plane 0.4 sampai 4000, kabut, lalu pass aditif) | `play()` |
-| `music_start`, `music_update` | merender loop lagu ke WAV di memori dan menyamakan jam ketukan | `play()` |
+| `swc_render_scene` | satu frame 3D (clip plane 0.4 sampai 4000, kabut, lalu pass aditif) | `game_draw()` |
+| `music_start`, `music_update` | merender loop lagu ke WAV di memori dan menyamakan jam ketukan | `play()`, sesi tamu |
+| `game_step`, `game_draw` | satu langkah dan satu gambar game, dipakai bersama | `play()`, sesi tamu |
+| `swc_session_begin/end/set_control/update/draw` | menjalankan game di dalam loop hub | `app/backdrop.c` |
 
 ## Angka yang bisa diutak-atik
 | Konstanta | Nilai sekarang | File | Efek kalau diubah |
@@ -125,7 +134,9 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 | `test_monkey_never_breaks_it`, `test_big_and_bad_time_steps_are_survivable` | input acak dan dt buruk tidak pernah menghasilkan NaN atau kamera di dalam gedung |
 
 ## Jebakan dan hal yang perlu diingat
-- `synthwave_city_State` sekitar 2.5 MB: harus `static` (di stack akan mematikan game).
+- `synthwave_city_State` sekitar 2.5 MB: harus `static` (di stack akan mematikan game). `play()` dan sesi tamu punya salinan `static` masing-masing.
+- `swc_render_init()` dan `swc_render_shutdown()` dihitung referensinya. Kalau dua pemakai (latar belakang hub dan `play()` dari arsip) berbagi tekstur, `shutdown` yang pertama tidak boleh melepasnya; kalau tidak, latar belakang hub menjadi kosong. Smoke check `hub_city` menguji ini.
+- Hub bergantung pada game ini lewat id `synthwave_city`: foldernya (di `games/` atau `deferred/`) harus tetap ada.
 - Paritas dengan versi web dijaga ketat: RNG diambil ke variabel lokal agar urutan evaluasinya sama dengan JavaScript, kota dibangkitkan dengan `double`, kotak disimpan `float32`, dan pengurutan memakai insertion sort yang stabil. Proyek dikompilasi dengan `-ffp-contract=off`; jangan diubah atau angka kota bergeser.
 - Smoke run memakai input skrip (`scripted_input`), bukan "monyet" acak, supaya screenshot menunjukkan kota dan bukan kamera yang tertahan di dinding.
 - Penyimpangan dari versi web (sengaja): tidak ada pantulan jalan basah dan bloom HDR (diganti kabut ke warna cakrawala, pelapis jendela aditif, dan sprite kilau); hanya gerakan pertama lagu (loop bar 16 sampai 31) dengan suara synth inti arCade, tanpa dinamika dan tanpa suara noise; tur lebih sederhana dari versi web.

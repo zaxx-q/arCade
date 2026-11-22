@@ -1,12 +1,20 @@
-/* Live falling-sand animation behind the hub screens (uses core/sandbox, same engine as deferred/sandbox).
- * The scene also holds the "vault": a stone basin on the right. Fill it with sand or water and it opens,
- * which unlocks the archive of deferred games on the menu (rules: core/vault, docs: docs/DEFERRED.md). */
+/* The live scene behind the hub screens. Two scenes share the slot (see app.h):
+ *
+ *  - the city (default): the whole Synthwave City game running as a guest of the hub, through the small API
+ * in deferred/synthwave_city/synthwave_city_session.h. A drone tour flies it by itself; when the menu hides,
+ *    the player flies it instead;
+ *  - the sand: a falling-sand animation (core/sandbox, same engine as deferred/sandbox). It also holds the
+ *    "vault": a stone basin on the right. Fill it with sand or water and it opens, which unlocks the archive
+ * of deferred games on the menu (rules: core/vault, docs: docs/DEFERRED.md).
+ *
+ * Only the scene being shown is stepped, so the vault can never fill up while the city is shown. */
 #include <math.h>
 
 #include "app.h"
 #include "arcade/gfx.h"
 #include "arcade/rng.h"
 #include "arcade/vault.h"
+#include "synthwave_city_session.h"
 
 #define BD_W 160
 #define BD_H 90
@@ -26,6 +34,8 @@ static GfxSandboxView g_view;
 static Vault g_vault;
 static Rng g_rng; /* where the next grain of sand / drop of water appears */
 static unsigned g_frame;
+static BackdropMode g_mode = BACKDROP_CITY;
+static bool g_flying; /* city only: the player holds the camera */
 
 /* A stone shelf from x0 up to (not including) x1 on row y, with a 2-cell gap every `period` cells (the first
  * gap starts `first_gap` cells in). Sand and water rain through the gaps, so a shelf never builds a tall
@@ -53,13 +63,61 @@ void backdrop_init(unsigned seed) {
     build_scene();
     gfx_sandbox_view_init(&g_view, &g_sb);
     g_frame = 0;
+    swc_session_begin(seed); /* the city: same seed, so a smoke run always sees the same one */
+    g_mode = BACKDROP_CITY;
+    g_flying = false;
 }
 
 void backdrop_shutdown(void) {
+    swc_session_end();
     gfx_sandbox_view_free(&g_view);
 }
 
+/* ---------------------------------------------------------------- which scene is shown */
+BackdropMode backdrop_mode(void) {
+    return g_mode;
+}
+
+void backdrop_set_mode(BackdropMode mode) {
+    if (mode == g_mode)
+        return;
+    if (mode != BACKDROP_CITY)
+        backdrop_set_flying(false); /* leaving the city: the camera goes back to the drone */
+    g_mode = mode;
+    /* a hidden city is not stepped, so its soundtrack would starve: it waits, paused, until it is shown again
+     */
+    swc_session_pause_audio(mode != BACKDROP_CITY);
+}
+
+/* ---------------------------------------------------------------- the city */
+void backdrop_set_flying(bool flying) {
+    g_flying = flying && g_mode == BACKDROP_CITY;
+    swc_session_set_control(g_flying);
+}
+
+void backdrop_fly(const ArcadeInput *in) {
+    if (g_mode == BACKDROP_CITY)
+        swc_session_update(in, ARC_DT);
+}
+
+void backdrop_pause_audio(bool paused) {
+    swc_session_pause_audio(paused || g_mode != BACKDROP_CITY);
+}
+
+void backdrop_toggle_mute(void) {
+    swc_session_set_muted(!swc_session_muted());
+}
+
+bool backdrop_city_touring(void) {
+    return swc_session_touring();
+}
+
+/* ---------------------------------------------------------------- the sand */
 void backdrop_update(bool paint_sand, bool paint_water, int mouse_x, int mouse_y) {
+    if (g_mode == BACKDROP_CITY) {
+        swc_session_update(NULL, ARC_DT); /* nobody flies from here: only the drone moves the camera */
+        return;
+    }
     g_frame++;
     /* single grains at random x positions: reads as falling sand and water instead of a solid ribbon */
     sandbox_paint(&g_sb, rng_range(&g_rng, 104, 119), 2, 0, EL_SAND); /* sand drizzle  */
@@ -78,7 +136,34 @@ void backdrop_update(bool paint_sand, bool paint_water, int mouse_x, int mouse_y
         sandbox_set(&g_sb, x, BD_H - 1, EL_EMPTY);
 }
 
+/* The city can be bright right where the hub's small text sits (the player's name, the key hints, the
+ * version). A soft shade along the top and bottom edges keeps that text readable without dimming the whole
+ * picture. Plain strips, not a gradient quad: the CPU rasteriser does not blend those right (the game's own
+ * HUD shade does the same). */
+#define SHADE_STRIPS 14
+#define SHADE_TOP_H 140
+#define SHADE_BOTTOM_H 110
+
+static void draw_edge_shade(void) {
+    for (int i = 0; i < SHADE_STRIPS; i++) {
+        float k = 1.0f - (float)i / (float)SHADE_STRIPS; /* 1 at the screen edge, towards 0 inside */
+        int top_h = SHADE_TOP_H / SHADE_STRIPS, bottom_h = SHADE_BOTTOM_H / SHADE_STRIPS;
+        DrawRectangle(0, i * top_h, ARC_SCREEN_W, top_h, Fade(ARC_COL_BG, 0.80f * k * k));
+        DrawRectangle(0, ARC_SCREEN_H - (i + 1) * bottom_h, ARC_SCREEN_W, bottom_h,
+                      Fade(ARC_COL_BG, 0.88f * k * k));
+    }
+}
+
 void backdrop_draw(float alpha) {
+    if (g_mode == BACKDROP_CITY) {
+        swc_session_draw();
+        if (alpha <
+            1.0f) { /* a hub screen is on top: the sand fades into the dark background, the city too */
+            DrawRectangle(0, 0, ARC_SCREEN_W, ARC_SCREEN_H, Fade(ARC_COL_BG, 1.0f - alpha));
+            draw_edge_shade();
+        }
+        return;
+    }
     Rectangle dst = {0.0f, 0.0f, (float)ARC_SCREEN_W, (float)ARC_SCREEN_H};
     gfx_sandbox_view_draw(&g_view, &g_sb, dst, Fade(WHITE, alpha));
 }
@@ -115,6 +200,8 @@ static void draw_lock(int cx, int cy, bool open, Color c) {
 }
 
 void backdrop_vault_draw(bool archive_open, float t) {
+    if (g_mode != BACKDROP_SANDBOX)
+        return; /* the vault is part of the sand scene */
     int left = (g_vault.x - 1) * BD_CELL, right = (g_vault.x + g_vault.w + 1) * BD_CELL;
     int top = g_vault.y * BD_CELL, floor_bottom = (g_vault.y + g_vault.h + 1) * BD_CELL;
     int cx = (left + right) / 2;

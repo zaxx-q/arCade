@@ -7,7 +7,9 @@
 #include "arcade/gfx.h"
 
 /* Renders each hub screen (name, menu, archive, result, leaderboard) with sample data, so CI and the README
- * screenshots cover the hub UI too. Returns the number of failed screenshots. */
+ * screenshots cover the hub UI too. Most of them show the default backdrop (the city); one shows the menu on
+ * the sand with the vault, and one shows the menu hidden while the player flies. Returns the number of failed
+ * screenshots. */
 static int run_hub_previews(const CliOptions *opt, AppState *app, const char *data_dir,
                             const char *assets_dir, int *ran) {
     static const char *const names[] = {"Ana", "Budi", "Citra", "Dewi", "Eko", "Fajar", "Gita"};
@@ -36,12 +38,19 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
                  : "");
 
     backdrop_init(opt->seed);
-    for (int i = 0; i < 900; i++) /* 15 s of sand and water, so the screenshots show a settled scene */
+    /* 15 s of sand and water, then 15 s of the drone's tour, so the screenshots show settled scenes */
+    backdrop_set_mode(BACKDROP_SANDBOX);
+    for (int i = 0; i < 900; i++)
+        backdrop_update(false, false, 0, 0);
+    backdrop_set_mode(BACKDROP_CITY);
+    for (int i = 0; i < 900; i++)
         backdrop_update(false, false, 0, 0);
     int failed = 0;
     for (int which = 0; which < PREVIEW_COUNT; which++) {
         if (which == PREVIEW_RESULT && app->last_game == NULL)
             continue;
+        backdrop_set_mode(which == PREVIEW_MENU_SANDBOX ? BACKDROP_SANDBOX : BACKDROP_CITY);
+        backdrop_set_flying(which == PREVIEW_FLY);
         if (which == PREVIEW_ARCHIVE) { /* from here on the vault is open, as if the player had filled it */
             app_open_archive(app);
             backdrop_vault_open_now();
@@ -58,7 +67,10 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
         ctx.player = "SMOKE";
         ctx.seed = opt->seed;
         ctx.headless = true;
-        ctx.max_frames = opt->frames < 150 ? opt->frames : 150; /* let the sand settle a little */
+        /* the sand needs a moment to settle; the city is slow on the CPU rasteriser and one frame is enough
+         */
+        int preview_frames = which == PREVIEW_MENU_SANDBOX ? 150 : 60;
+        ctx.max_frames = opt->frames < preview_frames ? opt->frames : preview_frames;
         ctx.data_dir = data_dir;
         ctx.assets_dir = assets_dir;
         ctx.screenshot_path = shot;
@@ -66,7 +78,14 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
         float t = 0.0f;
         while (arcade_loop_running()) {
             t += ARC_DT;
-            backdrop_update(false, false, 0, 0);
+            if (which == PREVIEW_FLY) { /* the player holds W: it leaves the tour and flies */
+                ArcadeInput in;
+                arcade_input_clear(&in);
+                in.move_y = -1.0f;
+                backdrop_fly(&in);
+            } else {
+                backdrop_update(false, false, 0, 0);
+            }
             BeginDrawing();
             screens_draw_preview(app, which, t);
             arcade_frame_end();
@@ -87,7 +106,8 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
  * right mouse button over the vault opens it within a few seconds. Returns 1 if a check failed. */
 static int run_vault_check(const CliOptions *opt, int *ran) {
     backdrop_init(opt->seed);
-    for (int i = 0; i < 6000; i++) /* 100 seconds of an idle hub */
+    backdrop_set_mode(BACKDROP_SANDBOX); /* the vault is part of the sand scene */
+    for (int i = 0; i < 6000; i++)       /* 100 seconds of an idle hub */
         backdrop_update(false, false, 0, 0);
     bool idle_ok = !backdrop_vault_is_open() && backdrop_vault_progress() < 0.2f;
 
@@ -105,6 +125,80 @@ static int run_vault_check(const CliOptions *opt, int *ran) {
            idle_ok && pour_ok ? "OK" : "FAIL");
     (*ran)++;
     return idle_ok && pour_ok ? 0 : 1;
+}
+
+/* End-to-end check of who holds the city's camera, through the same calls the menu makes: (1) an idle hub
+ * keeps the drone flying for a long time; (2) a player who takes the camera and holds W leaves the tour; (3)
+ * giving the camera back (Esc) puts the drone in charge again; (4) the same when the backdrop is switched to
+ * the sand and back while flying; (5) the archive lists Synthwave City too, so it can be started on its own
+ * while the backdrop's copy exists: afterwards the backdrop must still draw (the two share the renderer's
+ * textures). Returns 1 if a check failed. */
+static int run_city_check(const CliOptions *opt, AppState *app, const char *data_dir, const char *assets_dir,
+                          int *ran) {
+    backdrop_init(opt->seed);
+    ArcadeInput in;
+    arcade_input_clear(&in);
+
+    for (int i = 0; i < 3600; i++) /* a minute of an idle hub */
+        backdrop_update(false, false, 0, 0);
+    bool idle_ok = backdrop_city_touring();
+
+    backdrop_set_flying(true);
+    in.move_y = -1.0f;
+    for (int i = 0; i < 30; i++)
+        backdrop_fly(&in);
+    bool flies_ok = !backdrop_city_touring();
+
+    backdrop_set_flying(false); /* Esc */
+    backdrop_update(false, false, 0, 0);
+    bool back_ok = backdrop_city_touring();
+
+    backdrop_set_flying(true);
+    for (int i = 0; i < 30; i++)
+        backdrop_fly(&in);
+    bool again_ok = !backdrop_city_touring();
+    backdrop_set_mode(BACKDROP_SANDBOX); /* the button, while flying: the camera must come back too */
+    backdrop_set_mode(BACKDROP_CITY);
+    backdrop_update(false, false, 0, 0);
+    bool switch_ok = backdrop_city_touring();
+
+    bool shared_ok = false;
+    const GameDef *all[128];
+    int all_count = app_all_games(app, all, (int)ARC_ARRAY_LEN(all));
+    for (int i = 0; i < all_count; i++) {
+        if (strcmp(all[i]->id, "synthwave_city") != 0)
+            continue;
+        GameContext ctx;
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.player = "SMOKE";
+        ctx.seed = opt->seed;
+        ctx.headless = true;
+        ctx.max_frames = 10;
+        ctx.data_dir = data_dir;
+        ctx.assets_dir = assets_dir;
+        (void)all[i]->play(&ctx); /* its own copy of the game runs on top of the backdrop's */
+        char shot[600];
+        snprintf(shot, sizeof(shot), "%s/hub_city_after_game.png", opt->out_dir);
+        ctx.max_frames = 1;
+        ctx.screenshot_path = shot;
+        arcade_loop_begin(&ctx);
+        while (
+            arcade_loop_running()) { /* one frame of the backdrop: a flat frame means its textures are gone */
+            BeginDrawing();
+            backdrop_draw(1.0f);
+            arcade_frame_end();
+        }
+        shared_ok = arcade_screenshot_ok();
+    }
+    backdrop_shutdown();
+
+    bool ok = idle_ok && flies_ok && back_ok && again_ok && switch_ok && shared_ok;
+    printf("SMOKE %-14s idle keeps the tour=%s, W takes the camera=%s, Esc gives it back=%s, "
+           "taken again=%s, sandbox round trip gives it back=%s, still draws after the game ran=%s -> %s\n",
+           "hub_city", idle_ok ? "yes" : "NO", flies_ok ? "yes" : "NO", back_ok ? "yes" : "NO",
+           again_ok ? "yes" : "NO", switch_ok ? "yes" : "NO", shared_ok ? "yes" : "NO", ok ? "OK" : "FAIL");
+    (*ran)++;
+    return ok ? 0 : 1;
 }
 
 int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_dir) {
@@ -152,7 +246,8 @@ int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_di
         ran++;
     }
     if (strcmp(opt->smoke_target, "all") == 0 || strcmp(opt->smoke_target, "hub") == 0)
-        failed += run_hub_previews(opt, app, data_dir, assets_dir, &ran) + run_vault_check(opt, &ran);
+        failed += run_hub_previews(opt, app, data_dir, assets_dir, &ran) + run_vault_check(opt, &ran) +
+                  run_city_check(opt, app, data_dir, assets_dir, &ran);
     arcade_gfx_shutdown();
     if (ran == 0) {
         fprintf(stderr, "smoke: no registered game matches '%s' (try --list)\n", opt->smoke_target);

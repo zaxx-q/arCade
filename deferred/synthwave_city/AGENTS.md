@@ -7,11 +7,14 @@ Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENT
 ## Overview
 Synthwave City: a C99 port of the procedural neon megacity of `highsierralabs/Synthwave_City` (MIT). Fly freely or let the tour drone fly; score = whole kilometres flown. The game never ends and is never ranked. Rules and status: `GAME.md`.
 
+**This game has two jobs.** It is a normal game in `deferred/` (listed in the hub's archive, started through `play()`), and it is the hub's live backdrop: `app/backdrop.c` runs it behind the menu as a guest through `synthwave_city_session.h`. The hub needs it by id, so the folder must keep existing (`app/CMakeLists.txt` stops with a clear message otherwise).
+
 ## Key Files
 - `swc_core.h`, `swc_city.[ch]`, `swc_traffic.[ch]`, `swc_song.[ch]`: pure generators (city plan, traffic, composition); bit-exact with the TypeScript original
 - `synthwave_city_logic.[ch]`: pure rules (no raylib): flight, tour, viewpoints, clocks; `init/step/is_over/score`
 - `synthwave_city_front.h`: the small interface between the front-end files (no raylib types)
-- `synthwave_city_render_game.c`: all 3D drawing (rlgl, no shaders); `synthwave_city_game.c`: loop, HUD, soundtrack, scripted smoke input, `game_synthwave_city_def`
+- `synthwave_city_render_game.c`: all 3D drawing (rlgl, no shaders); `synthwave_city_game.c`: loop, HUD, soundtrack, scripted smoke input, the guest session, `game_synthwave_city_def`
+- `synthwave_city_session.h`: the hub-facing API (`swc_session_*`, no raylib types): begin/end, who holds the camera, update, draw, audio pause and mute
 - `tests/test_swc_city.c`, `test_swc_traffic.c`, `test_swc_song.c`, `test_synthwave_city.c`: unit tests (logic only)
 
 ## Setup & environment
@@ -20,9 +23,12 @@ Synthwave City: a C99 port of the procedural neon megacity of `highsierralabs/Sy
 ## Build & tests
 - `cmake --build --preset logic && ctest --preset logic -R "^synthwave_city\."`
 - Smoke run (headless build, CPU rasteriser, about 20 s for 300 frames): `build/headless/bin/arCade --smoke synthwave_city --frames 300 --out smoke-out`
+- The guest session and the hub screens: `build/headless/bin/arCade --smoke hub --out smoke-out` (previews `hub_menu`, `hub_menu_sandbox`, `hub_fly`, and the `hub_city` camera hand-off check)
 
 ## Code style & conventions
-- `synthwave_city_State` is about 2.5 MB: keep it in static storage, never on the stack.
+- `synthwave_city_State` is about 2.5 MB: keep it in static storage, never on the stack. `play()` and the guest session each have their own static state and their own `Soundtrack`, so they never share a stream; the two must stay independent (the archive can start `play()` while the hub's guest is alive).
+- `swc_render_init()` / `swc_render_shutdown()` are reference counted: the guest and `play()` share one set of textures. Every init needs exactly one shutdown. The smoke check `hub_city` fails if a game started on top of the guest leaves the backdrop blank.
+- The hub gives the guest empty input while its menu is up, so only the drone moves the camera. Handing the camera back (Esc) is a lone `action_pressed`, the same press as Space; the logic tests `test_an_idle_host_leaves_the_drone_flying`, `test_a_lone_space_press_hands_the_camera_back_to_the_drone` and `test_the_click_that_takes_the_camera_does_not_turn_it` pin what the hub relies on. Changing the tour/drag/Space rules in `synthwave_city_step` must keep them passing.
 - Parity with the web version is the point of the generators: draw RNG values into locals in the original's order, use `double` for generation and `float` only where the original uses `Math.fround`, use stable insertion sorts, and keep `-ffp-contract=off`. Any change to `swc_city.c`, `swc_traffic.c` or `swc_song.c` must keep `test_matches_the_web_version` passing (or update the reference numbers with a reason).
 - The city, traffic and song are pure functions of the seed and time; the only state that moves is in `synthwave_city_State`.
 - Pure files (everything except `*_game.c`) never include raylib, rlgl, `arcade/gfx.h` or call `rand/srand/time/clock`.
