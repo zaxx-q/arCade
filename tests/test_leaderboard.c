@@ -77,20 +77,6 @@ static void test_load_missing_and_corrupt(void) {
     remove(TMP_FILE);
 }
 
-static void test_full_board_replaces_lowest(void) {
-    lb_init(&g_lb);
-    for (int i = 0; i < LB_MAX_ENTRIES; i++)
-        lb_add(&g_lb, "g", "p", 100 + i, 0);
-    CHECK_EQ_INT(g_lb.count, LB_MAX_ENTRIES);
-    CHECK(!lb_add(&g_lb, "g", "low", 5, 0));    /* worse than everything: rejected */
-    CHECK(lb_add(&g_lb, "g", "high", 9999, 0)); /* replaces the lowest (100) */
-    CHECK_EQ_INT(g_lb.count, LB_MAX_ENTRIES);
-    int has100 = 0;
-    for (int i = 0; i < g_lb.count; i++)
-        has100 += g_lb.items[i].score == 100;
-    CHECK_EQ_INT(has100, 0);
-}
-
 static void test_top_for_game(void) {
     lb_init(&g_lb);
     for (int i = 0; i < 20; i++)
@@ -252,13 +238,262 @@ static void test_board_scores_survive_save_and_load(void) {
     remove(TMP_FILE);
 }
 
+/* ---------------------------------------------------------------- caps: every table keeps its own rows */
+/* `rows` runs of different players (p0, p1, ...) on one table: scores base, base + 1, ... */
+static void fill_table(const char *key, int rows, int base) {
+    for (int i = 0; i < rows; i++) {
+        char who[LB_NAME_LEN];
+        snprintf(who, sizeof(who), "p%d", i);
+        lb_add(&g_lb, key, who, base + i, i + 1);
+    }
+}
+
+static void test_full_table_replaces_its_own_lowest(void) {
+    lb_init(&g_lb);
+    fill_table("g", LB_MAX_PER_BOARD, 100); /* scores 100 .. 149 */
+    CHECK_EQ_INT(g_lb.count, LB_MAX_PER_BOARD);
+    CHECK(!lb_add(&g_lb, "g", "low", 5, 0)); /* worse than every row: not stored, nothing changes */
+    CHECK_EQ_INT(g_lb.count, LB_MAX_PER_BOARD);
+    CHECK(lb_add(&g_lb, "g", "high", 9999, 0)); /* replaces the lowest (100) */
+    CHECK_EQ_INT(g_lb.count, LB_MAX_PER_BOARD);
+    int has100 = 0;
+    for (int i = 0; i < g_lb.count; i++)
+        has100 += g_lb.items[i].score == 100;
+    CHECK_EQ_INT(has100, 0);
+}
+
+static void test_a_full_table_never_touches_another_table(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "small", "ana", 3, 1);
+    lb_add(&g_lb, "small", "budi", 2, 2);
+    fill_table("big", LB_MAX_PER_BOARD, 1000);
+    for (int i = 0; i < 20; i++) { /* many more runs than "big" can hold */
+        char who[LB_NAME_LEN];
+        snprintf(who, sizeof(who), "new%d", i);
+        lb_add(&g_lb, "big", who, 5000 + i, 100 + i);
+    }
+    ScoreEntry top[LB_MAX_PER_BOARD + 1];
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "small", top, 10), 2);
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "big", top, LB_MAX_PER_BOARD + 1), LB_MAX_PER_BOARD);
+    CHECK_EQ_INT(top[0].score, 5019);
+}
+
+/* The bug this replaces: with the file full, the lowest score OF THE WHOLE FILE was dropped, so a game with a
+ * small score scale (3 laps) lost its rows to games with a big one (1000 per level). */
+static void test_a_full_file_takes_a_row_from_the_fullest_table(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "small", "ana", 1, 1); /* the lowest score in the file */
+    for (int t = 0; g_lb.count < LB_MAX_ENTRIES; t++) {
+        char key[16];
+        snprintf(key, sizeof(key), "big%d", t);
+        int room = LB_MAX_ENTRIES - g_lb.count;
+        fill_table(key, room < LB_MAX_PER_BOARD ? room : LB_MAX_PER_BOARD, 1000);
+    }
+    CHECK_EQ_INT(g_lb.count, LB_MAX_ENTRIES);
+    CHECK(lb_add(&g_lb, "small", "budi", 2, 2));
+    CHECK_EQ_INT(g_lb.count, LB_MAX_ENTRIES); /* still full: one row went to make room */
+    static ScoreEntry top[LB_MAX_PER_BOARD + 1];
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "small", top, 10), 2); /* ana's row survived */
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "big0", top, LB_MAX_PER_BOARD + 1), LB_MAX_PER_BOARD - 1);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "big0", "p0"), -1); /* the lowest row of the fullest table was the one */
+}
+
+static void test_old_runs_of_a_player_go_before_other_players(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "g", "budi", 1, 1); /* one low score, but it is budi's best */
+    for (int i = 0; i < 60; i++)      /* ana plays far more runs than the table holds */
+        lb_add(&g_lb, "g", "ana", 100 + i, 2 + i);
+    CHECK_EQ_INT(g_lb.count, LB_MAX_PER_BOARD);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "budi"), 1); /* kept: ana's own old runs were dropped instead */
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "ana"), 159);
+    ScoreEntry top[LB_MAX_PER_BOARD];
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "g", top, LB_MAX_PER_BOARD), LB_MAX_PER_BOARD);
+    CHECK_EQ_INT(top[LB_MAX_PER_BOARD - 2].score, 111); /* ana's 49 best runs ... */
+    CHECK_EQ_INT(top[LB_MAX_PER_BOARD - 1].score, 1);   /* ... then budi */
+}
+
+static void test_a_worse_run_of_the_same_player_does_not_push_others_out(void) {
+    lb_init(&g_lb);
+    fill_table("g", LB_MAX_PER_BOARD, 100);    /* p0 has 100, the lowest */
+    CHECK(!lb_add(&g_lb, "g", "p0", 90, 999)); /* p0 did worse than before: only history, not stored */
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "p1"), 101);
+    CHECK(lb_add(&g_lb, "g", "p0", 120, 999)); /* a better run: p0's old 100 is now history and goes */
+    CHECK_EQ_INT(g_lb.count, LB_MAX_PER_BOARD);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "p0"), 120);
+}
+
+static void test_a_table_from_an_old_file_can_be_bigger_than_the_cap(void) {
+    FILE *fp = fopen(TMP_FILE, "w"); /* scores.txt from before there was a cap per table */
+    CHECK(fp != NULL);
+    for (int i = 0; i < 300; i++)
+        fprintf(fp, "g|p%d|%d|%d\n", i, i, i + 1);
+    fclose(fp);
+    CHECK_EQ_INT(lb_load(&g_lb, TMP_FILE), 300);
+    remove(TMP_FILE);
+    CHECK(!lb_add(&g_lb, "g", "low", 0, 999999)); /* ties the lowest row but is later: not stored */
+    CHECK(lb_add(&g_lb, "g", "new", 99999, 1));   /* replaces one row; the table does not grow */
+    CHECK_EQ_INT(g_lb.count, 300);
+    ScoreEntry top[3];
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "g", top, 3), 3);
+    CHECK_EQ_INT(top[0].score, 99999);
+    CHECK_EQ_INT(top[1].score, 299);
+}
+
+/* ---------------------------------------------------------------- ranking: one row per player */
+static void test_top_for_game_puts_the_earlier_run_first_on_a_tie(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "g", "late", 10, 9);
+    lb_add(&g_lb, "g", "early", 10, 2);
+    ScoreEntry top[2];
+    CHECK_EQ_INT(lb_top_for_game(&g_lb, "g", top, 2), 2);
+    CHECK_STR_EQ(top[0].player, "early");
+}
+
+static void test_top_best_is_one_row_per_player(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "g", "Ana", 100, 5);
+    lb_add(&g_lb, "g", "ana", 300, 7); /* the same player: names are compared without case */
+    lb_add(&g_lb, "g", "ANA", 200, 6);
+    lb_add(&g_lb, "g", "budi", 300, 3); /* ties ana's 300, but earlier */
+    lb_add(&g_lb, "g", "citra", 50, 1);
+    lb_add(&g_lb, "h", "ana", 999, 1); /* another table: a row of its own */
+    ScoreEntry top[10];
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_TABLE, "g", top, 10), 3);
+    CHECK_STR_EQ(top[0].player, "budi");
+    CHECK_STR_EQ(top[1].player, "ana");
+    CHECK_EQ_INT(top[1].score, 300);
+    CHECK_STR_EQ(top[2].player, "citra");
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_GAME, "g", top, 10), 3); /* "h" is another game */
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_ALL, NULL, top, 10), 4);
+    CHECK_STR_EQ(top[0].game, "h");
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_TABLE, "g", top, 2), 2); /* never more than max */
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_TABLE, "g", top, 0), 0);
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_TABLE, "nothing", top, 10), 0);
+}
+
+static void test_top_best_across_the_boards_of_one_game(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, BD_DODGE_HARD, "ana", 900, 1);
+    lb_add(&g_lb, BD_CATCH_HARD, "ana", 1500, 2); /* the same player on another board: its own row */
+    lb_add(&g_lb, BD_DODGE_HARD, "ana", 400, 3);
+    lb_add(&g_lb, "beat_dodge2:Dodge / x / easy", "ana", 5, 4);
+    ScoreEntry top[10];
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_GAME, "beat_dodge", top, 10), 2);
+    CHECK_EQ_INT(top[0].score, 1500);
+    CHECK_EQ_INT(top[1].score, 900);
+}
+
+/* With max smaller than the number of players, a player pushed out of the short list and met again later must
+ * still end up with his BEST row. */
+static void test_top_best_with_a_short_list_keeps_the_true_best(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "g", "a", 10, 1);
+    lb_add(&g_lb, "g", "b", 20, 2);
+    lb_add(&g_lb, "g", "c", 30, 3); /* list of 2: c, b */
+    lb_add(&g_lb, "g", "a", 50, 4); /* a was never in the list: a, c */
+    lb_add(&g_lb, "g", "b", 40, 5); /* b was pushed out: a, b */
+    ScoreEntry top[2];
+    CHECK_EQ_INT(lb_top_best(&g_lb, LB_SCOPE_TABLE, "g", top, 2), 2);
+    CHECK_STR_EQ(top[0].player, "a");
+    CHECK_EQ_INT(top[0].score, 50);
+    CHECK_STR_EQ(top[1].player, "b");
+    CHECK_EQ_INT(top[1].score, 40);
+}
+
+static void test_search_best(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "g", "Alice", 10, 1);
+    lb_add(&g_lb, "g", "Alice", 30, 2);
+    lb_add(&g_lb, "g", "alicia", 20, 3);
+    lb_add(&g_lb, "g", "Bob", 99, 4);
+    lb_add(&g_lb, "h", "Alice", 5, 5);
+    ScoreEntry top[10];
+    CHECK_EQ_INT(lb_search_best(&g_lb, "ALI", top, 10), 3); /* Alice twice (two tables), alicia once */
+    CHECK_EQ_INT(top[0].score, 30);
+    CHECK_EQ_INT(top[1].score, 20);
+    CHECK_EQ_INT(top[2].score, 5);
+    CHECK_EQ_INT(lb_search_best(&g_lb, "zzz", top, 10), 0);
+}
+
+static void test_best_of_and_rank_of(void) {
+    lb_init(&g_lb);
+    lb_add(&g_lb, "g", "ana", 300, 1);
+    lb_add(&g_lb, "g", "budi", 500, 2);
+    lb_add(&g_lb, "g", "ana", 100, 3); /* an older, worse run does not change anything */
+    lb_add(&g_lb, "g", "citra", 300, 4);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "ana"), 300);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "ANA"), 300);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", "nobody"), -1);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "other", "ana"), -1);
+    CHECK_EQ_INT(lb_rank_of(&g_lb, "g", "budi"), 1);
+    CHECK_EQ_INT(lb_rank_of(&g_lb, "g", "ana"), 2);   /* ties citra's 300, but ana got there first */
+    CHECK_EQ_INT(lb_rank_of(&g_lb, "g", "citra"), 3); /* ana's two runs count as ONE player ahead */
+    CHECK_EQ_INT(lb_rank_of(&g_lb, "g", "nobody"), 0);
+    CHECK_EQ_INT(lb_rank_of(&g_lb, "other", "ana"), 0);
+    lb_add(&g_lb, "g", "", 50, 5); /* an empty name is stored as PLAYER: a lookup finds it the same way */
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", ""), 50);
+    CHECK_EQ_INT(lb_best_of(&g_lb, "g", NULL), 50);
+    CHECK_EQ_INT(lb_rank_of(&g_lb, "g", "PLAYER"), 4);
+}
+
+/* The place lb_rank_of gives must be exactly the row lb_top_best shows: the result screen and the list agree.
+ */
+static void test_rank_of_matches_the_order_of_top_best(void) {
+    lb_init(&g_lb);
+    for (int i = 0; i < 30; i++) {
+        char who[LB_NAME_LEN];
+        snprintf(who, sizeof(who), "p%d", i % 11); /* 11 players, several runs each, plenty of ties */
+        lb_add(&g_lb, "g", who, (i * 7) % 13, i);
+    }
+    ScoreEntry top[LB_MAX_PER_BOARD];
+    int n = lb_top_best(&g_lb, LB_SCOPE_TABLE, "g", top, LB_MAX_PER_BOARD);
+    CHECK_EQ_INT(n, 11);
+    for (int i = 0; i < n; i++)
+        CHECK_EQ_INT(lb_rank_of(&g_lb, "g", top[i].player), i + 1);
+}
+
+static void test_lb_sanitize(void) {
+    char out[8];
+    lb_sanitize(out, sizeof(out), "a|b\nc");
+    CHECK_STR_EQ(out, "a_b_c");
+    lb_sanitize(out, sizeof(out), "0123456789"); /* never more than size - 1 characters */
+    CHECK_STR_EQ(out, "0123456");
+    lb_sanitize(out, sizeof(out), "");
+    CHECK_STR_EQ(out, "");
+}
+
+static void test_lb_parse_line(void) {
+    ScoreEntry e;
+    char ok[] = "echo_maze|ana|120|1700000000";
+    CHECK(lb_parse_line(ok, &e));
+    CHECK_STR_EQ(e.game, "echo_maze");
+    CHECK_STR_EQ(e.player, "ana");
+    CHECK_EQ_INT(e.score, 120);
+    CHECK_EQ_INT(e.stamp, 1700000000LL);
+    char few[] = "echo_maze|ana|120";     /* too few fields */
+    char word[] = "echo_maze|ana|lots|1"; /* a score that is not a number */
+    char empty_name[] = "echo_maze||5|1"; /* no player */
+    char empty_game[] = "|ana|5|1";       /* no table */
+    char junk[] = "echo_maze|ana|12x|1";  /* trailing garbage after the number */
+    CHECK(!lb_parse_line(few, &e));
+    CHECK(!lb_parse_line(word, &e));
+    CHECK(!lb_parse_line(empty_name, &e));
+    CHECK(!lb_parse_line(empty_game, &e));
+    CHECK(!lb_parse_line(junk, &e));
+}
+
 int main(void) {
     RUN(test_add_and_sort);
     RUN(test_sort_is_stable);
     RUN(test_sanitise_names);
     RUN(test_save_and_load_roundtrip);
     RUN(test_load_missing_and_corrupt);
-    RUN(test_full_board_replaces_lowest);
+    RUN(test_full_table_replaces_its_own_lowest);
+    RUN(test_a_full_table_never_touches_another_table);
+    RUN(test_a_full_file_takes_a_row_from_the_fullest_table);
+    RUN(test_old_runs_of_a_player_go_before_other_players);
+    RUN(test_a_worse_run_of_the_same_player_does_not_push_others_out);
+    RUN(test_a_table_from_an_old_file_can_be_bigger_than_the_cap);
     RUN(test_top_for_game);
     RUN(test_search);
     RUN(test_board_key);
@@ -268,5 +503,14 @@ int main(void) {
     RUN(test_each_board_keeps_its_own_high_scores);
     RUN(test_top_for_all_boards_is_the_old_behaviour_for_a_game_without_boards);
     RUN(test_board_scores_survive_save_and_load);
+    RUN(test_top_for_game_puts_the_earlier_run_first_on_a_tie);
+    RUN(test_top_best_is_one_row_per_player);
+    RUN(test_top_best_across_the_boards_of_one_game);
+    RUN(test_top_best_with_a_short_list_keeps_the_true_best);
+    RUN(test_search_best);
+    RUN(test_best_of_and_rank_of);
+    RUN(test_rank_of_matches_the_order_of_top_best);
+    RUN(test_lb_sanitize);
+    RUN(test_lb_parse_line);
     return TEST_SUMMARY();
 }
