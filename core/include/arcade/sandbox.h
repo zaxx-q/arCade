@@ -122,7 +122,6 @@ typedef struct Sandbox {
     int16_t temp[SANDBOX_MAX_W * SANDBOX_MAX_H];
     int16_t heat_flow[SANDBOX_MAX_W * SANDBOX_MAX_H]; /* scratch for the conduction pass */
     uint8_t heat_rows[SANDBOX_MAX_H];                 /* 1 = this row may hold something not at ambient */
-    int flash;      /* 0..255: the white-out after a huge explosion; fades by itself */
     bool heat_view; /* render as a thermal map instead of the normal colours */
     unsigned tick;
     Rng rng;

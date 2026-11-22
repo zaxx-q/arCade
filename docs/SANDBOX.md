@@ -18,10 +18,9 @@ Engine falling-sand dibagi menjadi beberapa file supaya tiap file tetap mudah di
 `sandbox_step` melakukan ini berurutan:
 
 1. Bit `moved[]` digeser (bergerak di tick ini menjadi bergerak di tick lalu) dan `tick++`.
-2. Kilatan putih (`flash`) memudar.
-3. Setiap sel dari baris paling bawah ke atas, arah kiri-kanan bergantian. Untuk tiap sel: `sandbox_react` (kimia dan suhu: sel boleh berubah, menyulut tetangga, tumbuh) lalu, kalau sel itu tidak berubah, `sandbox_move` (gerak menurut `MoveKind`).
-4. `sandbox_heat_step`: panas mengalir antar sel dan ke udara.
-5. Setiap 6 tick, `sandbox_life_step` memajukan Game of Life satu generasi.
+2. Setiap sel dari baris paling bawah ke atas, arah kiri-kanan bergantian. Untuk tiap sel: `sandbox_react` (kimia dan suhu: sel boleh berubah, menyulut tetangga, tumbuh) lalu, kalau sel itu tidak berubah, `sandbox_move` (gerak menurut `MoveKind`).
+3. `sandbox_heat_step`: panas mengalir antar sel dan ke udara.
+4. Setiap 6 tick, `sandbox_life_step` memajukan Game of Life satu generasi.
 
 Setiap sel hanya bertindak satu kali per tick (`moved[]`), jadi sel yang jatuh tidak dihitung dua kali dan reaksi tidak merambat ke seluruh grid dalam satu tick.
 
@@ -59,7 +58,7 @@ Catatan: `sandbox_set_temp` hanya memberi energi sekali. Sel yang dipaksa ke suh
 ## Ledakan (`sandbox_burst.c`)
 Ledakan bukan satu hitungan besar, melainkan ratusan partikel kecil (`EL_SPARK`) yang hidup di grid sebagai sel biasa. Tiap percikan terbang lurus dan memutuskan sendiri apa yang terjadi, jadi hasilnya berupa bintang yang bergerigi: panjang tiap sinar berbeda dan bentuk kawah bergantung pada apa yang menghalangi.
 
-**Muatan.** `sandbox_detonate(x, y)` mengumpulkan semua TNT dan Gunpowder yang bersentuhan dengan sel yang tersulut (flood fill 8 arah) dan mengubah *setiap* sel menjadi satu percikan dengan arah acak, seketika. Muatan sebesar layar tidak meledak bergulir selama beberapa tick; semuanya langsung terbang. Muatan 120 sel atau lebih juga membuat layar putih sesaat (`flash`). TNT yang tidak bersentuhan dengan muatan itu tidak ikut dikumpulkan, tetapi disulut kalau tersambar percikan.
+**Muatan.** `sandbox_detonate(x, y)` mengumpulkan semua TNT dan Gunpowder yang bersentuhan dengan sel yang tersulut (flood fill 8 arah) dan mengubah *setiap* sel menjadi satu percikan dengan arah acak, seketika. Muatan sebesar layar tidak meledak bergulir selama beberapa tick; semuanya langsung terbang. Layar tidak pernah memutih atau berkedip karena ledakan. TNT yang tidak bersentuhan dengan muatan itu tidak ikut dikumpulkan, tetapi disulut kalau tersambar percikan.
 
 **Percikan.** Terbang `SPARK_STEPS` = 5 sel per tick (sama cepatnya dengan pasir yang jatuh), sejauh 30 sampai 99 sel (TNT) atau 15 sampai 44 sel (mesiu, muatan yang lebih lemah), lalu padam. Di setiap sel yang dilewati ia meninggalkan api, jadi bola api penuh terbentuk dalam sekitar 12 tick dan padam dalam sekitar 40. Arah adalah salah satu dari 16 (8 arah mata angin dan 8 arah di antaranya yang berganti-ganti antara dua arah tetangga), jadi bintangnya tidak punya celah. Apa yang ada di depan percikan menentukan nasibnya:
 
@@ -90,7 +89,7 @@ Uranium tidak lagi meledak karena kena ledakan. Ia memanaskan dirinya sendiri, m
 | 10 x 10 atau lebih | sekitar 130 | sekitar 170 |
 
 2. **Meleleh.** Di **1000 C** Uranium menjadi Molten Uranium (cairan kental yang berkilau: jingga saat baru meleleh lalu memutih menjelang kritis) dan terus memanas. Di bawah 800 C ia membeku lagi. Molten Uranium yang menyentuh air langsung membeku kembali menjadi Uranium dan membuat uap. Air dan nitrogen di sekitar gumpalan membawa panas pergi: gumpalan 6 x 4 di dalam air tidak pernah kritis, gumpalan 10 x 10 tetap kritis.
-3. **Kritis.** Sel yang mencapai `URANIUM_CRIT` = 1230 C meledak menjadi **sinar gamma** (`EL_GAMMA`) dan layar berkilat sedikit (`flash` bertambah 10, maksimum 220).
+3. **Kritis.** Sel yang mencapai `URANIUM_CRIT` = 1230 C meledak menjadi **sinar gamma** (`EL_GAMMA`). Tidak ada kilatan layar.
 4. **Sinar gamma.** Terbang 3 sel per tick selama 40 sampai 63 tick, tidak berbelok, dan hanya berhenti di Wall atau tepi dunia. Lava, gas, api, dan sinar lain dilewati. Apa pun yang lain di jalurnya terbakar habis dan sisanya tertinggal di belakang sinar: air, es, dan salju menjadi uap; pasir menjadi kaca (180/256); bahan mudah terbakar menjadi api; cairan dan bubuk lain menjadi asap atau hilang; padat menjadi kerikil (1/4) atau hilang. TNT yang terkena meledak. **Uranium atau Molten Uranium yang terkena menjadi kritis juga** dan memancarkan sinar barunya sendiri: itulah reaksi berantai yang menyapu seluruh gumpalan. Sinar yang langsung dari uranium (generasi 0) sesekali (`GAMMA_SCATTER` = 16/256 per langkah) menghamburkan satu sinar anak ke arah lain, jadi gumpalan besar menyapu seluruh daerah, bukan hanya beberapa garis tipis. Gumpalan 144 sel membersihkan sebagian besar adegan 320 x 155.
 
 ## Lava

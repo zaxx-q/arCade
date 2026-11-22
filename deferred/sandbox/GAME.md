@@ -87,7 +87,7 @@ Kolom "Ingatan" adalah arti `aux[]` (ingatan per sel).
 | Brick | padat | penyekat panas yang baik, tahan asam; percikan ledakan menggores dan mengikisnya; meleleh di 1900 C | - |
 | Plant | padat | tumbuh ke atas dan ke samping dengan anggaran tumbuh terbatas; minum air untuk menambah anggaran; terbakar | anggaran tumbuh (bit 0-6); bit 7 = terbakar |
 | Fuse | padat | terbakar 1 sel tiap 6 tick dan menyulut TNT, mesiu, dan lainnya di ujungnya | bit 7 = terbakar, bit 0-6 = pewaktu |
-| TNT | padat | disulut api atau panas 330 C: seluruh muatan (semua TNT dan mesiu yang bersentuhan) meledak seketika. Tiap sel menjadi satu percikan yang terbang 5 sel per tick ke arah acak sejauh 30 sampai 99 sel, meninggalkan api, menggali pasir dan air, membakar kayu, dan menyulut TNT lain; Wall dan Steel menghentikannya. Muatan 120 sel atau lebih membuat layar putih sesaat | - |
+| TNT | padat | disulut api atau panas 330 C: seluruh muatan (semua TNT dan mesiu yang bersentuhan) meledak seketika. Tiap sel menjadi satu percikan yang terbang 5 sel per tick ke arah acak sejauh 30 sampai 99 sel, meninggalkan api, menggali pasir dan air, membakar kayu, dan menyulut TNT lain; Wall dan Steel menghentikannya. | - |
 | Fire | api | 800 C (sumber panas tetap); naik dan berkedip, mati sendiri, menempel pada bahan yang akan dibakarnya, padam kena air | umur |
 | Heater | padat | sumber panas tetap 700 C yang tidak pernah habis; menghantar panas ke tetangganya; tahan asam | - |
 | Cooler | padat | sumber dingin tetap -80 C; membekukan air di dekatnya; tahan asam | - |
@@ -111,8 +111,8 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
    2. Kalau mouse kiri baru ditekan di atas palet, slot di bawahnya menjadi elemen pertama (`sbx_select`) dan `pal_hold` menyala sampai tombol dilepas. Mouse kanan yang baru ditekan di atas palet menjadi elemen kedua (`sbx_select2`) dengan `pal_hold2` yang sama gunanya.
    3. Posisi mouse diubah menjadi sel: `aim / SBX_CELL`. Selama pointer tidak di atas panel palet: mouse kiri (kalau `pal_hold` mati) memanggil `sandbox_paint` dengan `element`, mouse kanan (kalau `pal_hold2` mati) memanggil `sandbox_paint` dengan `element2` (awalnya `EL_EMPTY`, yaitu penghapus). Melukis tetap bisa dilakukan saat pause.
    4. Kalau tidak sedang pause, `sandbox_step(&s->world)` menjalankan satu tick dunia dan `ticks++`.
-3. Di dalam `sandbox_step` (engine): `moved[]` digeser (bit "bergerak di tick ini" menjadi "bergerak di tick lalu", bit arah terbang dipertahankan), `tick++`, dan kilatan putih memudar. Lalu setiap baris dari **bawah ke atas**, arah penyisiran bergantian, tiap sel yang belum bertindak menjalankan `sandbox_react` (kimia dan suhu) dan, kalau tidak berubah, `sandbox_move` (gerak; partikel terbang seperti percikan dan sinar gamma dilayani `sandbox_fly` di `sandbox_burst.c`). Setelah itu `sandbox_heat_step` mengalirkan panas antar sel. Setiap 6 tick `sandbox_life_step` memajukan satu generasi Game of Life.
-4. Front-end menggambar dunia lewat `gfx_sandbox_view_draw` (tekstur 320 x 155, warna tiap sel dari `sandbox_pixel`, diperbesar menjadi 1280 x 620; `sandbox_pixel` juga menggambar bara pijar, tampilan termal dan kilatan ledakan), lalu lingkaran kuas, HUD ("SANDBOX", skor, nama elemen, ukuran kuas, "THERMAL VIEW", "PAUSED"), baris bantuan, label nama dan suhu di dekat pointer (`sbx_probe`), dan palet di bawah layar. Semua itu digambar oleh satu fungsi, `draw_frame`.
+3. Di dalam `sandbox_step` (engine): `moved[]` digeser (bit "bergerak di tick ini" menjadi "bergerak di tick lalu", bit arah terbang dipertahankan), dan `tick++`. Lalu setiap baris dari **bawah ke atas**, arah penyisiran bergantian, tiap sel yang belum bertindak menjalankan `sandbox_react` (kimia dan suhu) dan, kalau tidak berubah, `sandbox_move` (gerak; partikel terbang seperti percikan dan sinar gamma dilayani `sandbox_fly` di `sandbox_burst.c`). Setelah itu `sandbox_heat_step` mengalirkan panas antar sel. Setiap 6 tick `sandbox_life_step` memajukan satu generasi Game of Life.
+4. Front-end menggambar dunia lewat `gfx_sandbox_view_draw` (tekstur 320 x 155, warna tiap sel dari `sandbox_pixel`, diperbesar menjadi 1280 x 620; `sandbox_pixel` juga menggambar bara pijar dan tampilan termal), lalu lingkaran kuas, HUD ("SANDBOX", skor, nama elemen, ukuran kuas, "THERMAL VIEW", "PAUSED"), baris bantuan, label nama dan suhu di dekat pointer (`sbx_probe`), dan palet di bawah layar. Semua itu digambar oleh satu fungsi, `draw_frame`.
 5. Game ini tidak pernah selesai sendiri (`sbx_is_over` selalu `false`); loop berhenti ketika `arcade_loop_running()` mengembalikan `false`, yaitu saat pemain keluar ke hub.
 
 ## Peta file
@@ -124,7 +124,7 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `core/src/sandbox_react.c` | Kimia dan reaksi: api, lava, asam, tanaman, TNT, uranium (memanaskan diri, meleleh, kritis), rayap, Life, konveksi cairan | menambah atau mengubah reaksi |
 | `core/src/sandbox_heat.c` | Tabel `k_thermal[]` (daya hantar, kapasitas, suhu nyala, perubahan wujud), aliran panas, kalor laten, API suhu | mengubah seberapa cepat sesuatu panas, dingin, mendidih, meleleh, atau menyala |
 | `core/src/sandbox_burst.c` | `sandbox_detonate` (muatan menjadi percikan), `sandbox_burst`, terbang dan tabrakan percikan, sinar gamma dan reaksi berantai uranium | mengubah bentuk, jarak, dan kekuatan ledakan atau radiasi |
-| `core/src/sandbox_color.c` | `sandbox_pixel`: warna satu sel, bara pijar, warna lava menurut suhu, tampilan termal, kilatan | mengubah tampilan (cahaya, kedip, peta suhu) |
+| `core/src/sandbox_color.c` | `sandbox_pixel`: warna satu sel, bara pijar, warna lava menurut suhu, tampilan termal | mengubah tampilan (cahaya, kedip, peta suhu) |
 | `core/src/sandbox.c`, `sandbox_internal.h` | Dasar grid, kuas, loop `sandbox_step`, helper privat | jarang |
 | `deferred/sandbox/sandbox_logic.h` | `sbx_State`, `SBX_W/H/CELL`, geometri palet `SBX_PAL_*`, fungsi publik `sbx_*` | menambah field state game atau mengubah tata letak palet |
 | `deferred/sandbox/sandbox_logic.c` | `handle_keys`, `build_scene` (termasuk panci di atas Heater), `sbx_step`, `sbx_probe`, klik palet kiri dan kanan, skor, batas kuas | menambah tombol atau alat baru |
@@ -168,7 +168,6 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `temp[320*180]` | `int16_t` | suhu tiap sel dalam derajat Celsius (-273 sampai 9000, udara 20) |
 | `heat_flow[320*180]` | `int16_t` | scratch untuk aliran panas |
 | `heat_rows[180]` | `uint8_t` | baris yang masih perlu dihitung panasnya (baris tenang dilewati) |
-| `flash` | `int` | 0..255: kilatan putih setelah ledakan besar atau uranium kritis, memudar sendiri |
 | `heat_view` | `bool` | tampilan termal menyala (dibaca `sandbox_pixel`) |
 | `tick` | `unsigned` | nomor tick |
 | `rng` | `Rng` | pengacak deterministik |
@@ -202,11 +201,11 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `sandbox_temp(sb, x, y)` / `sandbox_set_temp` / `sandbox_add_heat` | Baca suhu sel (di luar grid: 20), atur suhu (dijepit), tambah panas | engine, `sbx_probe`, test |
 | `sandbox_burst(sb, x, y, sparks)` | Melempar sejumlah percikan dari satu titik ke arah acak (dasar semua ledakan; dipakai alat bantu dan test) | test, `sandbox_detonate` memakai mekanisme yang sama |
 | `sandbox_detonate(sb, x, y)` (internal) | Mengumpulkan semua TNT dan Gunpowder yang bersentuhan dengan sel itu (flood fill) dan mengubah tiap selnya menjadi percikan | `sandbox_react.c` (TNT, mesiu), `sandbox_burst.c` (percikan atau sinar yang menabrak muatan) |
-| `sandbox_go_critical(sb, x, y)` (internal) | Uranium yang kritis menjadi sinar gamma dan menambah kilatan | `react_uranium`, sinar gamma yang mengenai uranium |
+| `sandbox_go_critical(sb, x, y)` (internal) | Uranium yang kritis menjadi sinar gamma | `react_uranium`, sinar gamma yang mengenai uranium |
 | `sandbox_paint(sb, cx, cy, radius, id)` | Kuas bulat. `EL_EMPTY` menghapus semuanya; elemen lain hanya mengisi sel kosong (dengan kepadatan `spray`) | `sbx_step`, `app/backdrop.c`, test |
 | `sandbox_get` / `sandbox_set` | Baca atau tulis sel. Di luar grid, `get` mengembalikan `EL_STONE` dan `set` diabaikan; `set` mengosongkan `aux` | seluruh engine, test |
 | `sandbox_count(sb, id)` | Menghitung sel dengan elemen tertentu | `sbx_score`, test |
-| `sandbox_pixel(sb, x, y)` | Warna sel (0xRRGGBB) termasuk bayangan, cahaya, bara pijar, tampilan termal, dan kilatan | `gfx_sandbox_view_draw`, test |
+| `sandbox_pixel(sb, x, y)` | Warna sel (0xRRGGBB) termasuk bayangan, cahaya, bara pijar, dan tampilan termal | `gfx_sandbox_view_draw`, test |
 | `sandbox_palette_count/id/index` | Palet yang terlihat (elemen tersembunyi dilewati) | `sbx_*`, `draw_palette`, test |
 | `sandbox_element(id)` | Mengambil baris tabel elemen (ID tidak valid menghasilkan baris `EL_EMPTY`) | engine, front-end |
 
@@ -226,7 +225,7 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `URANIUM_HEAT`, `URANIUM_CRIT` | `8`, `1230` | `sandbox_react.c` | panas sendiri uranium per tick; suhu kritis (suhu meleleh 1000 C ada di `k_thermal`) |
 | `LAVA_FLAME` | `6` | `sandbox_react.c` | peluang (per 256) lava panas melempar nyala per tick |
 | `SPARK_STEPS`, `SPARK_LIFE_MIN/SPAN`, `POWDER_LIFE_MIN/SPAN` | `5`, `30`/`70`, `15`/`30` | `sandbox_burst.c` | kecepatan percikan (sel per tick) dan jarak terbangnya (TNT dan mesiu) |
-| `SPARK_FORK`, `SPARK_DIE`, `FLASH_CHARGE` | `6`, `80`, `120` | `sandbox_burst.c` | peluang (per 256) percikan beranak per langkah, padam per sel yang ditembus atau percikan yang ditabrak, dan jumlah sel muatan yang memutihkan layar |
+| `SPARK_FORK`, `SPARK_DIE` | `6`, `80` | `sandbox_burst.c` | peluang (per 256) percikan beranak per langkah, dan padam per sel yang ditembus atau percikan yang ditabrak |
 | `GAMMA_STEPS`, `GAMMA_LIFE_MIN/SPAN`, `GAMMA_SCATTER` | `3`, `40`/`24`, `16` | `sandbox_burst.c` | kecepatan sinar gamma (sel per tick), umurnya (tick), dan peluang (per 256) sinar generasi pertama menghamburkan sinar anak |
 | `THERMAL_PASSES` | `2` | `sandbox_heat.c` | berapa kali panas dialirkan per tick (kecepatan rambat panas) |
 | tabel `k_thermal` | lihat komentar di atas tabel | `sandbox_heat.c` | daya hantar, kapasitas, suhu menyala, titik didih dan leleh (termasuk lava 500 C ke Basalt dan uranium 1000 C ke Molten Uranium) |
@@ -283,7 +282,7 @@ Engine (`tests/test_sandbox.c`, nama test CTest `core.sandbox`, 90 test). Kelomp
 | Perubahan wujud (`test_steel_pot_boils_*`, `test_a_pot_of_water_warms_up_*`, `test_water_freezes_and_ice_melts_*`, `test_wood_catches_fire_at_*`, `test_every_element_survives_extreme_temperatures`) | Panci baja mendidihkan air sedangkan panci bata hampir tidak; air menghangat dulu sebelum mendidih; membeku dan meleleh; kayu menyala sendiri di suhu nyalanya; tiap elemen tahan suhu ekstrem |
 | Ledakan (`test_sparks_*`, `test_a_charge_*`, `test_a_separate_charge_*`, `test_a_lone_spark_*`, `test_explosion_under_water_*`, `test_burst_*`) | Percikan terbang ke semua arah (5 sel per tick), menggali kawah di pasir, tidak menembus Wall dan Steel; satu muatan meledak sekaligus (TNT dan mesiu yang bersentuhan), muatan terpisah hanya disulut percikan; ledakan di bawah air melubangi air dan menguapkan sebagian; `sandbox_burst` tahan argumen aneh |
 | Makhluk hidup (`test_seed_*`, `test_plants_*`, `test_termites_*`, `test_life_*`) | Biji hanya tumbuh di tanah, tanaman minum air dan terbakar, rayap makan dan kelaparan, blinker dan glider |
-| Uranium (`test_uranium_*`, `test_gamma_*`, `test_big_uranium_*`, `test_small_uranium_*`, `test_one_critical_cell_*`, `test_a_lump_too_small_*`, `test_water_keeps_*`, `test_a_bigger_lump_*`, `test_molten_*`) | Sinar gamma berhenti di Wall dan membakar habis yang dilewatinya; uranium memanaskan dirinya sebanding dengan ukuran gumpalan; gumpalan 3 x 3 stabil; gumpalan besar meleleh dulu, baru beberapa saat kemudian kritis, merusak seluruh dunia dengan kilatan; satu sel kritis membawa seluruh gumpalan; gumpalan yang hanya cukup panas untuk meleleh tidak meledak; air menjaga gumpalan kecil tetap dingin tetapi tidak gumpalan besar; gumpalan lebih besar membuang lebih banyak pasir; uranium cair membeku kena air |
+| Uranium (`test_uranium_*`, `test_gamma_*`, `test_big_uranium_*`, `test_small_uranium_*`, `test_one_critical_cell_*`, `test_a_lump_too_small_*`, `test_water_keeps_*`, `test_a_bigger_lump_*`, `test_molten_*`) | Sinar gamma berhenti di Wall dan membakar habis yang dilewatinya; uranium memanaskan dirinya sebanding dengan ukuran gumpalan; gumpalan 3 x 3 stabil; gumpalan besar meleleh dulu, baru beberapa saat kemudian kritis dan merusak seluruh dunia; satu sel kritis membawa seluruh gumpalan; gumpalan yang hanya cukup panas untuk meleleh tidak meledak; air menjaga gumpalan kecil tetap dingin tetapi tidak gumpalan besar; gumpalan lebih besar membuang lebih banyak pasir; uranium cair membeku kena air |
 | Keseluruhan (`test_mass_is_conserved_*`, `test_deterministic*`, `test_chaos_never_breaks_the_grid`) | Massa elemen inert tetap, seed yang sama menghasilkan dunia yang sama, input kacau tidak merusak grid |
 
 ## Jebakan dan hal yang perlu diingat
@@ -308,6 +307,7 @@ Engine (`tests/test_sandbox.c`, nama test CTest `core.sandbox`, 90 test). Kelomp
 - [x] Ledakan dari partikel: tiap sel TNT atau mesiu dalam satu muatan menjadi percikan yang terbang 5 sel per tick ke segala arah, meninggalkan api, menghancurkan hampir semua yang dilewatinya (kecuali Wall dan Steel), dan menyulut muatan lain.
 - [x] Uranium yang realistis: memanaskan dirinya, meleleh di 1000 C, lalu kritis di 1230 C dan memancarkan sinar gamma yang membakar apa pun di jalurnya dan memicu uranium lain; gumpalan kecil stabil, gumpalan besar menyapu dunia.
 - [x] Lava yang hidup: warna mengikuti suhu, makin kental saat dingin, melempar nyala, dan mengeras menjadi Basalt (yang bisa melebur lagi).
+- [x] Tanpa kilatan layar: ledakan besar dan uranium kritis tidak lagi memutihkan layar (`flash` dihapus; efek visualnya hanya api, asap, dan sinar itu sendiri).
 - [x] Dihapus: gelombang kejut, `sandbox_blast`, kolom `resist`/`tough`, batas TNT per tick, dan hitung mundur TNT.
 
 ### Sudah selesai di v3
@@ -349,7 +349,6 @@ AKHIR PROSEDUR
 
 PROSEDUR simulate_tick(world)
     geser penanda "bergerak"
-    pudarkan kilatan
     UNTUK baris DARI bawah SAMPAI atas
         UNTUK SETIAP kolom (arah bergantian tiap baris)
             JIKA sel tidak kosong DAN belum bertindak MAKA
@@ -368,7 +367,6 @@ PROSEDUR detonate(sel_tersulut)
     kumpulkan semua TNT dan mesiu yang bersentuhan dengan sel itu (flood fill 8 arah)
     UNTUK SETIAP sel yang terkumpul
         ubah menjadi percikan: arah acak (1 dari 16), umur acak (TNT 30-99 langkah, mesiu 15-44)
-    JIKA muatan >= 120 sel MAKA layar putih sesaat
 AKHIR PROSEDUR
 
 PROSEDUR fly_spark(percikan)               // dipanggil sekali per tick
@@ -432,7 +430,7 @@ flowchart TD
     B -- tidak --> A
     C --> D{"suhu >= 1230 C?"}
     D -- tidak --> A
-    D -- ya --> E["kritis: sel menjadi sinar gamma, layar berkilat"]
+    D -- ya --> E["kritis: sel menjadi sinar gamma"]
     E --> F["sinar terbang 3 sel per tick, membakar habis yang dilewati"]
     F --> G{"mengenai uranium lain?"}
     G -- ya --> E

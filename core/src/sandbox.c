@@ -18,7 +18,6 @@ void sandbox_clear(Sandbox *sb) {
     memset(sb->aux, 0, sizeof(sb->aux));
     memset(sb->moved, 0, sizeof(sb->moved));
     sandbox_heat_clear(sb);
-    sb->flash = 0;
 }
 
 ElementId sandbox_get(const Sandbox *sb, int x, int y) {
@@ -122,7 +121,6 @@ void sandbox_step(Sandbox *sb) {
     for (int i = 0; i < total; i++)
         sb->moved[i] = (uint8_t)(((sb->moved[i] & MOVED_NOW) << 1) | (sb->moved[i] & HEADING_MASK));
     sb->tick++;
-    sb->flash = arc_maxi(0, sb->flash - 9); /* the white-out after a big explosion fades */
 
     /* Bottom row first, so a falling cell never gets moved twice in one tick. */
     for (int y = sb->h - 1; y >= 0; y--) {

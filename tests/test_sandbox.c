@@ -754,7 +754,6 @@ static void test_small_uranium_lump_is_stable(void) {
     run(2500);
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_URANIUM), 9); /* never melts, never goes off */
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_GAMMA), 0);
-    CHECK_EQ_INT(g_sb.flash, 0);
 }
 
 static void test_big_uranium_lump_melts_then_goes_critical_and_wrecks_the_world(void) {
@@ -768,14 +767,9 @@ static void test_big_uranium_lump_melts_then_goes_critical_and_wrecks_the_world(
     CHECK(melted > 0); /* it heats itself until it melts... */
     int critical = melted + first_tick_with(EL_GAMMA, 2000);
     CHECK(critical > melted + 10); /* ...and only some time after that does it go critical */
-    int flashed = 0;
-    for (int t = 0; t < 600; t++) {
-        sandbox_step(&g_sb);
-        flashed |= g_sb.flash > 0;
-    }
+    run(600);
     int uranium = sandbox_count(&g_sb, EL_URANIUM) + sandbox_count(&g_sb, EL_MOLTEN_URANIUM);
     CHECK(uranium <= 3); /* all of it went up */
-    CHECK(flashed);
     int left = 0;
     for (int x = 1; x < 199; x++)
         left += sandbox_get(&g_sb, x, 79) == EL_STONE;
@@ -807,7 +801,25 @@ static void test_a_lump_too_small_to_blow_only_melts(void) {
     }
     CHECK(sandbox_count(&g_sb, EL_MOLTEN_URANIUM) > 0);
     CHECK_EQ_INT(gamma, 0);
-    CHECK_EQ_INT(g_sb.flash, 0);
+}
+
+static void test_big_explosions_do_not_flash_the_screen(void) {
+    tank(120, 60, 44);
+    fill(100, 40, 115, 55, EL_WALL); /* a sealed pocket in a block of Wall: nothing can get in */
+    fill(105, 45, 110, 50, EL_EMPTY);
+    uint32_t before = sandbox_pixel(&g_sb, 107, 47);
+    fill(10, 38, 29, 58, EL_URANIUM); /* a big lump, every cell hot enough to go critical at once... */
+    for (int y = 38; y <= 58; y++)
+        for (int x = 10; x <= 29; x++)
+            sandbox_set_temp(&g_sb, x, y, 1300);
+    fill(50, 50, 63, 58, EL_TNT); /* ...and a charge of 126 cells next to it */
+    sandbox_set_temp(&g_sb, 56, 54, 600);
+    for (int t = 0; t < 120; t++) {
+        sandbox_step(&g_sb);
+        CHECK_EQ_INT(sandbox_pixel(&g_sb, 107, 47), before); /* the screen never whites out */
+    }
+    CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0); /* both really did go off */
+    CHECK(sandbox_count(&g_sb, EL_URANIUM) + sandbox_count(&g_sb, EL_MOLTEN_URANIUM) <= 3);
 }
 
 static void test_water_keeps_a_small_lump_cool_but_not_a_big_one(void) {
@@ -1348,6 +1360,7 @@ int main(void) {
     RUN(test_uranium_heats_itself_in_proportion_to_its_size);
     RUN(test_big_uranium_lump_melts_then_goes_critical_and_wrecks_the_world);
     RUN(test_small_uranium_lump_is_stable);
+    RUN(test_big_explosions_do_not_flash_the_screen);
     RUN(test_one_critical_cell_takes_the_whole_lump);
     RUN(test_a_lump_too_small_to_blow_only_melts);
     RUN(test_water_keeps_a_small_lump_cool_but_not_a_big_one);
