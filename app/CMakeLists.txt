@@ -1,4 +1,11 @@
-# The hub executable. Every game found in games/ is linked in through the generated registry.
+# The hub executable. Every game found in games/ and deferred/ is linked in through the generated registry.
+# backdrop.c draws the Synthwave City game behind the menu (through synthwave_city_session.h, which reaches the
+# hub because every game library exports its own folder as an include directory), so that game must exist.
+# It may sit in games/ or in deferred/: the folder only decides whether it is also a menu entry.
+if(NOT "synthwave_city" IN_LIST ARCADE_REGISTERED_IDS)
+  message(FATAL_ERROR "app/backdrop.c needs the game 'synthwave_city' (games/ or deferred/): it is the hub's backdrop")
+endif()
+
 add_executable(arCade main.c screens.c backdrop.c smoke.c "${ARCADE_REGISTRY_SOURCE}")
 target_link_libraries(arCade PRIVATE arcade_gfx)
 foreach(_id IN LISTS ARCADE_REGISTERED_IDS)

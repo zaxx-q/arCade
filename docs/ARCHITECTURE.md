@@ -31,7 +31,13 @@ while (arcade_loop_running()) {          // false saat ESC, window ditutup, atau
 
 `games/CMakeLists.txt` dan `deferred/CMakeLists.txt` sama-sama memanggil `arcade_discover_games()` (`cmake/ArcadeGame.cmake`), yang melakukan glob pada `<folder>/<id>/CMakeLists.txt` (folder berawalan `_` atau `.` dilewati). Masing-masing memanggil `arcade_add_game(...)`, yang membangun `game_<id>_logic` (murni), `game_<id>` (raylib), dan satu executable test per file test, lalu mencatat id-nya ke daftar `ARCADE_LISTED_IDS` (game di `games/`) atau `ARCADE_DEFERRED_IDS` (game di `deferred/`). `cmake/ArcadeRegistry.cmake` membuat `build/<preset>/generated/game_registry.c` dengan dua array: `g_arcade_games` (menu hub) dan `g_arcade_deferred` (arsip). `GameDef` tidak berubah, jadi sebuah game tidak tahu ia ada di folder yang mana. Hub me-link semua game dan mengurutkan tiap array berdasarkan `GameDef.order`, lalu id. Tidak ada yang perlu mengedit file bersama untuk menambah game atau memindahkannya antar-folder.
 
-Menu hub hanya menampilkan `g_arcade_games`. Isi `g_arcade_deferred` baru ikut tampil setelah arsip dibuka: lewat "vault" di latar belakang hub (`core/vault`, ditaruh di atas engine sandbox) atau lewat `arCade --all`. Test, smoke test (`--smoke all`), dan CI tetap mencakup kedua folder. Detailnya ada di [DEFERRED.md](./DEFERRED.md).
+Menu hub hanya menampilkan `g_arcade_games`. Isi `g_arcade_deferred` baru ikut tampil setelah arsip dibuka: lewat "vault" di latar belakang sandbox (`core/vault`, ditaruh di atas engine sandbox) atau lewat `arCade --all`. Test, smoke test (`--smoke all`), dan CI tetap mencakup kedua folder. Detailnya ada di [DEFERRED.md](./DEFERRED.md).
+
+## Satu game yang dipanggil langsung oleh hub: latar belakang kota
+
+Registry membuat hub tidak perlu tahu game mana pun. Satu hal sengaja dikecualikan: `app/backdrop.c` menjalankan **Synthwave City** di belakang menu (latar belakang bawaan; sandbox dengan vault adalah pilihan lainnya). Hub memanggilnya lewat satu header kecil tanpa raylib, `deferred/synthwave_city/synthwave_city_session.h` (`swc_session_begin/update/draw/end`, dan `set_control` untuk menyerahkan kamera antara drone dan pemain). Header itu terjangkau dari `app/` karena setiap library `game_<id>` mengekspor foldernya sendiri sebagai include directory, jadi tidak ada aturan CMake tambahan selain pengecekan di `app/CMakeLists.txt` bahwa game `synthwave_city` memang terdaftar (di `games/` maupun `deferred/`).
+
+Arah panah layer tidak berubah (`app/` memanggil front-end game, bukan sebaliknya), dan game itu tetap berjalan sendiri lewat `play()`. Sesi tamu memakai state dan lagunya sendiri, sedangkan tekstur renderer dipakai bersama dan dihitung referensinya (`swc_render_init/shutdown`), supaya memulai Synthwave City dari arsip saat latar belakangnya masih hidup tidak membuat latar belakang kosong.
 
 ## Piramida testing
 

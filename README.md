@@ -63,7 +63,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 </table>
 
 <details>
-  <summary><b>Game yang ditunda (13 game di <code>deferred/</code>)</b></summary>
+  <summary><b>Game yang ditunda (14 game di <code>deferred/</code>)</b></summary>
   <br/>
 
 <table>
@@ -200,7 +200,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
     </td>
   </tr>
   <tr>
-    <td width="100%" colspan="2" align="center">
+    <td width="50%" align="center">
       <h3><a href="deferred/new_star/GAME.md">New Star</a></h3>
       <a href="deferred/new_star/GAME.md">
         <img src="docs/screenshots/new_star.png" width="380" alt="Screenshot New Star"/>
@@ -208,6 +208,17 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
       <p align="left">
         Tiap ronde layar menggelap dan satu bintang baru muncul. Ketuk bintang yang baru saja muncul; mengetuk bintang lama mengakhiri permainan.<br/>
         <b>Kontrol:</b> Klik bintang yang baru muncul.
+      </p>
+    </td>
+    <td width="50%" align="center">
+      <h3><a href="deferred/synthwave_city/GAME.md">Synthwave City</a></h3>
+      <a href="deferred/synthwave_city/GAME.md">
+        <img src="docs/screenshots/synthwave_city.png" width="380" alt="Screenshot Synthwave City"/>
+      </a>
+      <p align="left">
+        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Port C dari <a href="https://github.com/highsierralabs/Synthwave_City">Synthwave City</a> karya Kris E. Granholm (MIT), dengan tampilan 3D raylib biasa. Skor = kilometer yang ditempuh; tidak ada game over.<br/>
+        <b>Kontrol:</b> WASD atau panah untuk terbang, tahan klik kiri dan seret untuk melihat sekeliling, klik kanan untuk dorongan, roda mouse untuk skala kecepatan, Spasi tur otomatis, 1-6 titik pandang, T ganti suasana, M bisukan musik.<br/>
+        <b>Di hub:</b> game ini juga menjadi latar belakang hidup menu: klik latar belakang untuk memainkannya, <code>Esc</code> kembali ke menu.
       </p>
     </td>
   </tr>
@@ -218,7 +229,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 
 ## Sorotan
 
-- Background hub menjalankan simulasi falling-sand yang aktif.
+- Background hub menjalankan game Synthwave City yang hidup (drone terbang sendiri di belakang menu; klik latar belakang untuk memainkannya). Simulasi falling-sand dengan vault arsip ada di latar belakang sandbox, lewat tombol kecil di menu atau tombol `B`.
 - Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search. Game dengan beberapa mode atau level (Beat Dodge & Catch) punya papan skor terpisah per mode, lagu, dan kesulitan.
 - Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
 - Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
@@ -263,9 +274,12 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 | Enter atau klik         | Memulai game yang dipilih                      |
 | L                       | Membuka leaderboard (Left / Right: ganti game, Up / Down: ganti papan skor game yang punya papan per mode/lagu) |
 | N                       | Mengganti nama pemain                          |
-| Esc                     | Keluar dari hub (di dalam game: kembali ke menu) |
+| B atau tombol kecil di kanan atas | Menukar latar belakang menu antara kota (Synthwave City) dan sandbox |
+| M                       | Membisukan lagu kota (di latar belakang kota) |
+| Klik di latar belakang kota | Menyembunyikan menu dan memainkan Synthwave City (WASD terbang, seret mouse untuk menoleh, Spasi tur, 1-6 titik pandang, T suasana) |
+| Esc                     | Saat terbang di kota: menampilkan menu lagi. Di menu: keluar dari hub (di dalam game lain: kembali ke menu) |
 
-Di background menu, klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game yang ditunda (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
+Latar belakang bawaan adalah Synthwave City: drone terbang sendiri di belakang menu. Klik di mana saja di luar panel menu untuk menyembunyikan menu dan memainkan kotanya; tekan `Esc` untuk menampilkan menu lagi dan mengembalikan kontrol ke menu. Tombol kecil "switch to sandbox" (atau `B`) menukar ke latar belakang sandbox, tempat klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan sandbox ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game yang ditunda (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
 
 Flag command line:
 
