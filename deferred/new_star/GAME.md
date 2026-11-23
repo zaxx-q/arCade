@@ -1,6 +1,6 @@
 # New Star - design brief
 
-**Owner:** Leader  **Folder:** `deferred/new_star/`  **Created:** 2026-11-12  **Asal mekanik:** `g10_newstar` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (layar gelap tiap ronde, bintang baru, batas waktu dari bintang ke-10)
+**Owner:** Leader  **Folder:** `deferred/new_star/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (layar gelap tiap ronde, bintang baru, batas waktu dari bintang ke-10)
 
 ## Hook
 Satu bintang di tengah layar. Ketuk. Layar menggelap, sebuah bintang **baru** muncul di antara yang lama, lalu layar terang lagi. Sekarang ketuk bintang yang baru. Ronde berikutnya satu bintang lagi ditambahkan, dan kamu harus mengingat mana yang sudah pernah kamu ketuk. Mengetuk bintang lama berarti selesai.

@@ -1,6 +1,6 @@
 # Spike Dart - design brief
 
-**Owner:** Leader  **Folder:** `deferred/spike_dart/`  **Created:** 2026-11-12  **Asal mekanik:** `g06_knifedart` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (lempar paku, orbit, hitbox = segitiga yang digambar)
+**Owner:** Leader  **Folder:** `deferred/spike_dart/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (lempar paku, orbit, hitbox = segitiga yang digambar)
 
 ## Hook
 Sebuah target bulat berputar di tengah layar. Kamu melempar paku dari bawah; paku menancap lalu ikut mengorbit target. Makin banyak paku menancap, makin ramai jalur lempar di bawah target. Kalau paku yang kamu lempar **menyentuh** paku lama yang sedang lewat di jalur itu, kamu kalah. Skornya adalah jumlah paku yang berhasil menancap.

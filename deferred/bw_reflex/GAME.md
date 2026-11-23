@@ -1,6 +1,6 @@
 # BW Reflex - design brief
 
-**Owner:** Leader  **Folder:** `deferred/bw_reflex/`  **Created:** 2026-11-12  **Asal mekanik:** `g03_bwreflex` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (balik warna dasar, kecepatan naik tiap cocok)
+**Owner:** Leader  **Folder:** `deferred/bw_reflex/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (balik warna dasar, kecepatan naik tiap cocok)
 
 ## Hook
 Sebuah balok hitam atau putih jatuh dari atas. Di bawah ada papan dasar yang warnanya bisa kamu balik dengan satu klik. Saat balok mendarat, warna dasar harus sama dengan warna balok. Cocok: +1 dan balok berikutnya jatuh lebih cepat. Beda warna: selesai. Tidak ada tombol lain, jadi semuanya soal refleks.

@@ -1,6 +1,6 @@
 # Master Juggler - design brief
 
-**Owner:** Leader  **Folder:** `deferred/master_juggler/`  **Created:** 2026-11-12  **Asal mekanik:** `g02_masterjuggler` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (level 1..32, 3 nyawa, lanjut dari level terakhir)
+**Owner:** Leader  **Folder:** `deferred/master_juggler/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (level 1..32, 3 nyawa, lanjut dari level terakhir)
 
 ## Hook
 Kamu memegang trampolin kecil yang mengikuti mouse. Bola-bola melesat keluar dari trampolin itu, dan tugasmu memantulkan semuanya berulang kali sampai tiap bola berubah warna menjadi abu-abu, tanpa satu pun jatuh ke lantai. Level 1 hanya satu bola; level 5 sudah lima bola yang harus dijaga sekaligus. Level yang sudah kamu capai disimpan, jadi kamu tidak perlu mengulang dari level 1 setiap kali main.

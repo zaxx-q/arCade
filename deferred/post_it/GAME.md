@@ -1,6 +1,6 @@
 # Post It - design brief
 
-**Owner:** Leader  **Folder:** `deferred/post_it/`  **Created:** 2026-11-12  **Asal mekanik:** `g01_grabgreen` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (miring dunia lewat mouse, gugusan post-it, virus, jeda)
+**Owner:** Leader  **Folder:** `deferred/post_it/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (miring dunia lewat mouse, gugusan post-it, virus, jeda)
 
 ## Hook
 Sebuah post-it kuning diam di tengah layar. Delapan post-it berwarna dan enam belas virus hanyut mengelilinginya, dan kamu tidak menggerakkan apa pun secara langsung: kamu **memiringkan dunia**. Geser mouse menjauhi pusat, dan semuanya hanyut ke arah itu. Post-it yang menyentuh gugusanmu menempel (+1), virus yang menyentuhnya mengakhiri game.

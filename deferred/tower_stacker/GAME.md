@@ -1,6 +1,6 @@
 # Tower Stacker - design brief
 
-**Owner:** Leader  **Folder:** `deferred/tower_stacker/`  **Created:** 2026-11-12  **Asal mekanik:** `g08_stack2d` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (bar dari kiri/kanan acak, tower scroll, zoom akhir, tap untuk lanjut)
+**Owner:** Leader  **Folder:** `deferred/tower_stacker/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (bar dari kiri/kanan acak, tower scroll, zoom akhir, tap untuk lanjut)
 
 ## Hook
 Satu batang meluncur bolak-balik di atas menara. Tekan satu tombol untuk menjatuhkannya: bagian yang menjorok keluar dari lantai di bawahnya dipotong dan jatuh pudar, sisanya menjadi lantai baru, jadi menara makin sempit. Landasan yang pas sempurna menjaga lebar penuh. Meleset sepenuhnya berarti selesai, lalu kamu bisa melihat menara yang sudah kamu bangun sebelum lanjut.

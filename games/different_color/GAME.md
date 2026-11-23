@@ -1,6 +1,6 @@
 # A Different Color - design brief
 
-**Owner:** Leader  **Folder:** `games/different_color/`  **Created:** 2026-11-12  **Asal mekanik:** `g04_finddiffsq` di proyek `simple-games` (hanya aturan; tidak ada kode, gambar, suara, teks atau font yang disalin)  **Status:** v1 sudah jalan (dua papan, satu sel beda warna, papan makin besar, batas waktu 30 detik)
+**Owner:** Leader  **Folder:** `games/different_color/`  **Created:** 2026-11-12  **Status:** v1 sudah jalan (dua papan, satu sel beda warna, papan makin besar, batas waktu 30 detik)
 
 ## Hook
 Dua papan berisi kotak-kotak berwarna acak, satu di atas dan satu di bawah. Papan bawah adalah salinan papan atas, kecuali **satu** kotak yang warnanya berbeda. Temukan dan klik kotak itu (di papan mana pun). Benar: +1 dan papan berikutnya punya lebih banyak kotak. Salah klik: selesai. Setelah papan pertama, kamu hanya punya 30 detik per papan.
