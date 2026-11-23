@@ -17,7 +17,7 @@ float sl_q(vec4 lane, float coord) { return (coord / SC_TILE - fract(lane.y * uL
 struct SlCar {
   float offset;  // metres from the queried coordinate to the car's centre, along the lane's axis
   float show;    // 1 if the slot holds a vehicle
-  float klass;   // 0 car, 1 van, 2 bus
+  float klass;   // 0 car, 1 van, 2 bus, 3 motorcycle
   float kind;    // 0 plain, 1 taxi, 2 emergency
   float idx;     // car index in its lane
   vec3 r1;       // x jitter, y presence, z tints
@@ -37,7 +37,8 @@ SlCar sl_car(vec4 lane, float laneId, float row, float q, float idxF) {
   c.show = step(0.5, lane.z) * step(0.12, c.r1.y);
   // Buses keep out of the fast inner lane.
   float inner = 1.0 - step(0.5, sl_imod(row, 3.0));
-  c.klass = c.r2.x < 0.06 ? 2.0 - inner : (c.r2.x < 0.21 ? 1.0 : 0.0);
+  c.klass = c.r2.x < 0.06 ? 2.0 - inner : c.r2.x < 0.21 ? 1.0
+    : c.r2.x < 0.31 ? 3.0 : 0.0;
   c.kind = c.r2.y < 0.006 ? 2.0 : (c.r2.y < 0.066 ? 1.0 : 0.0);
   if (c.kind > 0.5) c.klass = 0.0;
   return c;
@@ -45,6 +46,7 @@ SlCar sl_car(vec4 lane, float laneId, float row, float q, float idxF) {
 
 // Half length, height, half width, metres.
 vec3 sl_dims(SlCar c) {
+  if (c.klass > 2.5) return vec3(1.05, 1.62, 0.4);
   if (c.klass > 1.5) return vec3(2.7, 2.1, 1.02) * vec3(2.13, 1.48, 1.24);
   if (c.klass > 0.5) return vec3(2.7, 2.1, 1.02);
   return vec3(2.25 * (0.94 + 0.12 * fract(c.r1.z * 17.0)), 1.26, 0.95);
@@ -61,7 +63,7 @@ vec3 sl_accent(SlCar c) {
 float sl_underglow(SlCar c) {
   float g = fract(c.r2.z * 13.0);
   float over = step(0.93, fract(c.r2.x * 29.0));
-  return (0.3 + 0.9 * g * g) * (1.0 + 2.4 * over) * (c.klass > 0.5 ? 0.55 : 1.0);
+  return (0.3 + 0.9 * g * g) * (1.0 + 2.4 * over) * (c.klass > 0.5 && c.klass < 2.5 ? 0.55 : 1.0);
 }
 // How much of a lamp shows from where the camera is. facing: 1 looking straight into the lamp, -1 from
 // behind it. lift: sine of the camera's elevation above the road, seen from the car. From above, the
@@ -120,6 +122,7 @@ SlPlaced sl_placed() {
 vec3 sl_turn(vec2 fwd, vec3 v) { return vec3(fwd.x * v.x - fwd.y * v.z, v.y, fwd.y * v.x + fwd.x * v.z); }
 
 attribute vec3 aAlt;
+attribute vec3 aBike;
 attribute float aPart;
 varying vec3 vP;
 varying vec3 vLocal;
@@ -133,7 +136,7 @@ flat varying vec3 vHead;
 flat varying vec2 vStrobe;
 void main() {
   SlPlaced c = sl_placed();
-  vec3 shape = c.car.klass < 0.5
+  vec3 shape = c.car.klass > 2.5 ? aBike : c.car.klass < 0.5
     ? position * vec3(c.dims.x / 2.25, 1.0, 1.0)
     : aAlt * (c.car.klass > 1.5 ? vec3(2.13, 1.48, 1.24) : vec3(1.0));
   vec3 p = sc_place(c.anchor, sl_turn(c.fwd, shape));

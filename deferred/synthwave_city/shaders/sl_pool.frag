@@ -12,7 +12,8 @@ void main() {
     // Two beams merging into one widening pool.
     float t = clamp((vQ.x - halfL) / 20.0, 0.0, 1.0);
     float w = mix(0.7, 1.74, t);
-    float y = abs(vQ.y) - 0.55 * (1.0 - t);
+    // Two beams a car's lamps apart, merging; a motorcycle's are nearly one.
+    float y = abs(vQ.y) - 0.55 * min(halfW / 0.95, 1.0) * (1.0 - t);
     a = smoothstep(0.0, 0.06, t) * pow(1.0 - t, 2.4) * exp(-y * y / (w * w));
   } else if (id < 1.5) {
     float t = clamp((-halfL - vQ.x) / 7.0, 0.0, 1.0);

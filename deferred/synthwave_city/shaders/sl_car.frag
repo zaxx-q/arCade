@@ -30,11 +30,12 @@ void main() {
 
   float klass = vInfo.x, kind = vInfo.y, part = vInfo.z;
   float halfL = vDims.x, tall = vDims.y, halfW = vDims.z;
-  float boxy = step(0.5, klass), bus = step(1.5, klass);
+  float bike = step(2.5, klass);
+  float boxy = step(0.5, klass) - bike, bus = step(1.5, klass) - bike;
   vec3 q = vLocal;
   vec2 zy = vec2(q.z, q.y), fzy = vec2(fw.z, fw.y);
   vec2 zyN = vec2(q.z / halfW, q.y / tall), fzyN = vec2(fw.z / halfW, fw.y / tall);
-  float floorY = klass < 0.5 ? 0.2 : 0.3 * (bus > 0.5 ? 1.48 : 1.0);
+  float floorY = bike > 0.5 ? 0.45 : klass < 0.5 ? 0.2 : 0.3 * (bus > 0.5 ? 1.48 : 1.0);
 
   float pr = vRand.x;
   vec3 paint = pr < 0.30 ? vec3(0.012, 0.010, 0.030) : pr < 0.48 ? vec3(0.085, 0.008, 0.020)
@@ -56,7 +57,9 @@ void main() {
       if (q.x < 0.0) {
         // Tail lights.
         float m;
-        if (klass < 0.5) {
+        if (bike > 0.5) {
+          m = sl_rect(zy, vec2(0.0, 0.8), vec2(0.075, 0.05), fzy);
+        } else if (klass < 0.5) {
           float bar = sl_rect(zy, vec2(0.0, 0.66), vec2(0.84, 0.07), fzy);
           float blocks = sl_rect(vec2(abs(q.z), q.y), vec2(0.6, 0.66), vec2(0.25, 0.08), fzy);
           m = vRand.y < 0.4 ? bar : vRand.y < 0.7 ? blocks : bar * (0.25 + 0.75 * sc_pulse(q.z / 0.21 + 0.5, 0.7, fw.z / 0.21));
@@ -68,7 +71,9 @@ void main() {
       } else {
         // Headlights.
         float m;
-        if (klass < 0.5) {
+        if (bike > 0.5) {
+          m = sl_rect(zy, vec2(0.0, 0.8), vec2(0.09, 0.07), fzy);
+        } else if (klass < 0.5) {
           float lamps = sl_rect(vec2(abs(q.z), q.y), vec2(0.6, 0.39), vec2(0.24, 0.055), fzy);
           float bar = sl_rect(zy, vec2(0.0, 0.39), vec2(0.86, 0.03), fzy);
           m = fract(vRand.y * 7.0) < 0.3 ? bar : lamps;
@@ -84,6 +89,11 @@ void main() {
     } else if (q.y < floorY + 0.01) {
       col = vec3(0.004, 0.004, 0.008);
     }
+  } else if (part < 1.5 && bike > 0.5) {
+    // The rider: dark leathers, a helmet in the paint colour, and a lit visor round its front.
+    float helmet = step(tall - 0.3, q.y);
+    col = mix(vec3(0.012, 0.010, 0.022) * (0.4 + 0.6 * up), col, helmet);
+    glow += vAccent * sc_line(q.y - (tall - 0.16), 0.035, fw.y) * step(-0.02, q.x) * (1.0 - up) * 3.0;
   } else if (part < 1.5) {
     float base = klass < 0.5 ? 0.7 : 1.18 * (bus > 0.5 ? 1.48 : 1.0);
     float t = clamp((q.y - base) / (tall - base), 0.0, 1.0);
@@ -129,8 +139,8 @@ void main() {
       // The axle is a box; cut its two outer faces down to round wheels (a pair of them on a bus).
       float sx = klass < 0.5 ? halfL / 2.25 : (bus > 0.5 ? 2.13 : 1.0);
       float sy = bus > 0.5 ? 1.48 : 1.0;
-      float r0 = klass < 0.5 ? 0.34 : 0.36;
-      float axle = (klass < 0.5 ? (q.x > 0.0 ? 1.42 : -1.38) : (q.x > 0.0 ? 1.75 : -1.75)) * sx;
+      float r0 = bike > 0.5 ? 0.33 : klass < 0.5 ? 0.34 : 0.36;
+      float axle = bike > 0.5 ? (q.x > 0.0 ? 0.72 : -0.7) : (klass < 0.5 ? (q.x > 0.0 ? 1.42 : -1.38) : (q.x > 0.0 ? 1.75 : -1.75)) * sx;
       float radius = r0 * sy;
       float r = length(vec2(max(abs(q.x - axle) - max(r0 * sx - radius, 0.0), 0.0), q.y - radius));
       cut = r > radius;

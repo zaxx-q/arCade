@@ -28,6 +28,16 @@
 #define SWC_STREET_VAN_CHANCE 0.15
 #define SWC_STREET_EMERGENCY_CHANCE 0.006
 #define SWC_STREET_TAXI_CHANCE 0.06
+/* Motorcycles, taken from the plain cars. */
+#define SWC_STREET_BIKE_CHANCE 0.1
+
+/* Vehicle classes, as the shaders number them. */
+typedef enum SwcStreetClass {
+    SWC_STREET_CLASS_CAR = 0,
+    SWC_STREET_CLASS_VAN = 1,
+    SWC_STREET_CLASS_BUS = 2,
+    SWC_STREET_CLASS_BIKE = 3
+} SwcStreetClass;
 
 /* Real cars are drawn inside HANDOVER_END (3D distance, metres); between the two they cross-fade into the far
  * dashes. */
@@ -84,6 +94,8 @@ double swc_street_lane_id(const SwcLaneRec *rec);
 /* The first hash triple of a car: x jitter, y presence, z tint. */
 void swc_street_car_random(const SwcLaneRec *rec, int index, double out[3]);
 bool swc_street_car_present(const SwcLaneRec *rec, int index);
+/* The class (SwcStreetClass) of car `index`, as sl_car in the shaders decides it. */
+int swc_street_car_class(const SwcLaneRec *rec, int index);
 /* Tile coordinate of car `index` along its lane at loop phase `loop` (0..1). */
 double swc_street_car_coordinate(const SwcLaneRec *rec, int index, double loop);
 
@@ -119,23 +131,99 @@ typedef struct SwcWalker {
 
 SwcWalker swc_street_walker_at(double cam_x, double cam_z, double loop, int axis_side, int j, int b, int p);
 
-/* ---- the vehicle mesh: the wedge-shaped car, with the van it can become stored per vertex ---- */
+/* ---- people between the buildings: alleys and plazas ---- */
+/* Alleys kept per cell and axis, and the narrowest gap between two buildings that counts as one, metres. */
+#define SWC_ALLEYS_PER_AXIS 3
+#define SWC_ALLEY_MIN_WIDTH 3.0
+/* Boxes starting lower than this stand in the way of people. */
+#define SWC_ALLEY_GROUND 3.0
+/* Texels per cell in the alley table: per axis, the centres then the half widths. */
+#define SWC_ALLEY_TEXELS 4
+/* Cells either side of the camera's cell that hold people. */
+#define SWC_BLOCK_REACH 2
+/* People per cell at full density: a plaza uses every one, each of a block's six alley places a sixth. */
+#define SWC_BLOCK_SLOTS 240
+/* Clear distance kept from an alley's walls by walkers, and by people standing at a shop window. */
+#define SWC_ALLEY_WALK_MARGIN 0.9
+#define SWC_ALLEY_STAND_MARGIN 0.7
+#define SWC_ALLEY_STANDING 0.25
+/* Plaza paths: rings round the centre, and straight crossings kept off the centre and the corner kiosks. */
+#define SWC_PLAZA_RING_MIN 24.0
+#define SWC_PLAZA_RING_MAX 50.0
+#define SWC_PLAZA_CROSS_CENTRE 22.0
+#define SWC_PLAZA_CROSS_EDGE 24.0
+#define SWC_PLAZA_RING_SHARE 0.55
+#define SWC_PLAZA_STAND_SHARE 0.15
+/* Added to a cell's index before hashing, so these people never share a hash with a sidewalk's. */
+#define SWC_BLOCK_HASH_BASE 2048
+/* Share of the full crowd per district id (lowrise, midtown, downtown, plaza, mega). */
+extern const double SWC_CROWD_BY_DISTRICT[5];
+
+typedef struct SwcAlleyTable {
+    /* (SWC_CELLS * SWC_ALLEY_TEXELS) x SWC_CELLS texels, RGBA float. Texel cx * 4 + axis * 2 of row cz holds
+     * up to three alley centres (metres from the cell's corner, across the alley) and the count; the next
+     * texel their half widths. Axis 0 alleys run along x, axis 1 along z, as lanes do. */
+    float data[SWC_CELLS * SWC_ALLEY_TEXELS * SWC_CELLS * 4];
+    int width, height;
+    int count; /* alleys in the whole tile */
+} SwcAlleyTable;
+
+/* Finds the alleys: the lots form a grid inside each block, so a band across the block that no street-level
+ * box overlaps runs the block's full depth. Plazas and megatower blocks have none. */
+void swc_street_build_alleys(const SwcCity *city, SwcAlleyTable *out);
+
+/* The buildable rectangle of cell (cx, cz), in that cell's own coordinates. */
+SwcRect swc_street_cell_rect(int cx, int cz);
+
+/* Block instance field: 4 floats per instance (cell offset from the camera's cell along x and z, slot in the
+ * cell, 0). */
+int swc_street_block_count(int per_cell);
+int swc_street_build_block_field(int per_cell, float *out, int cap);
+
+typedef enum SwcBlockMode {
+    SWC_BLOCK_ALLEY = 0,
+    SWC_BLOCK_RING,
+    SWC_BLOCK_CROSS,
+    SWC_BLOCK_STAND
+} SwcBlockMode;
+
+typedef struct SwcBlockWalker {
+    bool show;
+    int mode;          /* SwcBlockMode */
+    double x, z;       /* tile coordinates (not wrapped into the tile) */
+    int cx, cz;        /* cell it is in, 0..SWC_CELLS-1 */
+    int laps;          /* whole trips (there and back, or round) per loop; 0 when standing */
+    double lap_length; /* metres walked per lap */
+} SwcBlockWalker;
+
+/* Where block slot (dx, dz, p) stands for a camera at (cam_x, cam_z), as the vertex shader computes it.
+ * `per_cell` is the number of slots per cell the field was built with. */
+SwcBlockWalker swc_street_block_walker_at(const SwcAlleyTable *alleys, const SwcCity *city, double cam_x,
+                                          double cam_z, double loop, int dx, int dz, int p, int per_cell);
+
+/* ---- the vehicle mesh: the wedge-shaped car, with the van and the motorcycle it can become stored per
+ * vertex ---- */
 #define SWC_CAR_MESH_VERTEX_MAX 64
 #define SWC_CAR_MESH_INDEX_MAX 256
 
 /* Half length, height and half width of the two stored shapes, metres. */
 extern const double SWC_CAR_DIMS[3];
 extern const double SWC_VAN_DIMS[3];
+extern const double
+    SWC_BIKE_DIMS[3]; /* half length, height to the top of the helmet, half width at the bars */
 extern const double SWC_BUS_SCALE[3]; /* a bus is the van stretched by this much along x, y and z */
-extern const double SWC_CAR_FLOOR, SWC_VAN_FLOOR;
+extern const double SWC_CAR_FLOOR, SWC_VAN_FLOOR, SWC_BIKE_FLOOR;
+extern const double SWC_BIKE_BODY_HALF, SWC_BIKE_TYRE_HALF; /* half width of the body, and of the tyres */
 extern const double SWC_CAR_AXLES[3]; /* wheel centres along x (front, rear) and wheel radius */
 extern const double SWC_VAN_AXLES[3];
+extern const double SWC_BIKE_AXLES[3];
 
 typedef struct SwcCarMesh {
     int vertex_count, index_count;
     float position[SWC_CAR_MESH_VERTEX_MAX * 3];
     float alt[SWC_CAR_MESH_VERTEX_MAX * 3];
-    float part[SWC_CAR_MESH_VERTEX_MAX]; /* 0 body, 1 cabin, 2 wheels */
+    float bike[SWC_CAR_MESH_VERTEX_MAX * 3];
+    float part[SWC_CAR_MESH_VERTEX_MAX]; /* 0 body, 1 cabin (the rider on a bike), 2 wheels */
     uint16_t index[SWC_CAR_MESH_INDEX_MAX];
 } SwcCarMesh;
 

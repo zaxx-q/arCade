@@ -4,11 +4,13 @@
  * Nothing is stored per car. The lane table (a 40 x 12 float texture) says how many cars each lane holds, how
  * fast they go and where they started; the vertex shaders work out which car each instance of a fixed grid is
  * from the camera position and the loop phase (see swc_street.h). Past the handover distance the same
- * arithmetic runs per pixel on one quad per road and every car becomes a pair of dashes.
+ * arithmetic runs per pixel on one quad per road and every car becomes a pair of dashes. People between the
+ * buildings are placed the same way from the alley table (a 160 x 40 float texture) and the plan's cells.
  *
- *   bodies  (opaque, mirrored)      one draw: the grid of near cars, each the 34-vertex vehicle mesh
- *   crowds  (opaque)                one draw: a camera-facing impostor for every person
- *   lamps   (additive, mirrored)    one draw: two headlights, two tail lights and a roof beacon per car
+ *   bodies  (opaque, mirrored)      one draw: the grid of near cars, each the 34-vertex vehicle mesh (a car,
+ * a van, a bus or a motorcycle: three shapes per vertex) crowds  (opaque)                two draws: a
+ * camera-facing impostor for every person on the sidewalks, then for every person in the alleys and on the
+ * plazas lamps   (additive, mirrored)    one draw: two headlights, two tail lights and a roof beacon per car
  *   lights  (additive)              light on the road (pools, smears, underglow), then the far traffic
  *
  * The additive quads that lie on the road are coplanar with the ground; the web version pulls them towards
@@ -34,17 +36,20 @@ typedef struct MeshGpu {
     int instances;
 } MeshGpu;
 
-static SwcProg g_car, g_lamp, g_pool, g_far, g_walker;
-static MeshGpu g_body_mesh, g_lamp_mesh, g_pool_mesh, g_far_mesh, g_crowd_mesh;
-static unsigned g_slot_vbo; /* the grid of near cars, shared by the bodies, the lamps and the pools */
-static unsigned g_lane_tex; /* the lane table */
-static unsigned g_cell_tex; /* the plan's cells, for the block colours */
-static float g_handover[2]; /* uHandover */
-static float g_crowd[4];    /* uCrowd */
+static SwcProg g_car, g_lamp, g_pool, g_far, g_walker, g_block;
+static MeshGpu g_body_mesh, g_lamp_mesh, g_pool_mesh, g_far_mesh, g_crowd_mesh, g_block_mesh;
+static unsigned g_slot_vbo;  /* the grid of near cars, shared by the bodies, the lamps and the pools */
+static unsigned g_lane_tex;  /* the lane table */
+static unsigned g_alley_tex; /* the alley table */
+static unsigned g_cell_tex;  /* the plan's cells, for the block colours */
+static float g_handover[2];  /* uHandover */
+static float g_crowd[4];     /* uCrowd */
 
 static SwcLaneTable g_table; /* 480 records and 2 KB of texels: static */
 static float g_slots[CAR_FIELD_MAX * 4];
 static float g_walkers[8200 * 4];
+static SwcAlleyTable g_alleys; /* 100 KB of texels: static */
+static float g_blocks[25 * SWC_BLOCK_SLOTS * 4];
 
 static bool g_synced;
 static uint32_t g_synced_seed;
@@ -120,7 +125,8 @@ bool swc_streetlife_init(void) {
            build_program(&g_lamp, "street_lamps", "sl_lamp.vert", "sl_lamp.frag") &&
            build_program(&g_pool, "street_pools", "sl_pool.vert", "sl_pool.frag") &&
            build_program(&g_far, "street_far", "sl_far.vert", "sl_far.frag") &&
-           build_program(&g_walker, "street_walkers", "sl_walker.vert", "sl_walker.frag");
+           build_program(&g_walker, "street_walkers", "sl_walker.vert", "sl_walker.frag") &&
+           build_program(&g_block, "street_blocks", "sl_block.vert", "sl_walker.frag");
 }
 
 static void free_scene(void) {
@@ -129,13 +135,16 @@ static void free_scene(void) {
     free_mesh(&g_pool_mesh);
     free_mesh(&g_far_mesh);
     free_mesh(&g_crowd_mesh);
+    free_mesh(&g_block_mesh);
     if (g_slot_vbo != 0)
         rlUnloadVertexBuffer(g_slot_vbo);
     if (g_lane_tex != 0)
         rlUnloadTexture(g_lane_tex);
     if (g_cell_tex != 0)
         rlUnloadTexture(g_cell_tex);
-    g_slot_vbo = g_lane_tex = g_cell_tex = 0;
+    if (g_alley_tex != 0)
+        rlUnloadTexture(g_alley_tex);
+    g_slot_vbo = g_lane_tex = g_cell_tex = g_alley_tex = 0;
 }
 
 void swc_streetlife_free(void) {
@@ -145,6 +154,7 @@ void swc_streetlife_free(void) {
     swc_prog_free(&g_pool);
     swc_prog_free(&g_far);
     swc_prog_free(&g_walker);
+    swc_prog_free(&g_block);
     g_synced = false;
 }
 
@@ -168,6 +178,8 @@ static void upload_bodies(void) {
     add_attribute(&g_body_mesh, 0, 3, car.position, car.vertex_count * 3 * (int)sizeof(float));
     add_attribute(&g_body_mesh, rlGetLocationAttrib(g_car.id, "aAlt"), 3, car.alt,
                   car.vertex_count * 3 * (int)sizeof(float));
+    add_attribute(&g_body_mesh, rlGetLocationAttrib(g_car.id, "aBike"), 3, car.bike,
+                  car.vertex_count * 3 * (int)sizeof(float));
     add_attribute(&g_body_mesh, rlGetLocationAttrib(g_car.id, "aPart"), 1, car.part,
                   car.vertex_count * (int)sizeof(float));
     add_instances(g_car.id, g_slot_vbo, "aSlot", 4);
@@ -186,6 +198,7 @@ static void upload_quad_mesh(MeshGpu *g, unsigned prog, int quads) {
 
 void swc_streetlife_sync(const SwcCity *city, const SwcQuality *q) {
     if (g_car.id == 0 || g_lamp.id == 0 || g_pool.id == 0 || g_far.id == 0 || g_walker.id == 0 ||
+        g_block.id == 0 ||
         (g_synced && g_synced_seed == city->seed && g_synced_lanes == city->lane_count &&
          g_synced_tier == q->tier))
         return;
@@ -196,11 +209,16 @@ void swc_streetlife_sync(const SwcCity *city, const SwcQuality *q) {
     g_handover[0] = (float)(handover_end * (SWC_STREET_HANDOVER_START / SWC_STREET_HANDOVER_END));
     int per_face = swc_quality_crowd_per_face(q, SWC_CROWD_PER_FACE);
     g_crowd[2] = (float)per_face;
+    int per_cell = swc_quality_crowd_per_face(q, SWC_BLOCK_SLOTS);
+    g_crowd[3] = (float)per_cell;
     swc_street_build_lanes(city, swc_street_traffic_density(q->density),
                            swc_layer_seed(city->seed, "streetlife"), &g_table);
     g_lane_tex =
         make_texture(g_table.data, SWC_CELLS, SWC_STREET_LANE_ROWS, RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32A32);
     g_cell_tex = make_texture(city->cells, SWC_CELLS, SWC_CELLS, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    swc_street_build_alleys(city, &g_alleys);
+    g_alley_tex = make_texture(g_alleys.data, g_alleys.width, g_alleys.height,
+                               RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32A32);
     int cars = swc_street_build_car_field(&g_table, g_handover[1], g_slots, CAR_FIELD_MAX);
     if (g_lane_tex != 0 && g_cell_tex != 0 && cars > 0 && g_table.record_count > 0) {
         g_slot_vbo = rlLoadVertexBuffer(g_slots, cars * 4 * (int)sizeof(float), false);
@@ -248,6 +266,24 @@ void swc_streetlife_sync(const SwcCity *city, const SwcQuality *q) {
         g_crowd_mesh.instances = walkers;
         rlDisableVertexArray();
     }
+    /* People between the buildings: an upright impostor per slot of each cell round the camera. */
+    int block_walkers =
+        g_alley_tex != 0 ? swc_street_build_block_field(per_cell, g_blocks, 25 * SWC_BLOCK_SLOTS) : 0;
+    if (block_walkers > 0) {
+        free_mesh(&g_block_mesh);
+        g_block_mesh.vao = rlLoadVertexArray();
+        rlEnableVertexArray(g_block_mesh.vao);
+        upload_quads(&g_block_mesh, 1, -1.0f, 1.0f, 0.0f, 1.0f);
+        add_attribute(&g_block_mesh, rlGetLocationAttrib(g_block.id, "aBlock"), 4, g_blocks,
+                      block_walkers * 4 * (int)sizeof(float));
+        {
+            int loc = rlGetLocationAttrib(g_block.id, "aBlock");
+            if (loc >= 0)
+                rlSetVertexAttributeDivisor((unsigned)loc, 1);
+        }
+        g_block_mesh.instances = block_walkers;
+        rlDisableVertexArray();
+    }
     g_synced = true;
     g_synced_seed = city->seed;
     g_synced_lanes = city->lane_count;
@@ -268,6 +304,7 @@ static void use_program(SwcProg *p, const SwcFrameUniforms *f, const SwcLook *lo
     swc_set_shared_uniforms(p, f, look);
     swc_utex(p, "uCellTex", 0, g_cell_tex);
     swc_utex(p, "uLaneTex", 1, g_lane_tex);
+    swc_utex(p, "uAlleyTex", 2, g_alley_tex);
     swc_u2f(p, "uHandover", g_handover[0], g_handover[1]);
     swc_u2f(p, "uLamp", 2.4f, 0.45f);
     {
@@ -318,11 +355,17 @@ void swc_streetlife_bodies_draw(const SwcFrameUniforms *f, const SwcLook *look) 
 }
 
 void swc_streetlife_crowds_draw(const SwcFrameUniforms *f, const SwcLook *look) {
-    if (!g_synced || g_crowd_mesh.instances <= 0)
+    if (!g_synced || (g_crowd_mesh.instances <= 0 && g_block_mesh.instances <= 0))
         return;
     opaque_begin();
-    use_program(&g_walker, f, look);
-    draw_mesh(&g_crowd_mesh);
+    if (g_crowd_mesh.instances > 0) {
+        use_program(&g_walker, f, look);
+        draw_mesh(&g_crowd_mesh);
+    }
+    if (g_block_mesh.instances > 0) {
+        use_program(&g_block, f, look);
+        draw_mesh(&g_block_mesh);
+    }
     state_end();
     rlEnableColorBlend();
 }
