@@ -138,7 +138,101 @@ static void test_the_whole_atlas_draws_quickly(void) {
     swc_cv_destroy(cv);
 }
 
+/* ---- the work in pieces ---- */
+
+static void test_a_job_drawn_cell_by_cell_makes_the_same_atlas(void) {
+    SwcAtlasJob job;
+    CHECK(swc_atlas_job_start(&job, SEED));
+    CHECK_EQ_INT(job.cell_count, SWC_ATLAS_CELL_COUNT);
+    int drawn = 0;
+    while (swc_atlas_job_next(&job))
+        drawn++;
+    CHECK_EQ_INT(drawn + 1, SWC_ATLAS_CELL_COUNT); /* the last call draws the last cell and says "done" */
+    CHECK(!swc_atlas_job_next(&job));              /* nothing left: no more drawing */
+    SwcCanvas *whole = swc_atlas_draw_all(SEED);
+    SwcCanvas *piecewise = swc_atlas_job_take(&job);
+    CHECK(whole != NULL && piecewise != NULL);
+    CHECK(job.cv == NULL);
+    CHECK(memcmp(swc_cv_pixels(whole), swc_cv_pixels(piecewise), bytes(whole)) == 0);
+    swc_cv_destroy(whole);
+    swc_cv_destroy(piecewise);
+}
+
+static void test_an_unfinished_job_is_freed_without_a_leak(void) {
+    SwcAtlasJob job;
+    CHECK(swc_atlas_job_start(&job, SEED));
+    swc_atlas_job_next(&job);
+    swc_atlas_job_free(&job); /* the sanitiser build would report the canvas */
+    CHECK(job.cv == NULL);
+    swc_atlas_job_free(&job); /* and twice is fine */
+}
+
+static void test_half_floats_have_the_right_bits(void) {
+    CHECK_EQ_INT(swc_half_bits(0.0f), 0x0000);
+    CHECK_EQ_INT(swc_half_bits(1.0f), 0x3c00);
+    CHECK_EQ_INT(swc_half_bits(0.5f), 0x3800);
+    CHECK_EQ_INT(swc_half_bits(2.0f), 0x4000);
+    CHECK_EQ_INT(swc_half_bits(-2.0f), 0xc000);
+    CHECK_EQ_INT(swc_half_bits(65504.0f), 0x7bff);      /* the largest finite half */
+    CHECK_EQ_INT(swc_half_bits(1.0e9f), 0x7c00);        /* too big: infinity */
+    CHECK_EQ_INT(swc_half_bits(5.9604645e-8f), 0x0001); /* the smallest denormal */
+    CHECK_EQ_INT(swc_half_bits(1.0e-12f), 0x0000);      /* too small: zero */
+    CHECK_EQ_INT(swc_half_bits(0.333333343f), 0x3555);  /* rounds to nearest */
+}
+
+static void test_the_srgb_table_is_monotone_and_hits_its_ends(void) {
+    uint16_t lut[256];
+    swc_atlas_srgb_lut(lut);
+    CHECK_EQ_INT(lut[0], 0x0000);
+    CHECK_EQ_INT(lut[255], 0x3c00); /* white is 1.0 */
+    for (int i = 1; i < 256; i++)
+        CHECK(lut[i] > lut[i - 1]); /* non-negative halves order like their bits */
+    CHECK_EQ_INT(lut[1], swc_half_bits((float)(1.0 / 255.0 / 12.92)));
+}
+
+static void test_the_texture_rows_are_flipped_and_done_in_any_chunks(void) {
+    SwcAtlasJob job;
+    CHECK(swc_atlas_job_start(&job, SEED));
+    while (swc_atlas_job_next(&job)) {
+    }
+    SwcCanvas *cv = swc_atlas_job_take(&job);
+    int w = swc_cv_width(cv), h = swc_cv_height(cv);
+    size_t n = (size_t)w * (size_t)h * 4u;
+    uint16_t *whole = malloc(n * sizeof(uint16_t)), *chunked = malloc(n * sizeof(uint16_t));
+    CHECK(whole != NULL && chunked != NULL);
+    uint16_t lut[256];
+    swc_atlas_srgb_lut(lut);
+    swc_atlas_half_rows(cv, lut, 0, h, whole);
+    memset(chunked, 0xff, n * sizeof(uint16_t));
+    for (int y = 0; y < h; y += 192) /* chunks that do not divide the height */
+        swc_atlas_half_rows(cv, lut, y, 192, chunked);
+    CHECK(memcmp(whole, chunked, n * sizeof(uint16_t)) == 0);
+    /* texture row 0 is the canvas's last row: find a lit texel in the atlas and look at its mirror image */
+    int found = 0;
+    for (int y = 0; y < h && !found; y += 7)
+        for (int x = 0; x < w && !found; x += 5) {
+            const uint8_t *p = px(cv, x, y);
+            if (p[0] > 200) {
+                const uint16_t *t = whole + ((size_t)(h - 1 - y) * (size_t)w + (size_t)x) * 4u;
+                CHECK_EQ_INT(t[0], lut[p[0]]);
+                CHECK_EQ_INT(t[1], lut[p[1]]);
+                CHECK_EQ_INT(t[2], lut[p[2]]);
+                CHECK_EQ_INT(t[3], 0x3c00);
+                found = 1;
+            }
+        }
+    CHECK(found);
+    free(whole);
+    free(chunked);
+    swc_cv_destroy(cv);
+}
+
 int main(void) {
+    RUN(test_a_job_drawn_cell_by_cell_makes_the_same_atlas);
+    RUN(test_an_unfinished_job_is_freed_without_a_leak);
+    RUN(test_half_floats_have_the_right_bits);
+    RUN(test_the_srgb_table_is_monotone_and_hits_its_ends);
+    RUN(test_the_texture_rows_are_flipped_and_done_in_any_chunks);
     RUN(test_a_new_atlas_is_black_and_2048_square);
     RUN(test_every_cell_draws_a_plausible_amount_of_ink);
     RUN(test_the_padding_of_every_cell_stays_black);

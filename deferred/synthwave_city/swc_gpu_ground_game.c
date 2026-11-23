@@ -25,12 +25,14 @@ typedef struct MeshGpu {
     int instances;
 } MeshGpu;
 
-static SwcProg g_ground, g_post, g_glow;
+static SwcProg g_ground, g_ground_flat, g_post, g_glow; /* g_ground_flat: the one without a mirror */
 static MeshGpu g_disc, g_post_mesh, g_glow_mesh;
 static unsigned g_cell_tex, g_black_tex;
 static double g_spacing;
 static bool g_synced;
 static uint32_t g_synced_seed;
+static SwcTier g_lamps_tier = SWC_TIER_COUNT; /* the tier the lamps were built for (none yet) */
+static bool g_flat_tried;                     /* the variant without a mirror is built when first needed */
 
 static void add_attribute(MeshGpu *g, int loc, int comps, const float *data, int count, int divisor) {
     unsigned vbo = rlLoadVertexBuffer(data, count * comps * (int)sizeof(float), false);
@@ -167,10 +169,18 @@ bool swc_ground_init(void) {
         !swc_prog_build(&g_glow, "lamp_glows", gvs, 5, gfs, 3))
         return false;
 
-    g_spacing = swc_lamp_spacing(1.0); /* full density: quality tiers come later */
     static const unsigned char black[4] = {0, 0, 0, 255};
     g_black_tex = make_texture(black, 1, 1);
+    g_lamps_tier = SWC_TIER_COUNT;
+    g_flat_tried = false;
+    upload_disc();
+    return g_disc.vao != 0 && g_black_tex != 0; /* the lamps follow with the first sync, for the tier */
+}
 
+/* The lamps at the spacing of a tier's density: the posts (one pattern, repeated over a lattice) and one glow
+ * per lamp in the tile. */
+static bool build_lamps(double density) {
+    g_spacing = swc_lamp_spacing(density);
     int per_pattern = swc_lamp_count(g_spacing, SWC_LAMP_PATTERN);
     float *pattern = malloc((size_t)per_pattern * SWC_LAMP_STRIDE * sizeof(float));
     if (pattern == NULL)
@@ -178,10 +188,19 @@ bool swc_ground_init(void) {
     per_pattern = swc_build_lamps(g_spacing, SWC_LAMP_PATTERN, pattern);
     bool ok = upload_posts(pattern, per_pattern);
     free(pattern);
-    if (!ok || !upload_glows())
-        return false;
-    upload_disc();
-    return g_disc.vao != 0 && g_black_tex != 0;
+    return ok && upload_glows();
+}
+
+/* The streets shader without the mirror: what the web version compiles when a tier has no reflection pass.
+ * Built when it is first needed, so a machine that never uses the "low" tier never pays for it. */
+static void build_flat_variant(void) {
+    g_flat_tried = true;
+    const char *vs[] = {swc_shader_get("prelude_vs.glsl"), swc_shader_get("common.glsl"),
+                        swc_shader_get("common_vertex.glsl"), swc_shader_get("ground.vert")};
+    const char *fs[] = {swc_shader_get("prelude_fs.glsl"), swc_shader_get("common.glsl"),
+                        swc_shader_get("ground_defines.glsl"), swc_shader_get("ground.frag")};
+    if (!swc_prog_build(&g_ground_flat, "ground_flat", vs, 4, fs, 4))
+        TraceLog(LOG_WARNING, "SWC: the mirror-free streets shader did not build; the main one is used");
 }
 
 void swc_ground_free(void) {
@@ -194,13 +213,21 @@ void swc_ground_free(void) {
         rlUnloadTexture(g_black_tex);
     g_cell_tex = g_black_tex = 0;
     swc_prog_free(&g_ground);
+    swc_prog_free(&g_ground_flat);
     swc_prog_free(&g_post);
     swc_prog_free(&g_glow);
     g_synced = false;
 }
 
-void swc_ground_sync(const SwcCity *city) {
-    if (g_ground.id == 0 || (g_synced && g_synced_seed == city->seed))
+void swc_ground_sync(const SwcCity *city, const SwcQuality *q) {
+    if (g_ground.id == 0)
+        return;
+    if (g_lamps_tier != q->tier) { /* the first sync, or the tier changed: lamps at the new spacing */
+        g_lamps_tier = q->tier;
+        if (!build_lamps(q->density))
+            TraceLog(LOG_WARNING, "SWC: the street lamps could not be uploaded");
+    }
+    if (g_synced && g_synced_seed == city->seed)
         return;
     if (g_cell_tex != 0)
         rlUnloadTexture(g_cell_tex);
@@ -229,15 +256,22 @@ void swc_ground_draw(const SwcFrameUniforms *f, const SwcLook *look, const SwcRe
     if (g_ground.id == 0 || !g_synced)
         return;
     bool mirrored = refl != NULL && refl->tex != 0;
+    if (!mirrored && g_ground_flat.id == 0 && !g_flat_tried)
+        build_flat_variant();
+    /* No mirror: the variant that never samples one, or (if it did not build) the main shader with its mirror
+     * switched off. */
+    SwcProg *prog = mirrored || g_ground_flat.id == 0 ? &g_ground : &g_ground_flat;
     opaque_state();
-    swc_prog_use(&g_ground);
-    swc_set_shared_uniforms(&g_ground, f, look);
-    swc_u1f(&g_ground, "uLampSp", (float)g_spacing);
-    swc_utex(&g_ground, "uCellTex", 0, g_cell_tex);
-    swc_utex(&g_ground, "uReflTex", 1, mirrored ? refl->tex : g_black_tex);
-    if (mirrored)
-        swc_um4(&g_ground, "uReflMatrix", refl->matrix);
-    swc_u1f(&g_ground, "uReflAmount", mirrored ? 1.0f : 0.0f);
+    swc_prog_use(prog);
+    swc_set_shared_uniforms(prog, f, look);
+    swc_u1f(prog, "uLampSp", (float)g_spacing);
+    swc_utex(prog, "uCellTex", 0, g_cell_tex);
+    if (prog == &g_ground) {
+        swc_utex(prog, "uReflTex", 1, mirrored ? refl->tex : g_black_tex);
+        if (mirrored)
+            swc_um4(prog, "uReflMatrix", refl->matrix);
+        swc_u1f(prog, "uReflAmount", mirrored ? 1.0f : 0.0f);
+    }
     rlEnableVertexArray(g_disc.vao);
     rlDrawVertexArrayElements(0, g_disc.index_count, NULL);
     rlDisableVertexArray();

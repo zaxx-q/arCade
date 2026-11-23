@@ -1,5 +1,6 @@
 /* Synthwave City - post-processing: the HDR scene target, the bloom of the web version (pmndrs
  * MipmapBlurPass, 7 levels) and the last pass (chromatic aberration, bloom, grade, sRGB, dither). */
+#include <stddef.h>
 #include <string.h>
 
 #include "raylib.h"
@@ -39,11 +40,119 @@ static bool build_programs(SwcPost *p) {
            swc_prog_build(&p->p_post, "post", vs, 1, post, 1);
 }
 
-bool swc_post_init(SwcPost *p, int w, int h) {
+/* ---- the multisampled scene target ---- */
+
+#if defined(_WIN32)
+#define SWC_GLCALL __stdcall
+#else
+#define SWC_GLCALL
+#endif
+
+typedef void(SWC_GLCALL *GlGenRenderbuffers)(int n, unsigned *ids);
+typedef void(SWC_GLCALL *GlDeleteRenderbuffers)(int n, const unsigned *ids);
+typedef void(SWC_GLCALL *GlBindRenderbuffer)(unsigned target, unsigned id);
+typedef void(SWC_GLCALL *GlRenderbufferStorageMultisample)(unsigned target, int samples, unsigned format,
+                                                           int width, int height);
+typedef unsigned(SWC_GLCALL *GlGetError)(void);
+
+#define GL_NO_ERROR 0u
+#define GL_RENDERBUFFER 0x8D41u
+#define GL_READ_FRAMEBUFFER 0x8CA8u
+#define GL_DRAW_FRAMEBUFFER 0x8CA9u
+#define GL_COLOR_BUFFER_BIT 0x4000
+#define GL_RGBA16F 0x881Au
+#define GL_DEPTH_COMPONENT24 0x81A6u
+
+static struct {
+    bool tried, ok;
+    GlGenRenderbuffers gen;
+    GlDeleteRenderbuffers del;
+    GlBindRenderbuffer bind;
+    GlRenderbufferStorageMultisample storage;
+    GlGetError error;
+} gl;
+
+/* A function pointer from the loader. A cast between void * and a function pointer is not standard C, so the
+ * bytes are copied. */
+static bool load_proc(const char *name, void *fn, size_t size) {
+    void *addr = rlGetProcAddress(name);
+    if (addr == NULL || size != sizeof(addr))
+        return false;
+    memcpy(fn, &addr, size);
+    return true;
+}
+
+static bool load_gl(void) {
+    if (!gl.tried) {
+        gl.tried = true;
+        gl.ok = load_proc("glGenRenderbuffers", &gl.gen, sizeof(gl.gen)) &&
+                load_proc("glDeleteRenderbuffers", &gl.del, sizeof(gl.del)) &&
+                load_proc("glBindRenderbuffer", &gl.bind, sizeof(gl.bind)) &&
+                load_proc("glRenderbufferStorageMultisample", &gl.storage, sizeof(gl.storage)) &&
+                load_proc("glGetError", &gl.error, sizeof(gl.error));
+        if (!gl.ok)
+            TraceLog(LOG_WARNING, "SWC: no multisampled renderbuffers on this GPU; MSAA is off");
+    }
+    return gl.ok;
+}
+
+static void msaa_destroy(SwcMsaa *m) {
+    if (m->fbo != 0)
+        rlUnloadFramebuffer(m->fbo); /* also deletes the depth renderbuffer it holds */
+    else if (m->depth != 0)
+        gl.del(1, &m->depth);
+    if (m->color != 0)
+        gl.del(1, &m->color);
+    memset(m, 0, sizeof(*m));
+}
+
+static bool msaa_try(SwcMsaa *m, int w, int h, int samples) {
+    memset(m, 0, sizeof(*m));
+    while (gl.error() != GL_NO_ERROR) { /* an error left by someone else is not ours */
+    }
+    gl.gen(1, &m->color);
+    gl.bind(GL_RENDERBUFFER, m->color);
+    gl.storage(GL_RENDERBUFFER, samples, GL_RGBA16F, w, h);
+    gl.gen(1, &m->depth);
+    gl.bind(GL_RENDERBUFFER, m->depth);
+    gl.storage(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, w, h);
+    gl.bind(GL_RENDERBUFFER, 0);
+    if (gl.error() != GL_NO_ERROR) { /* more samples than the GPU has, or no room */
+        msaa_destroy(m);
+        return false;
+    }
+    m->fbo = rlLoadFramebuffer();
+    if (m->fbo != 0) {
+        rlFramebufferAttach(m->fbo, m->color, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_RENDERBUFFER, 0);
+        rlFramebufferAttach(m->fbo, m->depth, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_RENDERBUFFER, 0);
+    }
+    if (m->fbo == 0 || !rlFramebufferComplete(m->fbo)) {
+        msaa_destroy(m);
+        return false;
+    }
+    m->samples = samples;
+    return true;
+}
+
+/* The most samples up to `want` (halving: 4, 2) that this GPU gives; false if none. */
+static bool msaa_create(SwcMsaa *m, int w, int h, int want) {
+    memset(m, 0, sizeof(*m));
+    if (want < 2 || !load_gl())
+        return false;
+    for (int samples = want; samples >= 2; samples /= 2)
+        if (msaa_try(m, w, h, samples))
+            return true;
+    TraceLog(LOG_WARNING, "SWC: %dx MSAA is not available at %dx%d; drawing without it", want, w, h);
+    return false;
+}
+
+bool swc_post_init(SwcPost *p, int w, int h, int msaa) {
     memset(p, 0, sizeof(*p));
     p->w = w;
     p->h = h;
-    bool ok = build_programs(p) && swc_target_create(&p->hdr, w, h, true) &&
+    /* The MSAA target holds the depth; the resolved HDR target needs none then. */
+    bool multisampled = msaa_create(&p->msaa, w, h, msaa);
+    bool ok = build_programs(p) && swc_target_create(&p->hdr, w, h, !multisampled) &&
               swc_target_create(&p->luma, w, h, false);
     int lw = w, lh = h;
     for (int i = 0; ok && i < SWC_BLOOM_LEVELS; i++) {
@@ -60,6 +169,8 @@ bool swc_post_init(SwcPost *p, int w, int h) {
 }
 
 void swc_post_free(SwcPost *p) {
+    if (p->msaa.fbo != 0 || p->msaa.color != 0)
+        msaa_destroy(&p->msaa);
     swc_target_destroy(&p->hdr);
     swc_target_destroy(&p->luma);
     for (int i = 0; i < SWC_BLOOM_LEVELS; i++)
@@ -73,29 +184,36 @@ void swc_post_free(SwcPost *p) {
     p->ready = false;
 }
 
-static RenderTexture2D hdr_as_render_texture(const SwcPost *p) {
+/* The target the scene is drawn into, as raylib wants to be told about it. */
+static RenderTexture2D scene_as_render_texture(const SwcPost *p) {
     RenderTexture2D rt;
     memset(&rt, 0, sizeof(rt));
-    rt.id = p->hdr.fbo;
+    bool multisampled = p->msaa.samples > 0;
+    rt.id = multisampled ? p->msaa.fbo : p->hdr.fbo;
     rt.texture.id = p->hdr.tex;
     rt.texture.width = p->hdr.w;
     rt.texture.height = p->hdr.h;
     rt.texture.mipmaps = 1;
     rt.texture.format = PIXELFORMAT_UNCOMPRESSED_R16G16B16A16;
-    rt.depth.id = p->hdr.depth;
+    rt.depth.id = multisampled ? p->msaa.depth : p->hdr.depth;
     rt.depth.width = p->hdr.w;
     rt.depth.height = p->hdr.h;
     return rt;
 }
 
 void swc_post_scene_begin(SwcPost *p) {
-    BeginTextureMode(hdr_as_render_texture(p));
+    BeginTextureMode(scene_as_render_texture(p));
     ClearBackground(BLACK); /* colour and depth */
 }
 
 void swc_post_scene_end(SwcPost *p) {
-    (void)p;
     EndTextureMode();
+    if (p->msaa.samples > 0) { /* resolve the samples into the single-sample HDR target the bloom reads */
+        rlBindFramebuffer(GL_READ_FRAMEBUFFER, p->msaa.fbo);
+        rlBindFramebuffer(GL_DRAW_FRAMEBUFFER, p->hdr.fbo);
+        rlBlitFramebuffer(0, 0, p->w, p->h, 0, 0, p->w, p->h, GL_COLOR_BUFFER_BIT);
+        rlDisableFramebuffer(); /* both bindings back to the window */
+    }
 }
 
 static void bloom(SwcPost *p, const SwcPostParams *a) {

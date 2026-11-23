@@ -49,6 +49,7 @@ static float g_walkers[8200 * 4];
 static bool g_synced;
 static uint32_t g_synced_seed;
 static int g_synced_lanes;
+static SwcTier g_synced_tier;
 
 static void add_attribute(MeshGpu *g, int loc, int comps, const void *data, int bytes) {
     unsigned vbo = rlLoadVertexBuffer(data, bytes, false);
@@ -112,12 +113,9 @@ static bool build_program(SwcProg *p, const char *label, const char *vert, const
 
 bool swc_streetlife_init(void) {
     g_synced = false;
-    g_handover[1] = (float)SWC_STREET_HANDOVER_END; /* quality "high": min(880, fadeStart * 0.8) */
-    g_handover[0] = (float)(SWC_STREET_HANDOVER_END * (SWC_STREET_HANDOVER_START / SWC_STREET_HANDOVER_END));
     g_crowd[0] = (float)SWC_CROWD_START;
     g_crowd[1] = (float)SWC_CROWD_END;
-    g_crowd[2] = (float)SWC_CROWD_PER_FACE; /* high: round(64 * density 1) */
-    g_crowd[3] = 0.0f;
+    g_crowd[3] = 0.0f; /* the handover and the crowd's share follow the tier: see swc_streetlife_sync */
     return build_program(&g_car, "street_cars", "sl_car.vert", "sl_car.frag") &&
            build_program(&g_lamp, "street_lamps", "sl_lamp.vert", "sl_lamp.frag") &&
            build_program(&g_pool, "street_pools", "sl_pool.vert", "sl_pool.frag") &&
@@ -186,14 +184,20 @@ static void upload_quad_mesh(MeshGpu *g, unsigned prog, int quads) {
     rlDisableVertexArray();
 }
 
-void swc_streetlife_sync(const SwcCity *city) {
+void swc_streetlife_sync(const SwcCity *city, const SwcQuality *q) {
     if (g_car.id == 0 || g_lamp.id == 0 || g_pool.id == 0 || g_far.id == 0 || g_walker.id == 0 ||
-        (g_synced && g_synced_seed == city->seed && g_synced_lanes == city->lane_count))
+        (g_synced && g_synced_seed == city->seed && g_synced_lanes == city->lane_count &&
+         g_synced_tier == q->tier))
         return;
     free_scene();
-    /* Full density: quality tiers come later, and the web version's `high` tier is 1. */
-    swc_street_build_lanes(city, swc_street_traffic_density(1.0), swc_layer_seed(city->seed, "streetlife"),
-                           &g_table);
+    /* Real cars never reach the far fade, whatever the tier. */
+    double handover_end = swc_quality_handover_end(q, SWC_STREET_HANDOVER_END);
+    g_handover[1] = (float)handover_end;
+    g_handover[0] = (float)(handover_end * (SWC_STREET_HANDOVER_START / SWC_STREET_HANDOVER_END));
+    int per_face = swc_quality_crowd_per_face(q, SWC_CROWD_PER_FACE);
+    g_crowd[2] = (float)per_face;
+    swc_street_build_lanes(city, swc_street_traffic_density(q->density),
+                           swc_layer_seed(city->seed, "streetlife"), &g_table);
     g_lane_tex =
         make_texture(g_table.data, SWC_CELLS, SWC_STREET_LANE_ROWS, RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32A32);
     g_cell_tex = make_texture(city->cells, SWC_CELLS, SWC_CELLS, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
@@ -228,7 +232,7 @@ void swc_streetlife_sync(const SwcCity *city) {
         rlDisableVertexArray();
     }
     /* Crowds: an upright impostor per person. */
-    int walkers = swc_street_build_crowd_field(SWC_CROWD_PER_FACE, g_walkers, 8200);
+    int walkers = swc_street_build_crowd_field(per_face, g_walkers, 8200);
     if (walkers > 0) {
         free_mesh(&g_crowd_mesh);
         g_crowd_mesh.vao = rlLoadVertexArray();
@@ -247,6 +251,7 @@ void swc_streetlife_sync(const SwcCity *city) {
     g_synced = true;
     g_synced_seed = city->seed;
     g_synced_lanes = city->lane_count;
+    g_synced_tier = q->tier;
 }
 
 static void draw_mesh(const MeshGpu *g) {

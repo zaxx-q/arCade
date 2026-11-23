@@ -21,6 +21,9 @@
 #define SWC_MAX_PITCH 1.5
 #define SWC_FOV_DEG 62.0 /* vertical field of view */
 
+/* The city a real window opens: the web version's default seed. (Smoke runs and tests keep their own.) */
+#define SWC_DEFAULT_SEED 1984u
+
 #define SWC_VIEW_COUNT 6
 #define SWC_MOOD_COUNT 3 /* sunset, midnight, miami */
 /* The soundtrack loop is bars 16..31 of the song: a verse that builds, then the chorus. */

@@ -6,6 +6,7 @@
 
 #include "swc_layers.h"
 #include "swc_look.h"
+#include "swc_quality.h"
 #include "synthwave_city_logic.h"
 
 /* Builds the textures the renderer needs. Call once after the window exists. */
@@ -65,8 +66,25 @@ typedef struct SwcGpuDebug {
     bool post;    /* false: write the HDR frame straight to the screen, no bloom, grade or aberration */
     bool bloom;   /* false: no bloom */
     bool reflect; /* false: the wet streets show no mirror image */
+    bool msaa;    /* false: no multisampling whatever the tier says */
 } SwcGpuDebug;
 void swc_gpu_set_debug(const SwcGpuDebug *d);
+
+/* The quality tier (swc_quality.h), "high" until set: density of the traffic, crowd, lamps, beams and ads,
+ * the far fade, the mirror, MSAA and the bounds of the adaptive render scale. A change takes effect on the
+ * next frame (the layers pack again; the ad atlas is kept). */
+void swc_gpu_set_tier(SwcTier tier);
+SwcTier swc_gpu_tier(void);
+/* A real window (true) or a harness run (false, the default). A real window adapts the render scale to how
+ * long frames really take and spreads the start-up work (the ad atlas) over frames. A harness run keeps the
+ * scale at the tier's maximum, whatever its frame times, and finishes everything in the first frame. */
+void swc_gpu_set_interactive(bool on);
+/* How long the last frame really took, in seconds; the adaptive scale reads it. Call once per frame. */
+void swc_gpu_note_frame(double seconds);
+/* What the HUD shows: the scene's share of the window's pixels per side (1 = every pixel) and the MSAA
+ * samples in use (0 = none). */
+double swc_gpu_render_scale(void);
+int swc_gpu_msaa_samples(void);
 
 /* Names for the HUD. */
 const char *swc_mood_name(int mood);

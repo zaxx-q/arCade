@@ -1265,6 +1265,90 @@ void swc_atlas_draw_cell(SwcCanvas *g, const SwcAtlasCell *cell, uint32_t layer_
     swc_cv_release_clips(g);
 }
 
+bool swc_atlas_job_start(SwcAtlasJob *j, uint32_t layer_seed) {
+    memset(j, 0, sizeof(*j));
+    j->cv = swc_atlas_create();
+    if (j->cv == NULL)
+        return false;
+    j->cell_count = swc_atlas_layout(j->cells);
+    j->layer_seed = layer_seed;
+    return true;
+}
+
+bool swc_atlas_job_next(SwcAtlasJob *j) {
+    if (j->cv == NULL || j->next >= j->cell_count)
+        return false;
+    swc_atlas_draw_cell(j->cv, &j->cells[j->next], j->layer_seed);
+    j->next++;
+    return j->next < j->cell_count;
+}
+
+SwcCanvas *swc_atlas_job_take(SwcAtlasJob *j) {
+    SwcCanvas *cv = j->cv;
+    memset(j, 0, sizeof(*j));
+    return cv;
+}
+
+void swc_atlas_job_free(SwcAtlasJob *j) {
+    if (j->cv != NULL)
+        swc_cv_destroy(j->cv);
+    memset(j, 0, sizeof(*j));
+}
+
+uint16_t swc_half_bits(float f) {
+    union {
+        float f;
+        uint32_t u;
+    } v = {f};
+    uint32_t sign = (v.u >> 16) & 0x8000u;
+    int exponent = (int)((v.u >> 23) & 0xffu) - 127 + 15;
+    uint32_t mantissa = v.u & 0x7fffffu;
+    if (f == 0.0f)
+        return (uint16_t)sign;
+    if (exponent <= 0) { /* a half-float denormal: the darkest sRGB codes land here */
+        if (exponent < -10)
+            return (uint16_t)sign;
+        mantissa |= 0x800000u;
+        uint32_t shift = (uint32_t)(14 - exponent);
+        uint32_t half = mantissa >> shift;
+        if ((mantissa >> (shift - 1)) & 1u)
+            half++;
+        return (uint16_t)(sign | half);
+    }
+    if (exponent >= 31)
+        return (uint16_t)(sign | 0x7c00u);
+    uint32_t half = sign | ((uint32_t)exponent << 10) | (mantissa >> 13);
+    if (mantissa & 0x1000u)
+        half++; /* round to nearest; a carry into the exponent is the right result */
+    return (uint16_t)half;
+}
+
+void swc_atlas_srgb_lut(uint16_t lut[256]) {
+    for (int i = 0; i < 256; i++) {
+        double c = (double)i / 255.0;
+        double lin = c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
+        lut[i] = swc_half_bits((float)lin);
+    }
+}
+
+void swc_atlas_half_rows(const SwcCanvas *cv, const uint16_t lut[256], int first, int count,
+                         uint16_t *texels) {
+    int w = swc_cv_width(cv), h = swc_cv_height(cv);
+    const uint8_t *src = swc_cv_pixels(cv);
+    const uint16_t one = swc_half_bits(1.0f);
+    int last = first + count < h ? first + count : h;
+    for (int y = first < 0 ? 0 : first; y < last; y++) {
+        const uint8_t *row = src + (size_t)(h - 1 - y) * (size_t)w * 4u;
+        uint16_t *out = texels + (size_t)y * (size_t)w * 4u;
+        for (int x = 0; x < w; x++) {
+            out[x * 4] = lut[row[x * 4]];
+            out[x * 4 + 1] = lut[row[x * 4 + 1]];
+            out[x * 4 + 2] = lut[row[x * 4 + 2]];
+            out[x * 4 + 3] = one;
+        }
+    }
+}
+
 SwcCanvas *swc_atlas_draw_all(uint32_t layer_seed) {
     SwcCanvas *cv = swc_atlas_create();
     if (cv == NULL)

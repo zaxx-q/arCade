@@ -16,9 +16,8 @@
 
 #define NEAR_PLANE 1.0 /* the web version's camera: near 1, far 14000, vertical field of view 62 */
 #define FAR_PLANE 14000.0
-#define FADE_START 2500.0f /* quality "high": src/contracts/quality.ts */
-#define FADE_END 3100.0f
-#define REFLECTION_SCALE 0.5 /* quality "high": the wet streets' mirror is this share of the frame */
+
+#define STARTUP_BUDGET_MS 6.0 /* per frame, for the ad atlas's steps in a real window */
 
 static struct {
     bool ready;
@@ -40,18 +39,36 @@ static struct {
     bool have_refl;
     SwcFrameUniforms mfu; /* the mirror camera's frame */
     SwcReflection mirror;
+    SwcTier tier;           /* the quality tier: what swc_gpu_set_tier sets */
+    SwcAdaptiveScale scale; /* the adaptive render scale of that tier */
+    bool interactive;       /* a real window: adaptive scale, start-up work spread over frames */
+    double real_dt;         /* the last frame's real duration, seconds (swc_gpu_note_frame) */
+    int post_msaa;          /* the MSAA samples the post chain was asked for */
+    SwcTier applied_tier;   /* the tier the targets, the sky and the scale bounds were last set for */
+    int frame_w, frame_h;   /* the scene's size: the window's, by pixel ratio cap and render scale */
 } G;
 
 static int g_gpu_users; /* swc_gpu_init() calls not yet matched by a shutdown: the hub backdrop and a game
                            started from the archive can both be using the GPU renderer at the same time */
 
-/* (Re)creates the mirror target for a frame of w x h; without one the streets simply show no reflection. */
-static void reflection_target(int w, int h) {
+/* (Re)creates the mirror target for a scene of w x h; a tier without a mirror (or a GPU that cannot make one)
+ * leaves the streets showing none. */
+static void reflection_target(const SwcQuality *q, int w, int h) {
     swc_target_destroy(&G.refl);
-    G.have_refl =
-        swc_target_create_mipped(&G.refl, (int)(w * REFLECTION_SCALE), (int)(h * REFLECTION_SCALE), true);
+    G.have_refl = false;
+    int mw, mh;
+    swc_quality_mirror_size(q, w, h, &mw, &mh);
+    if (mw == 0)
+        return; /* "low": the web version has no reflection pass either */
+    G.have_refl = swc_target_create_mipped(&G.refl, mw, mh, true);
     if (!G.have_refl)
         TraceLog(LOG_WARNING, "SWC: no reflection target; the wet streets will not mirror the city");
+}
+
+/* The scene's size and the MSAA the tier asks for, given the window and the adaptive scale. */
+static void scene_size(const SwcQuality *q, int *w, int *h) {
+    swc_quality_render_size(q, GetScreenWidth(), GetScreenHeight(), GetRenderWidth(), GetRenderHeight(),
+                            G.scale.scale, w, h);
 }
 
 bool swc_gpu_available(void) {
@@ -71,8 +88,15 @@ bool swc_gpu_init(void) {
     G.dbg.reflect = true;
     G.dbg.post = true;
     G.dbg.bloom = true;
+    G.dbg.msaa = true;
+    G.tier = SWC_TIER_HIGH;
+    G.applied_tier = G.tier;
+    const SwcQuality *q = swc_quality(G.tier);
+    swc_adaptive_init(&G.scale, q->min_render_scale, q->max_render_scale);
+    scene_size(q, &G.frame_w, &G.frame_h);
+    G.post_msaa = q->msaa;
     if (!swc_geometry_init() || !swc_sky_init() ||
-        !swc_post_init(&G.post, GetRenderWidth(), GetRenderHeight())) {
+        !swc_post_init(&G.post, G.frame_w, G.frame_h, G.post_msaa)) {
         swc_post_free(&G.post);
         swc_sky_free();
         swc_geometry_free();
@@ -111,9 +135,36 @@ bool swc_gpu_init(void) {
         swc_holograms_free();
         TraceLog(LOG_WARNING, "SWC: the hologram shaders did not build; the CPU panels are drawn instead");
     }
-    reflection_target(GetRenderWidth(), GetRenderHeight());
+    reflection_target(q, G.frame_w, G.frame_h);
     G.ready = true;
     return true;
+}
+
+void swc_gpu_set_tier(SwcTier tier) {
+    if ((int)tier < 0 || (int)tier >= SWC_TIER_COUNT)
+        tier = SWC_TIER_HIGH;
+    G.tier = tier; /* the next frame notices (swc_render_scene_gpu) */
+}
+
+SwcTier swc_gpu_tier(void) {
+    return G.tier;
+}
+
+void swc_gpu_set_interactive(bool on) {
+    G.interactive = on;
+    swc_holograms_set_budget(on ? STARTUP_BUDGET_MS : 0.0);
+}
+
+void swc_gpu_note_frame(double seconds) {
+    G.real_dt = seconds;
+}
+
+double swc_gpu_render_scale(void) {
+    return G.scale.scale;
+}
+
+int swc_gpu_msaa_samples(void) {
+    return G.ready ? G.post.msaa.samples : 0;
 }
 
 void swc_gpu_shutdown(void) {
@@ -258,7 +309,7 @@ static void reflection_pass(const synthwave_city_State *s, int w, int h) {
     G.mirror.tex = G.refl.tex;
 }
 
-static void frame_uniforms(const synthwave_city_State *s, int w, int h) {
+static void frame_uniforms(const synthwave_city_State *s, const SwcQuality *q, int w, int h) {
     SwcFrameUniforms *f = &G.fu;
     memset(f, 0, sizeof(*f));
     f->time = (float)s->clock;
@@ -274,8 +325,8 @@ static void frame_uniforms(const synthwave_city_State *s, int w, int h) {
     f->cam[1] = (float)s->cam.y;
     f->cam[2] = (float)s->cam.z;
     f->cam_y = (float)s->cam.y;
-    f->far_fade[0] = FADE_START;
-    f->far_fade[1] = FADE_END;
+    f->far_fade[0] = (float)q->fade_start;
+    f->far_fade[1] = (float)q->fade_end;
     swc_view_matrix(s->cam.yaw, s->cam.pitch, s->cam.y, f->view);
     swc_proj_matrix(SWC_FOV_DEG, (double)w / (double)h, NEAR_PLANE, FAR_PLANE, f->proj);
     f->resolution[0] = (float)w;
@@ -287,16 +338,6 @@ static void frame_uniforms(const synthwave_city_State *s, int w, int h) {
 void swc_render_scene_gpu(const synthwave_city_State *s, double time_s) {
     if (!G.ready)
         return;
-    int w = GetRenderWidth(), h = GetRenderHeight();
-    if (w != G.post.w || h != G.post.h) { /* the window changed size */
-        swc_post_free(&G.post);
-        if (!swc_post_init(&G.post, w, h)) {
-            G.ready = false;
-            return;
-        }
-        reflection_target(w, h);
-    }
-
     double dt = 0.0;
     if (G.have_time) {
         dt = time_s - G.last_time;
@@ -304,6 +345,34 @@ void swc_render_scene_gpu(const synthwave_city_State *s, double time_s) {
     }
     G.have_time = true;
     G.last_time = time_s;
+
+    /* The tier, and the render scale that adapts to how long frames really take. */
+    const SwcQuality *q = swc_quality(G.tier);
+    bool tier_changed = q->tier != G.applied_tier;
+    if (tier_changed) {
+        G.applied_tier = q->tier;
+        swc_adaptive_set_range(&G.scale, q->min_render_scale, q->max_render_scale);
+        swc_sky_set_detail(q->tier != SWC_TIER_LOW);
+    }
+    if (G.interactive && G.real_dt > 0.0) {
+        double real = G.real_dt > 0.1 ? 0.1 : G.real_dt;
+        swc_adaptive_update(&G.scale, real * 1000.0, real);
+    }
+    int w, h;
+    scene_size(q, &w, &h);
+    int msaa = G.dbg.msaa ? q->msaa : 0;
+    if (w != G.post.w || h != G.post.h || msaa != G.post_msaa) { /* the window, the scale or MSAA changed */
+        swc_post_free(&G.post);
+        G.post_msaa = msaa;
+        if (!swc_post_init(&G.post, w, h, msaa)) {
+            G.ready = false;
+            return;
+        }
+        tier_changed = true; /* the mirror follows the frame's size */
+    }
+    if (tier_changed)
+        reflection_target(q, w, h);
+
     if (!G.look_ready) {
         swc_look_init(&G.look, s->mood);
         G.look_ready = true;
@@ -312,7 +381,7 @@ void swc_render_scene_gpu(const synthwave_city_State *s, double time_s) {
             swc_look_set_mood(&G.look, s->mood, false);
         swc_look_update(&G.look, dt);
     }
-    frame_uniforms(s, w, h);
+    frame_uniforms(s, q, w, h);
 
     SwcPostParams pp = swc_post_defaults();
     pp.exposure = G.look.exposure;
@@ -323,15 +392,15 @@ void swc_render_scene_gpu(const synthwave_city_State *s, double time_s) {
     if (G.have_buildings)
         swc_buildings_sync(&s->city);
     if (G.have_beams)
-        swc_beams_sync(&s->city);
+        swc_beams_sync(&s->city, q);
     if (G.have_ground)
-        swc_ground_sync(&s->city);
+        swc_ground_sync(&s->city, q);
     if (G.have_air)
-        swc_airtraffic_sync(&s->city);
+        swc_airtraffic_sync(&s->city, q);
     if (G.have_street)
-        swc_streetlife_sync(&s->city);
+        swc_streetlife_sync(&s->city, q);
     if (G.have_holo)
-        swc_holograms_sync(&s->city);
+        swc_holograms_sync(&s->city, q);
 
     reflection_pass(s, w, h);
     swc_post_scene_begin(&G.post);

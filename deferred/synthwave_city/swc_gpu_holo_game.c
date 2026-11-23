@@ -35,10 +35,30 @@ typedef struct MeshGpu {
 
 static SwcProg g_panel, g_wire, g_ticker;
 static MeshGpu g_panel_mesh, g_wire_mesh, g_ticker_mesh;
+/* The atlas is made in steps (a real window spreads them over frames, a harness run does them all at once).
+ */
+typedef enum {
+    ATLAS_NONE,
+    ATLAS_DRAWING,
+    ATLAS_CONVERTING,
+    ATLAS_UPLOADING,
+    ATLAS_MIPPING,
+    ATLAS_READY,
+    ATLAS_FAILED
+} AtlasStage;
 static unsigned g_atlas;
+static uint32_t g_atlas_seed; /* the seed the atlas is made for: a tier change keeps it */
+static AtlasStage g_stage = ATLAS_NONE;
+static SwcAtlasJob g_job;
+static SwcCanvas *g_canvas; /* the finished drawing, while it is converted */
+static uint16_t *g_texels;  /* the half-float texture, while it is filled */
+static int g_rows_done;
+static double g_budget_ms;   /* time per frame for the atlas's steps; 0: no limit */
+static double g_atlas_began; /* GetTime() when the first step ran, for the log line */
 static bool g_synced;
 static uint32_t g_synced_seed;
 static int g_synced_sites;
+static SwcTier g_synced_tier;
 
 static void free_mesh(MeshGpu *g) {
     if (g->vao != 0)
@@ -85,13 +105,33 @@ bool swc_holograms_init(void) {
            build_program(&g_ticker, "holo_tickers", "holo_ticker.vert", "holo_ticker.frag");
 }
 
-static void free_scene(void) {
+static void free_meshes(void) {
     free_mesh(&g_panel_mesh);
     free_mesh(&g_wire_mesh);
     free_mesh(&g_ticker_mesh);
+}
+
+static void free_atlas(void) {
     if (g_atlas != 0)
         rlUnloadTexture(g_atlas);
     g_atlas = 0;
+    swc_atlas_job_free(&g_job);
+    if (g_canvas != NULL)
+        swc_cv_destroy(g_canvas);
+    g_canvas = NULL;
+    free(g_texels);
+    g_texels = NULL;
+    g_rows_done = 0;
+    g_stage = ATLAS_NONE;
+}
+
+void swc_holograms_set_budget(double ms) {
+    g_budget_ms = ms > 0.0 ? ms : 0.0;
+}
+
+static void free_scene(void) {
+    free_meshes();
+    free_atlas();
 }
 
 void swc_holograms_free(void) {
@@ -104,68 +144,15 @@ void swc_holograms_free(void) {
 
 /* ---- the atlas texture ---- */
 
-/* sRGB byte -> linear light as a half float (IEEE binary16 bits), for the 256 possible values. */
-static uint16_t half_bits(float f) {
-    union {
-        float f;
-        uint32_t u;
-    } v = {f};
-    uint32_t sign = (v.u >> 16) & 0x8000u;
-    int exponent = (int)((v.u >> 23) & 0xffu) - 127 + 15;
-    uint32_t mantissa = v.u & 0x7fffffu;
-    if (f == 0.0f)
-        return (uint16_t)sign;
-    if (exponent <= 0) { /* a half-float denormal: the darkest sRGB codes land here */
-        if (exponent < -10)
-            return (uint16_t)sign;
-        mantissa |= 0x800000u;
-        uint32_t shift = (uint32_t)(14 - exponent);
-        uint32_t half = mantissa >> shift;
-        if ((mantissa >> (shift - 1)) & 1u)
-            half++;
-        return (uint16_t)(sign | half);
-    }
-    if (exponent >= 31)
-        return (uint16_t)(sign | 0x7c00u);
-    uint32_t half = sign | ((uint32_t)exponent << 10) | (mantissa >> 13);
-    if (mantissa & 0x1000u)
-        half++; /* round to nearest; a carry into the exponent is the right result */
-    return (uint16_t)half;
+#define CONVERT_ROWS 128 /* rows of the atlas turned into half floats per step */
+
+/* The texture's first image: the atlas as linear half floats, row 0 at the top of the picture (the shaders'
+ * atlas rectangles count v from the bottom, like a canvas uploaded with flipY). */
+static unsigned upload_texels(const uint16_t *texels, int w, int h) {
+    return rlLoadTexture(texels, w, h, RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16, 1);
 }
 
-static void build_lut(uint16_t lut[256]) {
-    for (int i = 0; i < 256; i++) {
-        double c = (double)i / 255.0;
-        double lin = c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
-        lut[i] = half_bits((float)lin);
-    }
-}
-
-/* Uploads the canvas as the atlas texture, the first canvas row at the top of the picture: the shaders' atlas
- * rectangles count v from the bottom, like a canvas uploaded with flipY. Returns 0 on failure. */
-static unsigned upload_atlas(const SwcCanvas *cv) {
-    int w = swc_cv_width(cv), h = swc_cv_height(cv);
-    uint16_t lut[256];
-    build_lut(lut);
-    uint16_t *texels = malloc((size_t)w * (size_t)h * 4u * sizeof(uint16_t));
-    if (texels == NULL)
-        return 0;
-    const uint8_t *src = swc_cv_pixels(cv);
-    const uint16_t one = half_bits(1.0f);
-    for (int y = 0; y < h; y++) {
-        const uint8_t *row = src + (size_t)(h - 1 - y) * (size_t)w * 4u;
-        uint16_t *out = texels + (size_t)y * (size_t)w * 4u;
-        for (int x = 0; x < w; x++) {
-            out[x * 4] = lut[row[x * 4]];
-            out[x * 4 + 1] = lut[row[x * 4 + 1]];
-            out[x * 4 + 2] = lut[row[x * 4 + 2]];
-            out[x * 4 + 3] = one;
-        }
-    }
-    unsigned id = rlLoadTexture(texels, w, h, RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16, 1);
-    free(texels);
-    if (id == 0)
-        return 0;
+static void finish_texture(unsigned id, int w, int h) {
     int levels = 1;
     rlGenTextureMipmaps(id, w, h, RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16A16, &levels);
     rlTextureParameters(id, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_FILTER_LINEAR);
@@ -173,7 +160,68 @@ static unsigned upload_atlas(const SwcCanvas *cv) {
     rlTextureParameters(id, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_REPEAT);
     rlTextureParameters(id, RL_TEXTURE_WRAP_T, RL_TEXTURE_WRAP_CLAMP);
     rlTextureParameters(id, RL_TEXTURE_FILTER_ANISOTROPIC, 16);
-    return id;
+}
+
+/* One step of making the atlas. */
+static void atlas_step(uint32_t layer_seed) {
+    switch (g_stage) {
+    case ATLAS_NONE:
+        g_atlas_began = GetTime();
+        g_stage = swc_atlas_job_start(&g_job, layer_seed) ? ATLAS_DRAWING : ATLAS_FAILED;
+        break;
+    case ATLAS_DRAWING:
+        if (!swc_atlas_job_next(&g_job)) { /* the last cell is drawn: on to the pixels */
+            g_canvas = swc_atlas_job_take(&g_job);
+            size_t n = (size_t)swc_cv_width(g_canvas) * (size_t)swc_cv_height(g_canvas) * 4u;
+            g_texels = malloc(n * sizeof(uint16_t));
+            g_rows_done = 0;
+            g_stage = g_texels != NULL ? ATLAS_CONVERTING : ATLAS_FAILED;
+        }
+        break;
+    case ATLAS_CONVERTING: {
+        uint16_t lut[256];
+        swc_atlas_srgb_lut(lut);
+        swc_atlas_half_rows(g_canvas, lut, g_rows_done, CONVERT_ROWS, g_texels);
+        g_rows_done += CONVERT_ROWS;
+        if (g_rows_done >= swc_cv_height(g_canvas))
+            g_stage = ATLAS_UPLOADING;
+        break;
+    }
+    case ATLAS_UPLOADING:
+        g_atlas = upload_texels(g_texels, swc_cv_width(g_canvas), swc_cv_height(g_canvas));
+        free(g_texels);
+        g_texels = NULL;
+        g_stage = g_atlas != 0 ? ATLAS_MIPPING : ATLAS_FAILED;
+        break;
+    case ATLAS_MIPPING:
+        finish_texture(g_atlas, swc_cv_width(g_canvas), swc_cv_height(g_canvas));
+        swc_cv_destroy(g_canvas);
+        g_canvas = NULL;
+        g_stage = ATLAS_READY;
+        TraceLog(LOG_INFO, "SWC: hologram atlas ready after %.0f ms", (GetTime() - g_atlas_began) * 1000.0);
+        break;
+    case ATLAS_READY:
+    case ATLAS_FAILED:
+        break;
+    }
+}
+
+/* Works on the atlas until it is ready or this frame's budget is spent (at least one step per call). */
+static void atlas_advance(uint32_t seed) {
+    uint32_t layer_seed = swc_layer_seed(seed, "holograms");
+    if (g_stage != ATLAS_NONE && g_atlas_seed != seed)
+        free_atlas(); /* a new city has other ads */
+    g_atlas_seed = seed;
+    double t0 = GetTime();
+    while (g_stage != ATLAS_READY && g_stage != ATLAS_FAILED) {
+        atlas_step(layer_seed);
+        if (g_budget_ms > 0.0 && (GetTime() - t0) * 1000.0 >= g_budget_ms)
+            break;
+    }
+}
+
+static bool atlas_ready(void) {
+    return g_stage == ATLAS_READY && g_atlas != 0;
 }
 
 /* ---- the meshes ---- */
@@ -266,27 +314,25 @@ static void upload_wire(const SwcWireMesh *m) {
     rlDisableVertexArray();
 }
 
-void swc_holograms_sync(const SwcCity *city) {
-    if (g_panel.id == 0 || g_wire.id == 0 || g_ticker.id == 0 ||
-        (g_synced && g_synced_seed == city->seed && g_synced_sites == city->site_count))
+void swc_holograms_sync(const SwcCity *city, const SwcQuality *q) {
+    if (g_panel.id == 0 || g_wire.id == 0 || g_ticker.id == 0)
         return;
-    free_scene();
+    /* The ads do not depend on the tier: made once per seed and kept. The panels, rings and solids below do
+     * not need the picture to be packed, so they go up at once and the ads fade in when the atlas is ready.
+     */
+    atlas_advance(city->seed);
+    if (g_synced && g_synced_seed == city->seed && g_synced_sites == city->site_count &&
+        g_synced_tier == q->tier)
+        return;
+    free_meshes();
     g_synced = true; /* even if something below fails: do not retry every frame */
     g_synced_seed = city->seed;
     g_synced_sites = city->site_count;
+    g_synced_tier = q->tier;
 
-    /* Full density: quality tiers come later, and the web version's `high` tier is 1. */
-    const double density = 1.0;
+    const double density = q->density;
     SwcAtlasCell cells[SWC_ATLAS_CELL_COUNT];
     swc_atlas_layout(cells);
-
-    SwcCanvas *canvas = swc_atlas_draw_all(swc_layer_seed(city->seed, "holograms"));
-    if (canvas == NULL)
-        return;
-    g_atlas = upload_atlas(canvas);
-    swc_cv_destroy(canvas);
-    if (g_atlas == 0)
-        return;
 
     SwcPanelPack panels = {0};
     if (swc_holo_pack_panels(city, cells, density, &panels) && panels.count > 0)
@@ -323,7 +369,7 @@ static void draw_instanced(SwcProg *prog, const MeshGpu *g, const SwcFrameUnifor
 }
 
 void swc_holograms_draw(const SwcFrameUniforms *f, const SwcLook *look) {
-    if (g_panel.id == 0 || g_atlas == 0)
+    if (g_panel.id == 0 || !atlas_ready())
         return;
     rlDrawRenderBatchActive();
     rlEnableColorBlend();

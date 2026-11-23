@@ -32,6 +32,7 @@ static SwcPackedBeams g_packed;
 static bool g_synced;
 static uint32_t g_synced_seed;
 static int g_synced_sites;
+static SwcTier g_synced_tier;
 
 static void add_attribute(MeshGpu *g, int loc, int comps, const float *data, int count, int divisor) {
     unsigned vbo = rlLoadVertexBuffer(data, count * comps * (int)sizeof(float), false);
@@ -144,12 +145,12 @@ void swc_beams_free(void) {
     g_synced = false;
 }
 
-void swc_beams_sync(const SwcCity *city) {
+void swc_beams_sync(const SwcCity *city, const SwcQuality *q) {
     if (g_ribbon.id == 0 || g_flare.id == 0 ||
-        (g_synced && g_synced_seed == city->seed && g_synced_sites == city->site_count))
+        (g_synced && g_synced_seed == city->seed && g_synced_sites == city->site_count &&
+         g_synced_tier == q->tier))
         return;
-    /* Full density: quality tiers come later, and the web version's `high` tier is 1. */
-    swc_pack_beams(city, 1.0, swc_beam_layer_seed(city->seed), &g_packed);
+    swc_pack_beams(city, q->density, swc_beam_layer_seed(city->seed), &g_packed);
     const SwcBeamSet *sets[2] = {&g_packed.sky, &g_packed.pillars};
     for (int i = 0; i < 2; i++) {
         if (sets[i]->count == 0) {
@@ -163,6 +164,7 @@ void swc_beams_sync(const SwcCity *city) {
     g_synced = true;
     g_synced_seed = city->seed;
     g_synced_sites = city->site_count;
+    g_synced_tier = q->tier;
 }
 
 static void draw_all(SwcProg *prog, const SwcFrameUniforms *f, const SwcLook *look, bool ribbons,

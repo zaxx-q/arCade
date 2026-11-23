@@ -40,6 +40,7 @@ static SwcHeroLight g_hero_lights_cpu[SWC_HERO_LIGHT_MAX];
 static bool g_synced;
 static uint32_t g_synced_seed;
 static int g_synced_lanes;
+static SwcTier g_synced_tier;
 
 static void add_attribute(MeshGpu *g, int loc, int comps, const void *data, int bytes) {
     unsigned vbo = rlLoadVertexBuffer(data, bytes, false);
@@ -227,14 +228,14 @@ void swc_airtraffic_free(void) {
     g_synced = false;
 }
 
-void swc_airtraffic_sync(const SwcCity *city) {
+void swc_airtraffic_sync(const SwcCity *city, const SwcQuality *q) {
     if (g_hull.id == 0 || g_craft_light.id == 0 || g_hero.id == 0 || g_hero_light.id == 0 ||
-        (g_synced && g_synced_seed == city->seed && g_synced_lanes == city->lane_count))
+        (g_synced && g_synced_seed == city->seed && g_synced_lanes == city->lane_count &&
+         g_synced_tier == q->tier))
         return;
     free_scene();
-    /* Full density: quality tiers come later, and the web version's `high` tier is 1. */
     uint32_t layer_seed = swc_air_layer_seed(city->seed);
-    swc_air_pack_craft(city, 1.0, layer_seed, &g_craft);
+    swc_air_pack_craft(city, q->density, layer_seed, &g_craft);
     swc_air_plan_heroes(city, layer_seed, &g_heroes);
 
     if (g_craft.count > 0) {
@@ -261,6 +262,7 @@ void swc_airtraffic_sync(const SwcCity *city) {
     g_synced = true;
     g_synced_seed = city->seed;
     g_synced_lanes = city->lane_count;
+    g_synced_tier = q->tier;
 }
 
 static void draw_mesh(const MeshGpu *g) {

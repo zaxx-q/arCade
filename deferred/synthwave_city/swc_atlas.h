@@ -11,6 +11,7 @@
 #ifndef SWC_ATLAS_H
 #define SWC_ATLAS_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "swc_holo.h"
@@ -25,5 +26,33 @@ void swc_atlas_draw_cell(SwcCanvas *cv, const SwcAtlasCell *cell, uint32_t layer
 
 /* The whole atlas at once; NULL when out of memory. */
 SwcCanvas *swc_atlas_draw_all(uint32_t layer_seed);
+
+/* ---- the same work in small pieces, so a real window can spread it over frames ---- */
+
+typedef struct SwcAtlasJob {
+    SwcCanvas *cv;
+    SwcAtlasCell cells[SWC_ATLAS_CELL_COUNT];
+    int cell_count;
+    int next; /* the next cell to draw */
+    uint32_t layer_seed;
+} SwcAtlasJob;
+
+/* Creates the canvas and lays the cells out. False when out of memory (nothing is left to free). */
+bool swc_atlas_job_start(SwcAtlasJob *j, uint32_t layer_seed);
+/* Draws one cell. True while cells remain: the canvas equals swc_atlas_draw_all's once it returns false. */
+bool swc_atlas_job_next(SwcAtlasJob *j);
+/* Hands the canvas over (the caller destroys it) and clears the job. */
+SwcCanvas *swc_atlas_job_take(SwcAtlasJob *j);
+void swc_atlas_job_free(SwcAtlasJob *j);
+
+/* IEEE binary16 bits of a float (round to nearest; overflow gives infinity, tiny values denormals). */
+uint16_t swc_half_bits(float f);
+/* sRGB byte -> linear light as a half float, for the 256 possible values. */
+void swc_atlas_srgb_lut(uint16_t lut[256]);
+/* Rows [first, first + count) of the texture the holograms shader reads, as RGBA half floats in linear light
+ * (alpha 1): texture row y is canvas row h - 1 - y, as a canvas uploaded with flipY. `texels` is the whole
+ * texture, width * height * 4 values; only those rows are written. */
+void swc_atlas_half_rows(const SwcCanvas *cv, const uint16_t lut[256], int first, int count,
+                         uint16_t *texels);
 
 #endif
