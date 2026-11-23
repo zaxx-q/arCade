@@ -63,7 +63,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 </table>
 
 <details>
-  <summary><b>Game yang ditunda (14 game di <code>deferred/</code>)</b></summary>
+  <summary><b>Game yang arsipkan (14 game di <code>deferred/</code>)</b></summary>
   <br/>
 
 <table>
@@ -216,7 +216,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/synthwave_city.png" width="380" alt="Screenshot Synthwave City"/>
       </a>
       <p align="left">
-        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Port C dari <a href="https://github.com/highsierralabs/Synthwave_City">Synthwave City</a> karya Kris E. Granholm (MIT), dengan tampilan 3D raylib biasa. Skor = kilometer yang ditempuh; tidak ada game over.<br/>
+        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Skor = kilometer yang ditempuh; tidak ada game over.<br/>
         <b>Kontrol:</b> WASD atau panah untuk terbang, tahan klik kiri dan seret untuk melihat sekeliling, klik kanan untuk dorongan, roda mouse untuk skala kecepatan, Spasi tur otomatis, 1-6 titik pandang, T ganti suasana, M bisukan musik.<br/>
         <b>Di hub:</b> game ini juga menjadi latar belakang hidup menu: klik latar belakang untuk memainkannya, <code>Esc</code> kembali ke menu.
       </p>
@@ -225,6 +225,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 </table>
 
 </details>
+
 ---
 
 ## Sorotan
@@ -279,7 +280,7 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 | Klik di latar belakang kota | Menyembunyikan menu dan memainkan Synthwave City (WASD terbang, seret mouse untuk menoleh, Spasi tur, 1-6 titik pandang, T suasana) |
 | Esc                     | Saat terbang di kota: menampilkan menu lagi. Di menu: keluar dari hub (di dalam game lain: kembali ke menu) |
 
-Latar belakang bawaan adalah Synthwave City: drone terbang sendiri di belakang menu. Klik di mana saja di luar panel menu untuk menyembunyikan menu dan memainkan kotanya; tekan `Esc` untuk menampilkan menu lagi dan mengembalikan kontrol ke menu. Tombol kecil "switch to sandbox" (atau `B`) menukar ke latar belakang sandbox, tempat klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan sandbox ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game yang ditunda (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
+Latar belakang bawaan adalah Synthwave City: drone terbang sendiri di belakang menu. Klik di mana saja di luar panel menu untuk menyembunyikan menu dan memainkan kotanya; tekan `Esc` untuk menampilkan menu lagi dan mengembalikan kontrol ke menu. Tombol kecil "switch to sandbox" (atau `B`) menukar ke latar belakang sandbox, tempat klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan sandbox ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
 
 Flag command line:
 
