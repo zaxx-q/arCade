@@ -61,5 +61,25 @@ check "other tags ignored: version" version 1.0.1
 newrepo; commit "feat: a"; tag v1.9.9; commit "feat: b"; commit "chore: c"; commit "fix: d"
 check "commit count" commits 3
 
+newrepo
+commit "fix: base"
+tag v2.0.1
+git -C "$repo" checkout -q -b release-tag
+commit "feat: published on another branch"
+tag v2.1.0
+git -C "$repo" checkout -q master 2>/dev/null || git -C "$repo" checkout -q main
+commit "feat: main branch change"
+check "existing divergent tag is not reused" version 2.2.0
+
+newrepo
+commit "feat: base"
+git -C "$repo" checkout -q --orphan orphan-branch
+commit "feat: unmerged tag"
+tag v0.1.0
+git -C "$repo" checkout -q master 2>/dev/null || git -C "$repo" checkout -q main
+commit "feat: commit on main"
+check "existing initial tag advances cleanly" version 0.2.0
+check "existing initial tag preserves initial bump" bump initial
+
 echo "next_version tests: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

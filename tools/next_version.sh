@@ -77,13 +77,31 @@ fi
 
 if [ -z "$prev_tag" ]; then
   if [ "$level" = "major" ]; then version="1.0.0"; else version="0.1.0"; fi
-  emit false "" "" initial "$version"; exit 0
+  bump_type="initial"
+  collision_level="$level"
+  if [ "$collision_level" != "major" ]; then collision_level="minor"; fi
+else
+  IFS=. read -r major minor patch <<<"${prev_tag#v}"
+  case "$level" in
+    major) major=$((major + 1)); minor=0; patch=0 ;;
+    minor) minor=$((minor + 1)); patch=0 ;;
+    patch) patch=$((patch + 1)) ;;
+  esac
+  version="$major.$minor.$patch"
+  bump_type="$level"
+  collision_level="$level"
 fi
 
-IFS=. read -r major minor patch <<<"${prev_tag#v}"
-case "$level" in
-  major) major=$((major + 1)); minor=0; patch=0 ;;
-  minor) minor=$((minor + 1)); patch=0 ;;
-  patch) patch=$((patch + 1)) ;;
-esac
-emit false "" "$prev_tag" "$level" "$major.$minor.$patch"
+# Tags can exist on a divergent branch. Do not recreate an existing tag:
+# keep the same bump level and advance until the exact tag is unused.
+while git_ tag --list "v$version" | grep -Eq "^v[0-9]+\.[0-9]+\.[0-9]+$"; do
+  IFS=. read -r major minor patch <<<"$version"
+  case "$collision_level" in
+    major) major=$((major + 1)); minor=0; patch=0 ;;
+    minor) minor=$((minor + 1)); patch=0 ;;
+    patch) patch=$((patch + 1)) ;;
+  esac
+  version="$major.$minor.$patch"
+done
+
+emit false "" "${prev_tag:-}" "$bump_type" "$version"
