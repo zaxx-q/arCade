@@ -12,7 +12,7 @@ arcade_apply_warnings(arCade)
 # without it otherwise (the Online tab then says so), ON makes it required, OFF never looks for it.
 set(ARCADE_ONLINE "AUTO" CACHE STRING "Online leaderboard: AUTO (use libcurl when found), ON (require it) or OFF")
 set_property(CACHE ARCADE_ONLINE PROPERTY STRINGS AUTO ON OFF)
-set(ARCADE_ONLINE_URL "https://arcade-leaderboard.zaxxqgeminicli.workers.dev" CACHE STRING
+set(ARCADE_ONLINE_URL "https://arcade-leaderboard.zaxx-q.workers.dev" CACHE STRING
     "Server of the online leaderboard (https://host; the ARCADE_ONLINE_URL environment variable overrides it)")
 if(NOT ARCADE_ONLINE STREQUAL "OFF")
   if(ARCADE_ONLINE STREQUAL "ON")
