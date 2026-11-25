@@ -203,7 +203,9 @@ typedef struct Frame {
     const synthwave_city_State *s;
     const MoodStyle *mood;
     double camx, camy, camz;
-    float fwd[3], right[3], up[3];
+    float fwd[3], right[3], up[3]; /* the camera's axes, leaning with the roll */
+    float right0[3], up0[3];       /* the same without the roll: the sky is drawn upright, then turned */
+    float roll;                    /* radians */
     float tan_h, tan_v, sec_h, sec_v, focal;
     float sun_h[2]; /* horizontal unit vector towards the sun */
     double t;
@@ -236,7 +238,19 @@ static void setup_frame(const synthwave_city_State *s, double t) {
     F.up[0] = -F.right[2] * F.fwd[1];
     F.up[1] = F.right[2] * F.fwd[0] - F.right[0] * F.fwd[2];
     F.up[2] = F.right[0] * F.fwd[1];
-    F.tan_v = tanf((float)SWC_FOV_DEG * 0.5f * (ARC_PI / 180.0f));
+    F.roll = (float)s->roll;
+    for (int i = 0; i < 3; i++) {
+        F.right0[i] = F.right[i];
+        F.up0[i] = F.up[i];
+    }
+    if (F.roll != 0.0f) { /* three.js "YXZ": the roll turns the right and up axes about the view axis */
+        float cr = cosf(F.roll), sr = sinf(F.roll);
+        for (int i = 0; i < 3; i++) {
+            F.right[i] = cr * F.right0[i] + sr * F.up0[i];
+            F.up[i] = -sr * F.right0[i] + cr * F.up0[i];
+        }
+    }
+    F.tan_v = tanf((float)s->fov * 0.5f * (ARC_PI / 180.0f));
     F.tan_h = F.tan_v * (float)F.w / (float)F.h;
     F.sec_h = sqrtf(1.0f + F.tan_h * F.tan_h);
     F.sec_v = sqrtf(1.0f + F.tan_v * F.tan_v);
@@ -259,7 +273,7 @@ static bool visible(float x, float y, float z, float r) {
     float cz = x * F.fwd[0] + y * F.fwd[1] + z * F.fwd[2];
     if (cz < -r)
         return false;
-    float cx = x * F.right[0] + z * F.right[2];
+    float cx = x * F.right[0] + y * F.right[1] + z * F.right[2];
     if (fabsf(cx) > cz * F.tan_h + r * F.sec_h)
         return false;
     float cy = x * F.up[0] + y * F.up[1] + z * F.up[2];
@@ -499,12 +513,12 @@ static void flush_sprites(void) {
     rlBegin(RL_QUADS);
     for (int i = 0; i < g_sprite_count; i++) {
         const Sprite *s = &g_sprites[i];
-        float rx = F.right[0] * s->size, rz = F.right[2] * s->size;
+        float rx = F.right[0] * s->size, ry = F.right[1] * s->size, rz = F.right[2] * s->size;
         float ux = F.up[0] * s->size, uy = F.up[1] * s->size, uz = F.up[2] * s->size;
-        tex_vtx(s->x - rx - ux, s->y - uy, s->z - rz - uz, 0.0f, 1.0f, s->c);
-        tex_vtx(s->x + rx - ux, s->y - uy, s->z + rz - uz, 1.0f, 1.0f, s->c);
-        tex_vtx(s->x + rx + ux, s->y + uy, s->z + rz + uz, 1.0f, 0.0f, s->c);
-        tex_vtx(s->x - rx + ux, s->y + uy, s->z - rz + uz, 0.0f, 0.0f, s->c);
+        tex_vtx(s->x - rx - ux, s->y - ry - uy, s->z - rz - uz, 0.0f, 1.0f, s->c);
+        tex_vtx(s->x + rx - ux, s->y + ry - uy, s->z + rz - uz, 1.0f, 1.0f, s->c);
+        tex_vtx(s->x + rx + ux, s->y + ry + uy, s->z + rz + uz, 1.0f, 0.0f, s->c);
+        tex_vtx(s->x - rx + ux, s->y - ry + uy, s->z - rz + uz, 0.0f, 0.0f, s->c);
     }
     rlEnd();
     rlSetTexture(0);
@@ -530,14 +544,27 @@ static void draw_sky(void) {
     float covered = atanf((float)F.camy / 3400.0f) + 0.04f;
     float yaw = (float)s->cam.yaw, pitch = (float)s->cam.pitch;
     float f = F.focal, cx = (float)F.w * 0.5f, cy = (float)F.h * 0.5f;
+    /* The sky is drawn as if the camera did not lean, and the whole picture then turned by the roll about its
+     * centre; the bands reach as far as the turned screen needs (the screen itself when there is no roll). */
+    float half_w = cx * fabsf(cosf(F.roll)) + cy * fabsf(sinf(F.roll));
+    float half_h = cx * fabsf(sinf(F.roll)) + cy * fabsf(cosf(F.roll));
+    if (F.roll == 0.0f)
+        half_w = cx, half_h = cy;
     float cols_x[4];
     float az[4];
     for (int i = 0; i < 4; i++) {
-        cols_x[i] = (float)F.w * (float)i / 3.0f;
+        cols_x[i] = (cx - half_w) + 2.0f * half_w * (float)i / 3.0f;
         az[i] = yaw - atanf((cols_x[i] - cx) / f / cosf(pitch));
     }
+    if (F.roll != 0.0f) {
+        rlPushMatrix();
+        rlTranslatef(cx, cy, 0.0f);
+        rlRotatef(F.roll * (180.0f / ARC_PI), 0.0f, 0.0f, 1.0f);
+        rlTranslatef(-cx, -cy, 0.0f);
+    }
     for (int b = 0; b < bands; b++) {
-        float y0 = (float)F.h * (float)b / (float)bands, y1 = (float)F.h * (float)(b + 1) / (float)bands;
+        float y0 = (cy - half_h) + 2.0f * half_h * (float)b / (float)bands;
+        float y1 = (cy - half_h) + 2.0f * half_h * (float)(b + 1) / (float)bands;
         float e0 = pitch + atanf((cy - y0) / f), e1 = pitch + atanf((cy - y1) / f);
         if (e1 < -covered) /* the ground ring hides everything this far below the horizon */
             continue;
@@ -559,8 +586,8 @@ static void draw_sky(void) {
         float zc = dx * F.fwd[0] + dy * F.fwd[1] + dz * F.fwd[2];
         if (zc < 0.05f)
             continue;
-        float xs = cx + (dx * F.right[0] + dz * F.right[2]) / zc * f;
-        float ys = cy - (dx * F.up[0] + dy * F.up[1] + dz * F.up[2]) / zc * f;
+        float xs = cx + (dx * F.right0[0] + dz * F.right0[2]) / zc * f;
+        float ys = cy - (dx * F.up0[0] + dy * F.up0[1] + dz * F.up0[2]) / zc * f;
         float tw = 0.65f + 0.35f * sinf((float)F.t * (1.0f + (float)(h1 & 7u) * 0.3f) + (float)i);
         float a = clampf(F.mood->stars * 0.5f, 0.0f, 1.0f) * tw * smooth(0.10f, 0.55f, sel);
         DrawRectangle((int)xs, (int)ys, (h1 & 15u) == 0 ? 2 : 1, (h1 & 15u) == 0 ? 2 : 1,
@@ -571,9 +598,9 @@ static void draw_sky(void) {
     const MoodStyle *m = F.mood;
     float zc = m->sun_dir[0] * F.fwd[0] + m->sun_dir[1] * F.fwd[1] + m->sun_dir[2] * F.fwd[2];
     if (zc > 0.05f) {
-        float sx = cx + (m->sun_dir[0] * F.right[0] + m->sun_dir[2] * F.right[2]) / zc * f;
+        float sx = cx + (m->sun_dir[0] * F.right0[0] + m->sun_dir[2] * F.right0[2]) / zc * f;
         float sy =
-            cy - (m->sun_dir[0] * F.up[0] + m->sun_dir[1] * F.up[1] + m->sun_dir[2] * F.up[2]) / zc * f;
+            cy - (m->sun_dir[0] * F.up0[0] + m->sun_dir[1] * F.up0[1] + m->sun_dir[2] * F.up0[2]) / zc * f;
         float radius = 0.115f * f;
         BeginBlendMode(BLEND_ADDITIVE);
         for (int k = 0; k < 4; k++)
@@ -593,6 +620,8 @@ static void draw_sky(void) {
                           col(mixc(m->sun_top, m->sun_bottom, clampf(t * 1.1f, 0.0f, 1.0f)), 1.0f));
         }
     }
+    if (F.roll != 0.0f)
+        rlPopMatrix();
 }
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -1448,8 +1477,10 @@ void swc_render_scene_legacy(const synthwave_city_State *s, double time_s, const
     Camera3D cam;
     cam.position = (Vector3){0.0f, 0.0f, 0.0f};
     cam.target = (Vector3){F.fwd[0], F.fwd[1], F.fwd[2]};
-    cam.up = (Vector3){0.0f, 1.0f, 0.0f};
-    cam.fovy = (float)SWC_FOV_DEG;
+    /* Without a roll, raylib's own lookAt gets the world up, exactly as before the camera port (the picture
+     * is then bit for bit the old one); a roll hands it the leaning up instead. */
+    cam.up = F.roll != 0.0f ? (Vector3){F.up[0], F.up[1], F.up[2]} : (Vector3){0.0f, 1.0f, 0.0f};
+    cam.fovy = (float)s->fov;
     cam.projection = CAMERA_PERSPECTIVE;
     BeginMode3D(cam);
     rlDisableBackfaceCulling(); /* faces are culled by hand, and the overlays need both sides */

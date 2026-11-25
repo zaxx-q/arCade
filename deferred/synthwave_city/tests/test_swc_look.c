@@ -105,7 +105,7 @@ static void test_view_matrix_maps_the_view_direction_to_minus_z(void) {
     for (int i = 0; i < 4; i++) {
         double yaw = poses[i][0], pitch = poses[i][1];
         float v[16];
-        swc_view_matrix(yaw, pitch, 100.0, v);
+        swc_view_matrix(yaw, pitch, 0.0, 100.0, v);
         double fwd[3] = {-sin(yaw) * cos(pitch), sin(pitch), -cos(yaw) * cos(pitch)};
         double eye[3] = {0.0, 100.0, 0.0};
         double p[3] = {eye[0] + fwd[0] * 50.0, eye[1] + fwd[1] * 50.0, eye[2] + fwd[2] * 50.0};
@@ -121,9 +121,37 @@ static void test_view_matrix_maps_the_view_direction_to_minus_z(void) {
     }
 }
 
+static void test_roll_turns_the_picture_about_the_view_axis(void) {
+    static const double poses[3][3] = {{0.0, 0.0, 0.2}, {0.7, 0.3, -0.24}, {-1.4, -0.5, 0.12}};
+    for (int i = 0; i < 3; i++) {
+        double yaw = poses[i][0], pitch = poses[i][1], roll = poses[i][2];
+        float v0[16], v[16];
+        swc_view_matrix(yaw, pitch, 0.0, 50.0, v0);
+        swc_view_matrix(yaw, pitch, roll, 50.0, v);
+        double fwd[3] = {-sin(yaw) * cos(pitch), sin(pitch), -cos(yaw) * cos(pitch)};
+        double eye[3] = {0.0, 50.0, 0.0};
+        double p[3] = {eye[0] + fwd[0] * 30.0, eye[1] + fwd[1] * 30.0, eye[2] + fwd[2] * 30.0}, o[4];
+        mul_point(v, p, o); /* the view axis stays where it was... */
+        CHECK_NEAR(o[0], 0.0, 1e-3);
+        CHECK_NEAR(o[1], 0.0, 1e-3);
+        CHECK_NEAR(o[2], -30.0, 1e-3);
+        /* ...a point 10 m off it in the picture's plane turns about it by the roll angle */
+        double q[3] = {p[0] + 10.0 * cos(yaw), p[1], p[2] - 10.0 * sin(yaw)}, a[4], b[4]; /* to the right */
+        mul_point(v0, q, a);
+        mul_point(v, q, b);
+        CHECK_NEAR(hypot(b[0], b[1]), hypot(a[0], a[1]), 1e-3);
+        CHECK_NEAR(atan2(b[1], b[0]) - atan2(a[1], a[0]), -roll, 1e-4);
+    }
+    float a[16], b[16];
+    swc_view_matrix(0.4, 0.2, 0.0, 30.0, a);
+    swc_view_matrix(0.4, 0.2, 1e-12, 30.0, b);
+    for (int i = 0; i < 16; i++)
+        CHECK_NEAR(a[i], b[i], 1e-6); /* continuous at zero */
+}
+
 static void test_yaw_turns_towards_minus_x(void) {
     float v[16];
-    swc_view_matrix(0.5, 0.0, 0.0, v);
+    swc_view_matrix(0.5, 0.0, 0.0, 0.0, v);
     double left[3] = {-10.0, 0.0, -10.0 * 1.0 / tan(0.5)}; /* straight ahead at yaw 0.5 is (-sin, 0, -cos) */
     double o[4];
     mul_point(v, left, o);
@@ -181,10 +209,11 @@ static void test_mirror_view_sees_a_ground_point_where_its_reflected_ray_goes(vo
         {0.0, 0.0, 2.0}, {0.7, -0.2, 40.0}, {-1.2, 0.3, 120.0}, {2.5, -0.5, 8.0}, {4.0, 0.9, 300.0}};
     float proj[16];
     swc_proj_matrix(62.0, 16.0 / 9.0, 1.0, 14000.0, proj);
-    for (int i = 0; i < 5; i++) {
-        double yaw = poses[i][0], pitch = poses[i][1], h = poses[i][2];
+    static const double rolls[3] = {0.0, 0.2, -0.24};
+    for (int i = 0; i < 15; i++) {
+        double yaw = poses[i / 3][0], pitch = poses[i / 3][1], h = poses[i / 3][2], roll = rolls[i % 3];
         float mv[16], m[16];
-        swc_mirror_view_matrix(yaw, pitch, h, mv);
+        swc_mirror_view_matrix(yaw, pitch, roll, h, mv);
         swc_mirror_sample_matrix(proj, mv, m);
         /* a ground point P, and the scene point Q on the ray that leaves P after the camera's ray C -> P
          * turned over */
@@ -211,8 +240,8 @@ static void test_mirror_image_is_in_frame_where_the_ground_is(void) {
     for (int i = 0; i < 4; i++) {
         double yaw = poses[i][0], pitch = poses[i][1], h = poses[i][2];
         float v[16], mv[16], m[16], real[16];
-        swc_view_matrix(yaw, pitch, h, v);
-        swc_mirror_view_matrix(yaw, pitch, h, mv);
+        swc_view_matrix(yaw, pitch, 0.0, h, v);
+        swc_mirror_view_matrix(yaw, pitch, 0.0, h, mv);
         swc_mirror_sample_matrix(proj, mv, m);
         swc_mat4_mul(proj, v, real);
         for (int gz = -20; gz <= 20; gz++)
@@ -240,6 +269,7 @@ int main(void) {
     RUN(test_easing_does_not_depend_on_the_frame_rate);
     RUN(test_view_matrix_maps_the_view_direction_to_minus_z);
     RUN(test_yaw_turns_towards_minus_x);
+    RUN(test_roll_turns_the_picture_about_the_view_axis);
     RUN(test_projection_maps_the_frustum_edge_to_the_screen_edge);
     RUN(test_matrix_product_composes_in_column_major_order);
     RUN(test_mirror_view_sees_a_ground_point_where_its_reflected_ray_goes);

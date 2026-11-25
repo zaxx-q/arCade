@@ -275,7 +275,7 @@ static void reflection_pass(const synthwave_city_State *s, int w, int h) {
     SwcFrameUniforms *m = &G.mfu;
     *m = G.fu; /* the resolution stays that of the real frame: pixel-size limits are per screen pixel */
     m->cam_y = -G.fu.cam_y;
-    swc_mirror_view_matrix(s->cam.yaw, s->cam.pitch, s->cam.y, m->view);
+    swc_mirror_view_matrix(s->cam.yaw, s->cam.pitch, s->roll, s->cam.y, m->view);
     swc_mirror_sample_matrix(G.fu.proj, m->view, G.mirror.matrix);
 
     swc_target_bind(&G.refl);
@@ -327,8 +327,8 @@ static void frame_uniforms(const synthwave_city_State *s, const SwcQuality *q, i
     f->cam_y = (float)s->cam.y;
     f->far_fade[0] = (float)q->fade_start;
     f->far_fade[1] = (float)q->fade_end;
-    swc_view_matrix(s->cam.yaw, s->cam.pitch, s->cam.y, f->view);
-    swc_proj_matrix(SWC_FOV_DEG, (double)w / (double)h, NEAR_PLANE, FAR_PLANE, f->proj);
+    swc_view_matrix(s->cam.yaw, s->cam.pitch, s->roll, s->cam.y, f->view);
+    swc_proj_matrix(s->fov, (double)w / (double)h, NEAR_PLANE, FAR_PLANE, f->proj);
     f->resolution[0] = (float)w;
     f->resolution[1] = (float)h;
     f->motion = 1.0f;

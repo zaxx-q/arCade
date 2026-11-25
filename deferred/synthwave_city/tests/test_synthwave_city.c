@@ -97,8 +97,7 @@ static void test_the_tour_flies_on_its_own_and_never_hits_a_building(void) {
 
 static void test_flight_forward_reaches_top_speed(void) {
     synthwave_city_init(&s, 1u);
-    swc_goto_view(&s, 3); /* high above the skyline: nothing to hit */
-    s.cam.pitch = 0.0;
+    swc_place_camera(&s, s.views[3].x, s.views[3].y, s.views[3].z, 0.0, 0.0); /* above the skyline */
     ArcadeInput in = idle();
     in.move_y = -1.0f; /* W: the move axis is -1 when forward is held */
     double z0 = s.cam.z;
@@ -141,12 +140,8 @@ static void test_flying_into_a_wall_slides_and_never_enters(void) {
             wall = b;
     }
     CHECK(wall != NULL);
-    swc_goto_view(&s, 0);
-    s.cam.x = swc_wrap_tile((double)wall->cx);
-    s.cam.z = swc_wrap_tile((double)wall->cz + (double)wall->sz * 0.5 + 6.0);
-    s.cam.y = 20.0;
-    s.cam.pitch = 0.0;
-    s.cam.yaw = 0.0; /* facing -z, straight at the wall */
+    /* facing -z, straight at the wall */
+    swc_place_camera(&s, (double)wall->cx, 20.0, (double)wall->cz + (double)wall->sz * 0.5 + 6.0, 0.0, 0.0);
     ArcadeInput in = idle();
     in.move_y = -1.0f;
     in.alt = true;
@@ -166,11 +161,18 @@ static void test_the_viewpoint_keys(void) {
     for (int i = 0; i < SWC_VIEW_COUNT; i++) {
         ArcadeInput in = idle();
         in.typed = '1' + i;
-        synthwave_city_step(&s, &in, 0.0f + ARC_DT);
+        synthwave_city_step(&s, &in, ARC_DT);
         CHECK(!s.touring);
         CHECK_EQ_INT(s.view, i);
-        CHECK_NEAR(swc_wrap_delta(s.cam.x, s.views[i].x, SWC_TILE), 0.0, 3.0);
-        CHECK_NEAR(s.cam.y, s.views[i].y, 3.0);
+        /* the camera glides there over a second... */
+        in = idle();
+        run(30, &in);
+        CHECK(s.rig.phase == SWC_PHASE_EASE);
+        run(40, &in);
+        /* ...and lands exactly on it, in free flight */
+        CHECK(s.rig.phase == SWC_PHASE_FREE);
+        CHECK_NEAR(swc_wrap_delta(s.cam.x, s.views[i].x, SWC_TILE), 0.0, 1e-9);
+        CHECK_NEAR(s.cam.y, s.views[i].y, 1e-9);
     }
     ArcadeInput bad = idle();
     bad.typed = '9';
@@ -199,9 +201,95 @@ static void test_space_toggles_the_tour_and_controls_take_over(void) {
     in = idle();
     in.action = in.action_pressed = true;
     synthwave_city_step(&s, &in, ARC_DT);
-    CHECK(s.touring);
+    CHECK(s.touring); /* on its way back: the join, then the blend */
+    CHECK(s.rig.phase == SWC_PHASE_JOIN);
     synthwave_city_step(&s, &in, ARC_DT);
     CHECK(!s.touring);
+}
+
+static void test_two_quick_clicks_take_over_and_a_drag_only_looks(void) {
+    synthwave_city_init(&s, 1u);
+    ArcadeInput in = idle();
+    in.aim_x = 640.0f;
+    in.aim_y = 360.0f;
+    synthwave_city_step(&s, &in, ARC_DT);
+    /* a drag on the tour pans the view and does not take over */
+    double yaw0 = s.cam.yaw;
+    in.fire = true;
+    synthwave_city_step(&s, &in, ARC_DT);
+    in.aim_x = 740.0f;
+    synthwave_city_step(&s, &in, ARC_DT);
+    CHECK(s.touring);
+    CHECK(fabs(swc_wrap_delta(s.cam.yaw, yaw0, SWC_TAU)) > 0.1);
+    in.fire = false;
+    synthwave_city_step(&s, &in, ARC_DT);
+    CHECK(s.touring);
+    /* two clicks in place within a third of a second take over; one alone does not */
+    in = idle();
+    in.aim_x = 300.0f;
+    in.aim_y = 200.0f;
+    for (int click = 0; click < 2; click++) {
+        in.fire = true;
+        run(4, &in);
+        in.fire = false;
+        run(4, &in);
+        CHECK(click == 0 ? s.touring : !s.touring);
+    }
+    /* two clicks too far apart in time do not */
+    synthwave_city_init(&s, 1u);
+    in = idle();
+    in.aim_x = 300.0f;
+    in.aim_y = 200.0f;
+    for (int click = 0; click < 2; click++) {
+        in.fire = true;
+        run(4, &in);
+        in.fire = false;
+        run(30, &in);
+    }
+    CHECK(s.touring);
+}
+
+static void test_new_cities_roll_short_seeds_and_start_the_tour_over(void) {
+    unsigned seen = 0;
+    for (uint32_t e = 0; e < 2000u; e++) {
+        unsigned cur = e % 7u == 0 ? 1u : 1984u;
+        unsigned seed = swc_roll_seed(cur, e * 2654435761u);
+        CHECK(seed >= 1u && seed <= SWC_MAX_ROLLED && seed != cur);
+        CHECK_EQ_INT((int)seed, (int)swc_roll_seed(cur, e * 2654435761u)); /* the same draw, the same seed */
+        seen |= seed > 500000u ? 1u : 2u;
+    }
+    CHECK_EQ_INT((int)seen, 3); /* both halves of the range come up */
+    synthwave_city_init(&s, 1984u);
+    s.mood = 2;
+    ArcadeInput in = idle();
+    in.move_y = -1.0f;
+    run(120, &in); /* take over and fly for a while */
+    CHECK(!s.touring);
+    unsigned next = swc_roll_seed(1984u, 7u);
+    swc_new_city(&s, next);
+    CHECK_EQ_INT((int)s.city.seed, (int)next);
+    CHECK_EQ_INT(s.mood, 2);
+    CHECK(s.touring);
+    CHECK_NEAR(s.cam.y, 150.0, 1e-6);
+    CHECK_NEAR(s.distance, 0.0, 1e-12);
+    synthwave_city_init(&s, 1u);
+}
+
+static void test_the_wheel_zooms_the_lens_on_the_tour(void) {
+    synthwave_city_init(&s, 1u);
+    ArcadeInput in = idle();
+    in.wheel = 1; /* up: closer */
+    run(1, &in);
+    in = idle();
+    run(30, &in);
+    CHECK(s.touring);
+    CHECK(s.fov < SWC_FOV_DEG - 5.0 && s.fov >= SWC_MIN_TOUR_FOV);
+    in.wheel = -1;
+    run(1, &in);
+    in = idle();
+    run(30, &in);
+    CHECK_NEAR(s.fov, SWC_FOV_DEG, 0.5);   /* back to where it was: the zoom is a factor */
+    CHECK_NEAR(s.speed_scale, 1.0, 1e-12); /* and it did not touch the flight speed */
 }
 
 static void test_dragging_looks_around_without_a_jump(void) {
@@ -276,6 +364,7 @@ static void test_the_click_that_takes_the_camera_does_not_turn_it(void) {
 
 static void test_wheel_scales_the_cruise_speed(void) {
     synthwave_city_init(&s, 1u);
+    swc_goto_view(&s, 3); /* in free flight the wheel sets the speed */
     ArcadeInput in = idle();
     in.wheel = 1;
     synthwave_city_step(&s, &in, ARC_DT);
@@ -345,7 +434,12 @@ static void test_monkey_never_breaks_it(void) {
             CHECK(s.cam.x >= 0.0 && s.cam.x < SWC_TILE && s.cam.z >= 0.0 && s.cam.z < SWC_TILE);
             CHECK(s.cam.y >= SWC_CAMERA_RADIUS - 1e-6 && s.cam.y <= SWC_MAX_ALTITUDE + 1e-6);
             CHECK(fabs(s.cam.pitch) <= SWC_MAX_PITCH + 1e-9);
-            CHECK(!camera_in_a_building());
+            CHECK(isfinite(s.roll) && fabs(s.roll) <= 0.3);
+            CHECK(s.fov >= SWC_MIN_TOUR_FOV - 1e-9 && s.fov <= SWC_FOV_DEG + 7.0 + 1e-9 + 23.0);
+            /* the glide to a viewpoint is a straight one-second ease, as in the web version: it can cut a
+             * corner */
+            if (s.rig.phase != SWC_PHASE_EASE)
+                CHECK(!camera_in_a_building());
             CHECK(!synthwave_city_is_over(&s));
         }
     }
@@ -373,6 +467,9 @@ int main(void) {
     RUN(test_the_viewpoint_keys);
     RUN(test_mood_key_cycles);
     RUN(test_space_toggles_the_tour_and_controls_take_over);
+    RUN(test_two_quick_clicks_take_over_and_a_drag_only_looks);
+    RUN(test_the_wheel_zooms_the_lens_on_the_tour);
+    RUN(test_new_cities_roll_short_seeds_and_start_the_tour_over);
     RUN(test_dragging_looks_around_without_a_jump);
     RUN(test_an_idle_host_leaves_the_drone_flying);
     RUN(test_a_lone_space_press_hands_the_camera_back_to_the_drone);

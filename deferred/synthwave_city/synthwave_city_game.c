@@ -136,13 +136,18 @@ static void music_stop(Soundtrack *m) {
 /* ------------------------------------------------------------------ the scripted flight of smoke runs */
 
 /* Smoke runs replace the random "monkey" with a short film that touches every control: the tour, the three
- * moods, free flight with a boost, a jump to a viewpoint, a look-around drag and the four states of the layer
- * switch. It repeats every 900 frames.
+ * moods, free flight with a boost, glides to viewpoints, a look-around drag, hiding the UI, going back to the
+ * tour (the join and the blend), the three quality tiers and the states of the layer switch. It repeats every
+ * 900 frames.
  * The frame at 299 (the default smoke length) shows a canyon flight in the Miami mood. */
 static void scripted_input(int frame, ArcadeInput *in) {
     int f = frame % 900;
     arcade_input_clear(in);
     switch (f) {
+    case 20:
+    case 24:
+        in->typed = 'h'; /* the UI away for four frames, and back */
+        break;
     case 100:
         in->typed = 't'; /* midnight */
         break;
@@ -217,7 +222,12 @@ enum { RENDERER_CPU_ONLY, RENDERER_CPU, RENDERER_GPU };
  * ground, 32 air traffic, 64 street life, 128 holograms)   SWC_POST=0 SWC_BLOOM=0 SWC_REFLECT=0
  *   SWC_LIVE=0..15 (the layer switch of the L key: 1 beams, 2 air traffic, 4 street life, 8 holograms; either
  *   renderer)
- *   SWC_POSE=x,y,z,yaw,pitch (stay at this pose instead of a viewpoint) */
+ *   SWC_POSE=x,y,z,yaw,pitch[,roll[,fov]] (stay at this pose instead of a viewpoint; roll in radians, fov in
+ *   degrees, 62 by default)
+ *   SWC_KEYS=frame:char,... (press these keys at these frames, e.g. "20:n,40:h"; at most 16)
+ *   SWC_TIER=low|medium|high (the Q key's state, "high" by default)   SWC_MSAA=0 (no multisampling)
+ *   SWC_INTERACTIVE=1 (behave like a real window: the adaptive render scale and the start-up work spread over
+ *   frames; off in harness runs, whose frame times mean nothing and whose first frame must be complete) */
 typedef struct DebugSwitches {
     bool on;
     int view;      /* -1: none */
@@ -227,6 +237,8 @@ typedef struct DebugSwitches {
     int live; /* the layer switch's mask */
     bool has_pose;
     double pose[5];
+    double pose_roll, pose_fov;
+    int key_frame[16], key_char[16], key_count;
     SwcTier tier;
     bool msaa;
     bool interactive;
@@ -238,8 +250,15 @@ static double env_number(const char *name, double fallback) {
 }
 
 static DebugSwitches debug_read(bool headless) {
-    DebugSwitches d = {false,         -1,   -1,   -1.0, false, (int)SWC_LIVE_ALL, false, {0.0},
-                       SWC_TIER_HIGH, true, false};
+    DebugSwitches d;
+    memset(&d, 0, sizeof(d));
+    d.view = -1;
+    d.mood = -1;
+    d.freeze = -1.0;
+    d.live = (int)SWC_LIVE_ALL;
+    d.pose_fov = SWC_FOV_DEG;
+    d.tier = SWC_TIER_HIGH;
+    d.msaa = true;
     if (!headless)
         return d;
     d.on = true;
@@ -250,9 +269,20 @@ static DebugSwitches debug_read(bool headless) {
     d.force_cpu = r != NULL && strcmp(r, "cpu") == 0;
     d.live = (int)env_number("SWC_LIVE", (double)SWC_LIVE_ALL);
     const char *pose = getenv("SWC_POSE");
-    if (pose != NULL &&
-        sscanf(pose, "%lf,%lf,%lf,%lf,%lf", &d.pose[0], &d.pose[1], &d.pose[2], &d.pose[3], &d.pose[4]) == 5)
+    if (pose != NULL && sscanf(pose, "%lf,%lf,%lf,%lf,%lf,%lf,%lf", &d.pose[0], &d.pose[1], &d.pose[2],
+                               &d.pose[3], &d.pose[4], &d.pose_roll, &d.pose_fov) >= 5)
         d.has_pose = true;
+    for (const char *k = getenv("SWC_KEYS"); k != NULL && *k != '\0' && d.key_count < 16;) {
+        int frame = 0, n = 0;
+        char c = 0;
+        if (sscanf(k, "%d:%c%n", &frame, &c, &n) < 2)
+            break;
+        d.key_frame[d.key_count] = frame;
+        d.key_char[d.key_count++] = c;
+        k += n;
+        if (*k == ',')
+            k++;
+    }
     swc_tier_from_name(getenv("SWC_TIER"), &d.tier);
     d.msaa = env_number("SWC_MSAA", 1.0) != 0.0;
     d.interactive = env_number("SWC_INTERACTIVE", 0.0) != 0.0;
@@ -303,8 +333,9 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
         if (h->scale < 0.995 && n > 0 && n < (int)sizeof(gpu))
             snprintf(gpu + n, sizeof(gpu) - (size_t)n, "   RES %.0f%%", h->scale * 100.0);
     }
-    gfx_text(TextFormat("%s   ALT %.0f m   SPEED %.0f km/h   %.1f km%s%s%s", mode, s->cam.y, speed * 3.6,
-                        s->distance / 1000.0, gpu, h->live != SWC_LIVE_ALL ? "   " : "",
+    gfx_text(TextFormat("%s   ALT %.0f m   SPEED %.0f km/h   %.1f km   CITY %u%s%s%s", mode, s->cam.y,
+                        speed * 3.6, s->distance / 1000.0, (unsigned)s->city.seed, gpu,
+                        h->live != SWC_LIVE_ALL ? "   " : "",
                         h->live != SWC_LIVE_ALL ? swc_layers_label(h->live) : ""),
              hud_px(k, 24), hud_px(k, 650), hud_px(k, 18), ARC_COL_CYAN);
     if (h->toast_left > 0.0f) /* the new state, for a moment, also when it is back to the start */
@@ -312,16 +343,19 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
                  Fade(ARC_COL_YELLOW, h->toast_left > 0.5f ? 0.95f : h->toast_left * 1.9f));
     if (t < 14.0f) {
         Color hint = Fade(ARC_COL_TEXT, 0.8f * (1.0f - t / 14.0f) + 0.15f);
-        gfx_text("WASD / arrows: fly   drag with the mouse: look   RIGHT MOUSE: boost   wheel: speed",
+        gfx_text(s->touring ? "DRAG: look   WHEEL: zoom   DOUBLE CLICK or WASD: fly   SPACE: stop the tour"
+                            : "WASD / arrows: fly   DRAG: look   RIGHT MOUSE: boost   WHEEL: speed   SPACE: "
+                              "back to the tour",
                  hud_px(k, 24), hud_px(k, 676), hud_px(k, 16), hint);
         gfx_text(
             h->renderer == RENDERER_CPU_ONLY
                 ? TextFormat(
-                      "SPACE: tour on / off   1-6: viewpoints   T: mood   L: layers   M: mute   ESC: %s",
+                      "1-6: viewpoints   T: mood   N: new city   H: hide UI   L: layers   M: mute   ESC: %s",
                       esc_does)
-                : TextFormat("SPACE: tour on / off   1-6: viewpoints   T: mood   L: layers   G: renderer   "
-                             "Q: quality   M: mute   ESC: %s",
-                             esc_does),
+                : TextFormat(
+                      "1-6: viewpoints   T: mood   N: new city   H: hide UI   L: layers   G: renderer   "
+                      "Q: quality   M: mute   ESC: %s",
+                      esc_does),
             hud_px(k, 24), hud_px(k, 696), hud_px(k, 16), hint);
     }
     if (s->view >= 0 && !s->touring)
@@ -392,18 +426,15 @@ static GameResult play(const GameContext *ctx) {
     memset(&hud, 0, sizeof(hud));
     if (dbg.view >= 0 && dbg.view < SWC_VIEW_COUNT)
         swc_goto_view(&s, dbg.view);
-    if (dbg.has_pose) {
-        s.cam.x = dbg.pose[0], s.cam.y = dbg.pose[1], s.cam.z = dbg.pose[2];
-        s.cam.vx = s.cam.vy = s.cam.vz = 0.0;
-        s.cam.yaw = dbg.pose[3], s.cam.pitch = dbg.pose[4];
-        s.touring = false;
-        s.view = -1;
-    }
+    if (dbg.has_pose)
+        swc_place_camera(&s, dbg.pose[0], dbg.pose[1], dbg.pose[2], dbg.pose[3], dbg.pose[4]);
     if (dbg.mood >= 0)
         s.mood = dbg.mood;
     music_start(&music, city_seed);
     arcade_loop_begin(ctx); /* REQUIRED: resets the frame counter and smoke-test state */
     float t = 0.0f;
+    bool ui_hidden = false; /* H or P: the picture alone, for screenshots */
+    unsigned rolls = 0;     /* cities rolled so far with N */
     while (arcade_loop_running()) {
         ArcadeInput in;
         if (ctx->headless && (dbg.view >= 0 || dbg.has_pose))
@@ -412,6 +443,27 @@ static GameResult play(const GameContext *ctx) {
             scripted_input(arcade_frame_index(), &in);
         else
             arcade_poll(&in);
+        for (int k = 0; k < dbg.key_count; k++)
+            if (dbg.key_frame[k] == arcade_frame_index() && in.typed == 0)
+                in.typed = dbg.key_char[k];
+        if (in.typed == 'm' || in.typed == 'M')
+            music_set_muted(&music, !music.muted);
+        if (in.typed == 'h' || in.typed == 'H' || in.typed == 'p' || in.typed == 'P')
+            ui_hidden = !ui_hidden;
+        if (in.typed == 'n' || in.typed == 'N') {
+            /* A new city, as in the web version: the tour starts over in it and the soundtrack is its own.
+             * The seed is drawn from the launch seed and the count, so a smoke run rolls the same cities
+             * every time. */
+            uint32_t draw[2] = {(uint32_t)ctx->seed, ++rolls};
+            city_seed = swc_roll_seed(city_seed, swc_hash_ints(draw, 2));
+            swc_new_city(&s, city_seed);
+            if (dbg.has_pose)
+                swc_place_camera(&s, dbg.pose[0], dbg.pose[1], dbg.pose[2], dbg.pose[3], dbg.pose[4]);
+            music_stop(&music);
+            music_start(&music, city_seed);
+            snprintf(hud.toast, sizeof(hud.toast), "NEW CITY   %u", city_seed);
+            hud.toast_left = 2.5f;
+        }
         if ((in.typed == 'g' || in.typed == 'G') && gpu_ready)
             renderer = renderer == RENDERER_GPU ? RENDERER_CPU : RENDERER_GPU;
         if (in.typed == 'l' || in.typed == 'L') {
@@ -427,6 +479,10 @@ static GameResult play(const GameContext *ctx) {
             hud.toast_left = 2.5f;
         }
         game_step(&s, &music, &in, ARC_DT);
+        if (dbg.has_pose) { /* a harness holds the lean and the lens too */
+            s.roll = dbg.pose_roll;
+            s.fov = dbg.pose_fov;
+        }
         if (dbg.mood >= 0)
             s.mood = dbg.mood;
         if (dbg.freeze >= 0.0)
@@ -441,7 +497,7 @@ static GameResult play(const GameContext *ctx) {
         hud.scale = renderer == RENDERER_GPU ? swc_gpu_render_scale() : 1.0;
         hud.msaa = renderer == RENDERER_GPU ? swc_gpu_msaa_samples() : 0;
         BeginDrawing();
-        game_draw(&s, t, true, t, &hud, "leave");
+        game_draw(&s, t, !ui_hidden, t, &hud, "leave");
         arcade_frame_end(); /* REQUIRED instead of EndDrawing() */
     }
     music_stop(&music);
@@ -463,8 +519,9 @@ typedef struct Guest {
     bool active;
     bool player_flies; /* the player holds the camera */
     bool hand_back;    /* the camera was just given back: the next step lets the drone take it again */
-    float time;        /* seconds since the session began: drives things that move on their own */
-    float hud_time;    /* seconds since the player took the camera: fades the controls help */
+    bool ui_hidden;
+    float time;     /* seconds since the session began: drives things that move on their own */
+    float hud_time; /* seconds since the player took the camera: fades the controls help */
     int renderer;
     bool gpu_ready;
     SwcTier tier;
@@ -535,6 +592,8 @@ void swc_session_update(const ArcadeInput *in, float dt) {
         g->hand_back = false;
         in = &idle;
     }
+    if (in->typed == 'h' || in->typed == 'H' || in->typed == 'p' || in->typed == 'P')
+        g->ui_hidden = !g->ui_hidden;
     if ((in->typed == 'g' || in->typed == 'G') && g->gpu_ready)
         g->renderer = g->renderer == RENDERER_GPU ? RENDERER_CPU : RENDERER_GPU;
     if (in->typed == 'l' || in->typed == 'L') {
@@ -564,7 +623,7 @@ void swc_session_draw(void) {
     g->hud.tier = g->tier;
     g->hud.scale = g->renderer == RENDERER_GPU ? swc_gpu_render_scale() : 1.0;
     g->hud.msaa = g->renderer == RENDERER_GPU ? swc_gpu_msaa_samples() : 0;
-    game_draw(&g_guest_state, g->time, g->player_flies, g->hud_time, &g->hud, "menu");
+    game_draw(&g_guest_state, g->time, g->player_flies && !g->ui_hidden, g->hud_time, &g->hud, "menu");
 }
 
 void swc_session_pause_audio(bool paused) {
@@ -589,7 +648,7 @@ bool swc_session_touring(void) {
 const GameDef game_synthwave_city_def = {"synthwave_city",
                                          "Synthwave City",
                                          "Fly through an endless neon megacity at sunset",
-                                         "WASD fly - drag mouse look - Space tour - T mood",
+                                         "WASD fly - drag look - Space tour - 1-6 views - H hide UI",
                                          90,
                                          false, /* a sightseeing flight: nothing to rank */
                                          play};

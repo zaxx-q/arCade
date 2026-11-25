@@ -52,8 +52,9 @@ void swc_look_set_mood(SwcLook *look, int mood, bool immediate);
 void swc_look_update(SwcLook *look, double dt);
 
 /* View matrix (column-major, as GLSL reads it) of a camera at (0, eye_y, 0): the world is drawn relative to
- * the camera in x and z. yaw 0 faces -z and positive yaw turns towards -x; pitch up is positive. */
-void swc_view_matrix(double yaw, double pitch, double eye_y, float out[16]);
+ * the camera in x and z. yaw 0 faces -z and positive yaw turns towards -x; pitch up is positive; positive
+ * roll leans the top of the picture to the right (three.js "YXZ" order). */
+void swc_view_matrix(double yaw, double pitch, double roll, double eye_y, float out[16]);
 
 /* Perspective matrix (column-major, OpenGL clip space), vertical field of view in degrees. */
 void swc_proj_matrix(double fov_deg, double aspect, double near_plane, double far_plane, float out[16]);
@@ -61,9 +62,10 @@ void swc_proj_matrix(double fov_deg, double aspect, double near_plane, double fa
 /* out = a * b for column-major 4x4 matrices (out may be a or b). */
 void swc_mat4_mul(const float a[16], const float b[16], float out[16]);
 
-/* The camera that sees what a flat mirror at height 0 shows to a camera at (0, eye_y, 0) with this yaw and
- * pitch: it stands at (0, -eye_y, 0), looks the same way round but with the pitch turned over. */
-void swc_mirror_view_matrix(double yaw, double pitch, double eye_y, float out[16]);
+/* The camera that sees what a flat mirror at height 0 shows to a camera at (0, eye_y, 0) with this yaw, pitch
+ * and roll: it stands at (0, -eye_y, 0) and looks along the view direction turned over in y, with the
+ * camera's up turned over too (the web version's reflection pass builds it that way). */
+void swc_mirror_view_matrix(double yaw, double pitch, double roll, double eye_y, float out[16]);
 
 /* Takes a world point (x and z relative to the camera, y absolute) to texture coordinates (x, y in 0..1, z
  * depth in 0..1) of the image a mirror camera drew: bias * projection * view. For a point on the mirror plane

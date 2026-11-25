@@ -132,11 +132,25 @@ void swc_look_update(SwcLook *look, double dt) {
     }
 }
 
-void swc_view_matrix(double yaw, double pitch, double eye_y, float out[16]) {
-    double cy = cos(yaw), sy = sin(yaw), cp = cos(pitch), sp = sin(pitch);
-    double right[3] = {cy, 0.0, -sy};
-    double up[3] = {sy * sp, cp, cy * sp};
-    double back[3] = {sy * cp, -sp, cy * cp};
+/* The camera's axes in the world for yaw, pitch and roll (three.js "YXZ": yaw about y, then pitch about the
+ * camera's x, then roll about its view axis). With roll 0 this is the plain yaw-and-pitch basis. */
+static void camera_axes(double yaw, double pitch, double roll, double right[3], double up[3],
+                        double back[3]) {
+    double cy = cos(yaw), sy = sin(yaw), cp = cos(pitch), sp = sin(pitch), cr = cos(roll), sr = sin(roll);
+    double r0[3] = {cy, 0.0, -sy};
+    double u0[3] = {sy * sp, cp, cy * sp};
+    back[0] = sy * cp;
+    back[1] = -sp;
+    back[2] = cy * cp;
+    for (int i = 0; i < 3; i++) {
+        right[i] = cr * r0[i] + sr * u0[i];
+        up[i] = -sr * r0[i] + cr * u0[i];
+    }
+}
+
+/* Column-major view matrix of a camera at (0, eye_y, 0) with the given axes. */
+static void view_from_axes(const double right[3], const double up[3], const double back[3], double eye_y,
+                           float out[16]) {
     const double *row[3] = {right, up, back};
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++)
@@ -145,6 +159,12 @@ void swc_view_matrix(double yaw, double pitch, double eye_y, float out[16]) {
     }
     out[3] = out[7] = out[11] = 0.0f;
     out[15] = 1.0f;
+}
+
+void swc_view_matrix(double yaw, double pitch, double roll, double eye_y, float out[16]) {
+    double right[3], up[3], back[3];
+    camera_axes(yaw, pitch, roll, right, up, back);
+    view_from_axes(right, up, back, eye_y, out);
 }
 
 void swc_proj_matrix(double fov_deg, double aspect, double near_plane, double far_plane, float out[16]) {
@@ -169,8 +189,21 @@ void swc_mat4_mul(const float a[16], const float b[16], float out[16]) {
     memcpy(out, r, sizeof(r));
 }
 
-void swc_mirror_view_matrix(double yaw, double pitch, double eye_y, float out[16]) {
-    swc_view_matrix(yaw, -pitch, -eye_y, out);
+void swc_mirror_view_matrix(double yaw, double pitch, double roll, double eye_y, float out[16]) {
+    /* The web version's reflection camera: it stands at (x, -y, z), looks along the view direction with its
+     * y flipped, and takes the camera's up with y flipped as its up hint, as three.js's lookAt then makes
+     * the axes: z = back, x = up x z, y = z x x. (So a rolled camera is mirrored, roll and all.) */
+    double right[3], up[3], back[3];
+    camera_axes(yaw, pitch, roll, right, up, back);
+    double hint[3] = {up[0], -up[1], up[2]};
+    double z[3] = {back[0], -back[1], back[2]};
+    double x[3] = {hint[1] * z[2] - hint[2] * z[1], hint[2] * z[0] - hint[0] * z[2],
+                   hint[0] * z[1] - hint[1] * z[0]};
+    double len = sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+    for (int i = 0; i < 3; i++)
+        x[i] /= len;
+    double y[3] = {z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]};
+    view_from_axes(x, y, z, -eye_y, out);
 }
 
 void swc_mirror_sample_matrix(const float proj[16], const float mirror_view[16], float out[16]) {

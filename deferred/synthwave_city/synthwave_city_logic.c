@@ -1,142 +1,24 @@
 /* Synthwave City - game logic (see synthwave_city_logic.h). PURE C99, no raylib.
- * The flight model is ported from src/camera/flight.ts and the viewpoints from src/camera/viewpoints.ts of
- * the web version; the drone tour is a simpler design (see tour_step) that keeps the same guarantees: it only
- * flies above road centre lines, and the camera can never enter a building. */
+ * The flight model (swc_flight.c), the drone tour (swc_tour.c) and the camera rig (swc_rig.c) are ported from
+ * src/camera/ of the web version, and the viewpoints from src/camera/viewpoints.ts. This file maps the
+ * controls onto the rig, and keeps the clocks. */
 #include "synthwave_city_logic.h"
 
+#include <math.h>
 #include <string.h>
 
-#define MAX_PHYSICS_STEP (1.0 / 120.0) /* a longer frame is split, so 30 Hz and 60 Hz fly the same path */
-#define SUB_STEP 1.5                   /* longest move between collision tests: thinner than any wall */
-#define MAX_SUB_STEPS 96
-#define RESPONSE 3.0 /* how fast velocity approaches what the controls ask for, per second */
-
-#define LOOK_SENSITIVITY 0.0032 /* radians per pixel of mouse drag */
-#define MAX_DRAG_PIXELS 300.0   /* a bigger jump of the pointer in one frame is ignored */
+/* The mouse and the double click (src/camera/input.ts of the web version). */
+#define MOUSE_SENSITIVITY 0.0022 /* radians per pixel of mouse drag */
+#define WHEEL_ZOOM 0.0015        /* lens zoom per pixel of wheel travel: a notch is 100 pixels */
+#define WHEEL_NOTCH_PIXELS 100.0
+#define TAP_TIME 300.0        /* a tap is a press no longer than this, milliseconds... */
+#define TAP_SLOP 12.0         /* ...that moves no further than this, pixels */
+#define DOUBLE_TAP_GAP 350.0  /* the second tap goes down within this long after the first lifted... */
+#define DOUBLE_TAP_REACH 40.0 /* ...and this close to where the first one went down */
+#define MAX_DRAG_PIXELS 300.0 /* a bigger jump of the pointer in one frame is ignored */
 
 static double hyp3(double a, double b, double c) {
     return sqrt(a * a + b * b + c * c);
-}
-
-/* ================================================================================================== */
-/* Flight                                                                                             */
-/* ================================================================================================== */
-
-double swc_top_speed(double y, double speed_mul) {
-    return SWC_BASE_SPEED * (1.0 + swc_clamp(y, 0.0, SWC_MAX_ALTITUDE) / SWC_ALTITUDE_SPEED) * speed_mul;
-}
-
-/* Moves in steps short enough not to skip a wall. Where the sphere is pushed out of a box, the rest of the
- * move and the velocity lose their component into that wall, so the camera slides along it. */
-bool swc_flight_move(const SwcCity *city, SwcFlight *f, double dx, double dy, double dz) {
-    double dist = hyp3(dx, dy, dz);
-    int steps = (int)ceil(dist / SUB_STEP);
-    steps = steps < 1 ? 1 : (steps > MAX_SUB_STEPS ? MAX_SUB_STEPS : steps);
-    double sx = dx / steps, sy = dy / steps, sz = dz / steps;
-    bool touched = false;
-    for (int i = 0; i < steps; i++) {
-        SwcVec3 probe;
-        probe.x = f->x + sx;
-        probe.y = f->y + sy;
-        probe.z = f->z + sz;
-        double bx = probe.x, by = probe.y, bz = probe.z;
-        if (swc_city_collide(city, &probe, SWC_CAMERA_RADIUS)) {
-            double nx = probe.x - bx, ny = probe.y - by, nz = probe.z - bz;
-            double n = hyp3(nx, ny, nz);
-            if (n > 1e-9) {
-                double ux = nx / n, uy = ny / n, uz = nz / n;
-                double into = f->vx * ux + f->vy * uy + f->vz * uz;
-                if (into < 0.0) {
-                    f->vx -= into * ux;
-                    f->vy -= into * uy;
-                    f->vz -= into * uz;
-                }
-                double step_into = sx * ux + sy * uy + sz * uz;
-                if (step_into < 0.0) {
-                    sx -= step_into * ux;
-                    sy -= step_into * uy;
-                    sz -= step_into * uz;
-                }
-            }
-            touched = true;
-        }
-        f->x = probe.x;
-        f->y = probe.y;
-        f->z = probe.z;
-    }
-    if (f->y > SWC_MAX_ALTITUDE) {
-        f->y = SWC_MAX_ALTITUDE;
-        if (f->vy > 0.0)
-            f->vy = 0.0;
-    }
-    f->x = swc_wrap_tile(f->x);
-    f->z = swc_wrap_tile(f->z);
-    return touched;
-}
-
-/* One step of flight. forward is along the view direction (so it climbs when looking up), right along the
- * horizon, up along world y. Velocity approaches the target exponentially and the step is integrated exactly,
- * so the path does not depend on the frame rate. */
-bool swc_flight_step(const SwcCity *city, SwcFlight *f, double forward, double right, double up,
-                     double speed_mul, double dt) {
-    if (!(dt > 0.0))
-        return false;
-    double cp = cos(f->pitch), sp = sin(f->pitch);
-    double sy = sin(f->yaw), cy = cos(f->yaw);
-    double ax = -sy * cp * forward + cy * right;
-    double ay = sp * forward + up * 0.7;
-    double az = -cy * cp * forward - sy * right;
-    double mag = hyp3(ax, ay, az);
-    if (mag > 1.0) {
-        ax /= mag;
-        ay /= mag;
-        az /= mag;
-    }
-    int steps = (int)ceil(dt / MAX_PHYSICS_STEP - 1e-9);
-    steps = steps < 1 ? 1 : steps;
-    double h = dt / steps;
-    double e = exp(-RESPONSE * h);
-    double k = (1.0 - e) / RESPONSE;
-    bool touched = false;
-    for (int i = 0; i < steps; i++) {
-        /* Top speed depends on altitude; take it at the middle of the step. */
-        double top = swc_top_speed(f->y + f->vy * h * 0.5, speed_mul);
-        double tx = ax * top, ty = ay * top, tz = az * top;
-        double ox = f->vx - tx, oy = f->vy - ty, oz = f->vz - tz;
-        f->vx = tx + ox * e;
-        f->vy = ty + oy * e;
-        f->vz = tz + oz * e;
-        if (swc_flight_move(city, f, tx * h + ox * k, ty * h + oy * k, tz * h + oz * k))
-            touched = true;
-    }
-    return touched;
-}
-
-/* A critically damped spring pulling the sphere towards a point, with collision. `reach` caps how far away
- * the target is taken to be, which caps the speed at about reach * omega / 2. */
-static bool flight_step_towards(const SwcCity *city, SwcFlight *f, double tx, double ty, double tz,
-                                double omega, double reach, double dt) {
-    if (!(dt > 0.0))
-        return false;
-    double ax = f->x - tx, ay = f->y - ty, az = f->z - tz;
-    /* The shortest way round the wrapped tile. */
-    ax -= SWC_TILE * floor(ax / SWC_TILE + 0.5);
-    az -= SWC_TILE * floor(az / SWC_TILE + 0.5);
-    double far_away = hyp3(ax, ay, az);
-    if (far_away > reach) {
-        double k = reach / far_away;
-        ax *= k;
-        ay *= k;
-        az *= k;
-    }
-    /* x(t) = target + (a + b t) e^(-omega t), with b = v0 + omega a. */
-    double e = exp(-omega * dt);
-    double bx = f->vx + omega * ax, by = f->vy + omega * ay, bz = f->vz + omega * az;
-    double dx = (ax + bx * dt) * e - ax, dy = (ay + by * dt) * e - ay, dz = (az + bz * dt) * e - az;
-    f->vx = (bx - omega * (ax + bx * dt)) * e;
-    f->vy = (by - omega * (ay + by * dt)) * e;
-    f->vz = (bz - omega * (az + bz * dt)) * e;
-    return swc_flight_move(city, f, dx, dy, dz);
 }
 
 /* ================================================================================================== */
@@ -251,111 +133,6 @@ static void compute_viewpoints(synthwave_city_State *s) {
 }
 
 /* ================================================================================================== */
-/* The drone tour                                                                                     */
-/* ================================================================================================== */
-
-static double angle_delta(double a, double b) {
-    return swc_wrap_delta(a, b, SWC_TAU);
-}
-
-/* Low over the street, mid-height between the towers, or high above the skyline. */
-static double pick_altitude(SwcRng *rng) {
-    double u = swc_rng_next(rng);
-    if (u < 0.40)
-        return swc_rng_range(rng, 8.0, 26.0);
-    if (u < 0.75)
-        return swc_rng_range(rng, 50.0, 140.0);
-    return swc_rng_range(rng, 180.0, 420.0);
-}
-
-/* Turns the carrot by a quarter turn: +1 and -1 are the two directions. */
-static void tour_turn(SwcTour *t, int turn) {
-    int axis = t->axis, dir = t->dir;
-    if (turn > 0) {
-        t->axis = 1 - axis;
-        t->dir = axis == 0 ? dir : -dir;
-    } else if (turn < 0) {
-        t->axis = 1 - axis;
-        t->dir = axis == 0 ? -dir : dir;
-    }
-}
-
-/* Advances the carrot by dt seconds. It runs along road centre lines (air above a road is free at every
- * height, so nothing is ever in its way), slows down before a planned turn, and at each intersection picks
- * the next turn and sometimes a new altitude. */
-static void tour_step(SwcTour *t, double dt) {
-    double along = t->axis == 0 ? t->px : t->pz;
-    double next = t->dir > 0 ? (floor(along / SWC_CELL + 1e-9) + 1.0) * SWC_CELL
-                             : (ceil(along / SWC_CELL - 1e-9) - 1.0) * SWC_CELL;
-    double to_corner = fabs(next - along);
-    double speed = 36.0 + 0.1 * t->alt_target;
-    if (t->turn_next != 0)
-        speed *= 0.45 + 0.55 * swc_smoothstep(10.0, 70.0, to_corner);
-    double remaining = speed * dt;
-    for (int guard = 0; remaining > 0.0 && guard < 4; guard++) {
-        along = t->axis == 0 ? t->px : t->pz;
-        next = t->dir > 0 ? (floor(along / SWC_CELL + 1e-9) + 1.0) * SWC_CELL
-                          : (ceil(along / SWC_CELL - 1e-9) - 1.0) * SWC_CELL;
-        to_corner = fabs(next - along);
-        bool at_corner = remaining >= to_corner;
-        double moved = at_corner ? to_corner : remaining;
-        along = at_corner ? next : along + (double)t->dir * moved;
-        remaining -= moved;
-        if (t->axis == 0)
-            t->px = swc_wrap_tile(along);
-        else
-            t->pz = swc_wrap_tile(along);
-        if (at_corner) {
-            tour_turn(t, t->turn_next);
-            double u = swc_rng_next(&t->rng);
-            t->turn_next = u < 0.55 ? 0 : (u < 0.775 ? 1 : -1);
-            if (swc_rng_chance(&t->rng, 0.45))
-                t->alt_target = pick_altitude(&t->rng);
-        }
-    }
-    /* Climb or dive towards the target altitude, at most 16 m/s. */
-    double dy = swc_clamp(t->alt_target - t->py, -16.0 * dt, 16.0 * dt);
-    t->py += dy;
-}
-
-/* Starts the tour from where the camera is: the carrot goes onto the nearest road ahead. */
-static void tour_attach(synthwave_city_State *s) {
-    SwcTour *t = &s->tour;
-    const SwcFlight *f = &s->cam;
-    double fx = -sin(f->yaw), fz = -cos(f->yaw);
-    if (fabs(fx) > fabs(fz)) {
-        t->axis = 0;
-        t->dir = fx > 0.0 ? 1 : -1;
-        t->pz = swc_wrap_tile(floor(f->z / SWC_CELL + 0.5) * SWC_CELL);
-        t->px = swc_wrap_tile(floor(f->x / SWC_CELL + 0.5) * SWC_CELL + (double)t->dir * SWC_CELL);
-    } else {
-        t->axis = 1;
-        t->dir = fz > 0.0 ? 1 : -1;
-        t->px = swc_wrap_tile(floor(f->x / SWC_CELL + 0.5) * SWC_CELL);
-        t->pz = swc_wrap_tile(floor(f->z / SWC_CELL + 0.5) * SWC_CELL + (double)t->dir * SWC_CELL);
-    }
-    t->alt_target = fmax(14.0, f->y);
-    t->py = t->alt_target;
-    t->turn_next = 0;
-}
-
-/* The camera follows the carrot and looks where it is going. */
-static bool tour_fly(synthwave_city_State *s, double dt) {
-    SwcTour *t = &s->tour;
-    SwcFlight *f = &s->cam;
-    tour_step(t, dt);
-    bool touched = flight_step_towards(&s->city, f, t->px, t->py, t->pz, 2.4, 80.0, dt);
-    double hs = hypot(f->vx, f->vz);
-    double k = 1.0 - exp(-dt * 2.2);
-    if (hs > 4.0)
-        f->yaw += angle_delta(atan2(-f->vx, -f->vz), f->yaw) * k;
-    double want = swc_clamp(atan2(f->vy, hs > 1.0 ? hs : 1.0) * 0.7, -0.3, 0.3) -
-                  0.14 * swc_smoothstep(60.0, 350.0, f->y);
-    f->pitch += (want - f->pitch) * (1.0 - exp(-dt * 2.0));
-    return touched;
-}
-
-/* ================================================================================================== */
 /* Public functions                                                                                   */
 /* ================================================================================================== */
 
@@ -380,18 +157,42 @@ double swc_loop_fraction(const synthwave_city_State *s) {
     return s->clock / SWC_LOOP_SECONDS;
 }
 
+/* The rig's pose is what the camera shows. */
+static void show_rig(synthwave_city_State *s) {
+    const SwcRig *r = &s->rig;
+    s->cam.x = r->x;
+    s->cam.y = r->y;
+    s->cam.z = r->z;
+    s->cam.vx = r->vx;
+    s->cam.vy = r->vy;
+    s->cam.vz = r->vz;
+    s->cam.yaw = r->yaw;
+    s->cam.pitch = r->pitch;
+    s->roll = r->roll;
+    s->fov = r->fov;
+    s->touring = swc_rig_touring(r);
+}
+
 void swc_goto_view(synthwave_city_State *s, int n) {
     if (n < 0 || n >= SWC_VIEW_COUNT)
         return;
-    const SwcViewpoint *v = &s->views[n];
-    s->cam.x = v->x;
-    s->cam.y = v->y;
-    s->cam.z = v->z;
-    s->cam.vx = s->cam.vy = s->cam.vz = 0.0;
-    s->cam.yaw = v->yaw;
-    s->cam.pitch = v->pitch;
-    s->touring = false;
+    swc_rig_jump_to_view(&s->rig, n);
     s->view = n;
+    show_rig(s);
+}
+
+void swc_glide_to_view(synthwave_city_State *s, int n) {
+    if (n < 0 || n >= SWC_VIEW_COUNT)
+        return;
+    swc_rig_glide_to_view(&s->rig, n);
+    s->view = n;
+    show_rig(s);
+}
+
+void swc_place_camera(synthwave_city_State *s, double x, double y, double z, double yaw, double pitch) {
+    swc_rig_place(&s->rig, x, y, z, yaw, pitch);
+    s->view = -1;
+    show_rig(s);
 }
 
 void synthwave_city_init(synthwave_city_State *s, unsigned seed) {
@@ -402,24 +203,109 @@ void synthwave_city_init(synthwave_city_State *s, unsigned seed) {
     s->mood = 0;
     s->view = -1;
     s->speed_scale = 1.0;
+    s->last_tap_end = -INFINITY;
 
-    /* Start low on Sunset Avenue, flying towards the sun and the downtown skyline. */
-    s->cam.x = s->views[0].x;
-    s->cam.y = 18.0;
-    s->cam.z = s->views[0].z;
-    s->cam.yaw = 0.0;
-    s->cam.pitch = 0.05;
-    SwcRng base;
-    swc_rng_seed(&base, (uint32_t)seed);
-    s->tour.rng = swc_rng_fork(&base, 4u);
-    s->tour.axis = 1;
-    s->tour.dir = -1;
-    s->tour.px = s->cam.x;
-    s->tour.pz = swc_wrap_tile(s->cam.z - 60.0);
-    s->tour.py = 18.0;
-    s->tour.alt_target = 18.0;
-    s->tour.turn_next = 0;
-    s->touring = true;
+    /* The opening shot of the tour: an avenue beside downtown, flying towards the sun. */
+    swc_rig_init(&s->rig, &s->city, s->views, (uint32_t)seed);
+    s->tour_look = true;
+    show_rig(s);
+}
+
+unsigned swc_roll_seed(unsigned current, uint32_t entropy) {
+    SwcRng rng;
+    swc_rng_seed(&rng, entropy);
+    for (int i = 0; i < 8; i++) {
+        double pick = floor(swc_rng_next(&rng) * (double)SWC_MAX_ROLLED);
+        unsigned seed = 1u + (unsigned)fmin((double)(SWC_MAX_ROLLED - 1u), pick);
+        if (seed != current)
+            return seed;
+    }
+    return current == 1u ? 2u : 1u;
+}
+
+void swc_new_city(synthwave_city_State *s, unsigned seed) {
+    int mood = s->mood;
+    synthwave_city_init(s, seed);
+    s->mood = mood;
+}
+
+/* The controls for this frame, in the rig's terms. The mouse maps as in src/camera/input.ts: on the tour a
+ * drag pans the view and the wheel zooms the lens, and two quick clicks take over; in flight a drag looks. */
+static void map_controls(synthwave_city_State *s, const ArcadeInput *in, double dt, SwcRigInput *ri,
+                         bool *takeover) {
+    swc_rig_input_clear(ri);
+    *takeover = false;
+    s->time_ms += dt * 1000.0;
+    bool touring = swc_rig_touring(&s->rig);
+    if (touring != s->tour_look) {
+        /* The controls changed meaning: forget a half-made click. */
+        s->tour_look = touring;
+        s->tap_valid = false;
+        s->last_tap_end = -INFINITY;
+    }
+
+    bool down = in->fire && !s->prev_look; /* the left button went down */
+    bool held = in->fire && s->prev_look;
+    bool up = !in->fire && s->prev_look;
+    double dx = 0.0, dy = 0.0;
+    if (held) {
+        dx = swc_clamp((double)(in->aim_x - s->prev_aim_x), -MAX_DRAG_PIXELS, MAX_DRAG_PIXELS);
+        dy = swc_clamp((double)(in->aim_y - s->prev_aim_y), -MAX_DRAG_PIXELS, MAX_DRAG_PIXELS);
+    }
+    if (touring) {
+        if (down) {
+            /* The press may become a tap; a second one too late or too far away starts afresh. */
+            s->tap_valid = true;
+            s->tap_start = s->time_ms;
+            s->tap_x = in->aim_x;
+            s->tap_y = in->aim_y;
+            if (s->time_ms - s->last_tap_end > DOUBLE_TAP_GAP ||
+                hypot((double)(s->tap_x - s->last_tap_x), (double)(s->tap_y - s->last_tap_y)) >
+                    DOUBLE_TAP_REACH)
+                s->last_tap_end = -INFINITY;
+        }
+        if (held) {
+            if (s->tap_valid &&
+                hypot((double)(in->aim_x - s->tap_x), (double)(in->aim_y - s->tap_y)) > TAP_SLOP)
+                s->tap_valid = false;
+            ri->pan_yaw -= dx * MOUSE_SENSITIVITY;
+            ri->pan_pitch -= dy * MOUSE_SENSITIVITY;
+        }
+        if (up) {
+            bool tap = s->tap_valid && s->time_ms - s->tap_start <= TAP_TIME &&
+                       hypot((double)(in->aim_x - s->tap_x), (double)(in->aim_y - s->tap_y)) <= TAP_SLOP;
+            s->tap_valid = false;
+            if (!tap) {
+                s->last_tap_end = -INFINITY;
+            } else if (s->last_tap_end > -INFINITY) {
+                s->last_tap_end = -INFINITY;
+                *takeover = true;
+            } else {
+                s->last_tap_end = s->time_ms;
+                s->last_tap_x = s->tap_x;
+                s->last_tap_y = s->tap_y;
+            }
+        }
+        /* Scrolling down widens the view, as on a map (the wheel reports up as positive). */
+        if (in->wheel != 0)
+            ri->zoom *= exp(swc_clamp(-(double)in->wheel * WHEEL_NOTCH_PIXELS * WHEEL_ZOOM, -1.0, 1.0));
+    } else {
+        ri->look_yaw -= dx * MOUSE_SENSITIVITY;
+        ri->look_pitch -= dy * MOUSE_SENSITIVITY;
+        /* The wheel scales the cruise speed by 1.25 per step. */
+        if (in->wheel != 0)
+            s->speed_scale = swc_clamp(s->speed_scale * (in->wheel > 0 ? 1.25 : 0.8), 0.25, 4.0);
+    }
+    s->prev_look = in->fire;
+    s->prev_aim_x = in->aim_x;
+    s->prev_aim_y = in->aim_y;
+
+    ri->forward = swc_clamp(-(double)in->move_y, -1.0, 1.0);
+    ri->right = swc_clamp((double)in->move_x, -1.0, 1.0);
+    ri->boost = in->alt;
+    ri->speed_scale = s->speed_scale;
+    ri->active =
+        fabs(ri->forward) > 0.01 || fabs(ri->right) > 0.01 || ri->look_yaw != 0.0 || ri->look_pitch != 0.0;
 }
 
 void synthwave_city_step(synthwave_city_State *s, const ArcadeInput *in, float dt_f) {
@@ -428,51 +314,28 @@ void synthwave_city_step(synthwave_city_State *s, const ArcadeInput *in, float d
         return;
     if (dt > 0.25)
         dt = 0.25;
-    s->touched = false;
     s->clock = swc_wrap(s->clock + dt, SWC_LOOP_SECONDS);
     s->beat_time = swc_wrap(s->beat_time + dt, swc_music_seconds());
 
-    /* keys: T cycles the mood, 1..6 jump to a named viewpoint */
+    /* keys: T cycles the mood, 1..6 glide to a named viewpoint, Space toggles the tour */
     int key = in->typed;
     if (key == 't' || key == 'T')
         s->mood = (s->mood + 1) % SWC_MOOD_COUNT;
     if (key >= '1' && key < '1' + SWC_VIEW_COUNT)
-        swc_goto_view(s, key - '1');
+        swc_glide_to_view(s, key - '1');
+    if (in->action_pressed)
+        swc_rig_toggle(&s->rig);
 
-    /* the wheel scales the cruise speed by 1.25 per step */
-    if (in->wheel != 0)
-        s->speed_scale = swc_clamp(s->speed_scale * (in->wheel > 0 ? 1.25 : 0.8), 0.25, 4.0);
-
-    /* Space toggles the tour. Any flight control takes the camera back. */
-    bool dragging = in->fire && s->prev_look;
-    bool stick = fabs((double)in->move_x) > 0.01 || fabs((double)in->move_y) > 0.01;
-    if (in->action_pressed) {
-        s->touring = !s->touring;
-        if (s->touring)
-            tour_attach(s);
-    } else if (s->touring && (stick || dragging || in->alt || in->wheel != 0)) {
-        s->touring = false;
-    }
-
-    /* look: drag with the left mouse button */
-    if (dragging && !s->touring) {
-        double dx = swc_clamp((double)(in->aim_x - s->prev_aim_x), -MAX_DRAG_PIXELS, MAX_DRAG_PIXELS);
-        double dy = swc_clamp((double)(in->aim_y - s->prev_aim_y), -MAX_DRAG_PIXELS, MAX_DRAG_PIXELS);
-        s->cam.yaw = swc_wrap(s->cam.yaw - dx * LOOK_SENSITIVITY + SWC_PI, SWC_TAU) - SWC_PI;
-        s->cam.pitch = swc_clamp(s->cam.pitch - dy * LOOK_SENSITIVITY, -SWC_MAX_PITCH, SWC_MAX_PITCH);
-    }
-    s->prev_look = in->fire;
-    s->prev_aim_x = in->aim_x;
-    s->prev_aim_y = in->aim_y;
+    SwcRigInput ri;
+    bool takeover;
+    map_controls(s, in, dt, &ri, &takeover);
+    if (takeover)
+        swc_rig_take_over(&s->rig);
 
     double px = s->cam.x, py = s->cam.y, pz = s->cam.z;
-    if (s->touring) {
-        s->touched = tour_fly(s, dt);
-    } else {
-        double mul = (in->alt ? SWC_BOOST : 1.0) * s->speed_scale;
-        s->touched =
-            swc_flight_step(&s->city, &s->cam, -(double)in->move_y, (double)in->move_x, 0.0, mul, dt);
-    }
+    swc_rig_update(&s->rig, &ri, dt);
+    show_rig(s);
+    s->touched = s->rig.touched;
     double mx = swc_wrap_delta(s->cam.x, px, SWC_TILE), mz = swc_wrap_delta(s->cam.z, pz, SWC_TILE);
     s->distance += hyp3(mx, s->cam.y - py, mz);
 }
