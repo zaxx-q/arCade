@@ -667,8 +667,13 @@ static void test_every_lead_note_has_a_bead_in_every_shipped_chart(void) {
                 CHECK(out[k].voice == 0 || out[k].voice == 3); /* ... and backing otherwise */
                 lead += bead ? 1 : 0;
             }
-            if (ch->kind == BD_CHART_DODGE && song->note_count > 0)
-                CHECK(lead * 2 > count); /* dodge charts show most of what is heard */
+            /* every chart, catch or dodge, shows most of what is heard: Beat Catch no longer leaves the
+             * opponent's voice as quiet backing */
+            if (song->note_count > 0)
+                CHECK(lead * 2 > count);
+            /* the hardest charts show (and so play loudly) all but a handful of the notes: at least 99% */
+            if (ch->kind == BD_CHART_CATCH && strcmp(ch->name, "hard") == 0)
+                CHECK(lead * 100 >= count * 99);
         }
     }
 }

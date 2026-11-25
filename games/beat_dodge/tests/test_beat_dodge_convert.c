@@ -152,7 +152,10 @@ static void test_rapid_notes_become_ribbons_that_obey_the_span_cap(void) {
     CHECK(g_stats.folded[0] > 0); /* easy: a bar is one lane, so most of these ribbons had to be folded */
 }
 
-static void test_catch_charts_use_the_player_voice_only(void) {
+/* Beat Catch treats every note alike, like Beat Dodge: the opponent's notes are beads to catch, not quiet
+ * backing. Here the two voices play on alternate 8th notes (0.25 s apart, so everything is one run of
+ * ribbons and nothing is thinned): every chart, catch or dodge, must hold all 80 notes. */
+static void test_catch_charts_hear_both_voices(void) {
     new_midi(120.0f);
     MidiTrack *opp = add_track("Daddy Dearest");
     MidiTrack *bf = add_track("Boyfriend");
@@ -161,23 +164,46 @@ static void test_catch_charts_use_the_player_voice_only(void) {
         add_note(opp, (uint32_t)i * 96 + 48, 48, (uint8_t)(50 + (i * 3) % 9)); /* steps 2, 6, 10, ... */
     }
     CHECK(bd_convert_midi(&g_midi, "Voices", NULL, &g_song, &g_stats, g_err, sizeof(g_err)));
-    bool dodge_has_opponent_step = false;
     for (int c = 0; c < 6; c++) {
         const bd_Chart *chart = &g_song.charts[c];
+        bool has_player_step = false, has_opponent_step = false;
         for (int k = 0; k < chart->length; k++) {
             if (chart->lane[k] < 0)
                 continue;
-            if (chart->kind == BD_CHART_CATCH)
-                CHECK_EQ_INT(k % 4, 0); /* only the player's steps */
-            else if (k % 4 == 2)
-                dodge_has_opponent_step = true;
+            has_player_step = has_player_step || k % 4 == 0;
+            has_opponent_step = has_opponent_step || k % 4 == 2;
         }
-        if (c >= 3)
-            CHECK(bd_chart_beads(chart) > 5);
+        CHECK(has_player_step);
+        CHECK(has_opponent_step); /* catch charts too: the opponent's notes must be caught */
+        CHECK_EQ_INT(bd_chart_beads(chart), 80);
+        CHECK_EQ_INT(g_stats.lost[c], 0);
+        bd_ChartMetrics m;
+        bd_chart_metrics(&g_song, c, &m);
+        CHECK_NEAR(m.covered, 1.0f, 0.0001f); /* every note that is heard is also a bead */
     }
-    CHECK(dodge_has_opponent_step);             /* dodge charts hear both voices */
-    CHECK(g_stats.beads[5] <= 40);              /* catch: at most one bead per player note */
-    CHECK(g_stats.beads[3] < g_stats.beads[4]); /* catch easy thins more than normal (notes 0.5 s apart) */
+}
+
+/* The same for notes that stand alone, which the difficulty presets thin out: the opponent's lone notes
+ * (steps 8, 24, ...) must survive in a catch chart exactly as the player's (steps 0, 16, ...) do. They are a
+ * second apart, so no preset removes them and the reachable-lane check always has time to move. */
+static void test_catch_keeps_the_opponents_lone_notes(void) {
+    new_midi(120.0f); /* a 16th note = 0.125 s */
+    MidiTrack *opp = add_track("Daddy Dearest");
+    MidiTrack *bf = add_track("Boyfriend");
+    for (int i = 0; i < 30; i++) {
+        add_note(bf, (uint32_t)i * 384, 48, (uint8_t)(60 + (i * 5) % 12));       /* every 2 s: step 16 * i */
+        add_note(opp, (uint32_t)i * 384 + 192, 48, (uint8_t)(50 + (i * 3) % 9)); /* 1 s later: 16 * i + 8 */
+    }
+    CHECK(bd_convert_midi(&g_midi, "Alone", NULL, &g_song, &g_stats, g_err, sizeof(g_err)));
+    for (int c = 3; c < 6; c++) {
+        const bd_Chart *chart = &g_song.charts[c];
+        CHECK_EQ_INT(chart->kind, BD_CHART_CATCH);
+        CHECK_EQ_INT(bd_chart_beads(chart), 60);
+        for (int i = 0; i < 30; i++) {
+            CHECK(chart->lane[i * 16] >= 0);     /* the player's note */
+            CHECK(chart->lane[i * 16 + 8] >= 0); /* the opponent's note */
+        }
+    }
 }
 
 static void test_hostile_songs_still_give_playable_charts(void) {
@@ -288,7 +314,8 @@ int main(void) {
     RUN(test_basic_conversion);
     RUN(test_lone_notes_are_thinned_by_grid_and_minimum_gap);
     RUN(test_rapid_notes_become_ribbons_that_obey_the_span_cap);
-    RUN(test_catch_charts_use_the_player_voice_only);
+    RUN(test_catch_charts_hear_both_voices);
+    RUN(test_catch_keeps_the_opponents_lone_notes);
     RUN(test_lanes_follow_pitch);
     RUN(test_same_pitch_always_same_lane_and_same_step_dedupes);
     RUN(test_player_track_selection_and_errors);

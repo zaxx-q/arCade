@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-14 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-18 -->
 
 # AGENTS.md - Beat Dodge & Catch (`beat_dodge`)
 
@@ -35,6 +35,7 @@ One rhythm game with two modes chosen by the big DODGE / CATCH buttons on the so
 - Standing still must lose on every shipped catch chart and the human-speed bot must win it (`test_standing_still_loses_on_every_shipped_catch_chart`, `test_the_human_speed_bot_clears_every_shipped_catch_chart`): re-run both after touching health numbers, tolerance or the converter.
 - The menu keeps the mode (`bd_Menu.kind`) between plays; `bd_menu_set_kind` keeps the song and the difficulty. `beat_dodge_ui.h` must stay free of raylib types. The practice song is gone from `songs.txt`; `bd_song_default` is only a test fixture and the fallback when no song file loads.
 - Lanes in converted songs come from pitch (low = left); do not shuffle them.
+- All six charts (dodge AND catch) are built from the notes of BOTH voices (`g_all` in `beat_dodge_convert.c`): Beat Catch has no "opponent turn" and no note is quiet backing because of whose voice it is. Never filter a chart or the metrics by `voice`; the player track only breaks ties on a shared step. After changing the converter, rebuild the songs (`bash tools/songs/build_songs.sh`).
 - Boards: a run's table is `"<Mode> / <song title> / <chart name>"` (`bd_board_name`), so renaming a song title or a chart name in a song file starts a new, empty table (the old scores stay under the old name). The name must always fit `GAME_BOARD_LEN`: only the title is shortened, never the mode or the difficulty, so two charts never share a table. Scores saved before boards existed sit under the plain id `beat_dodge` and show up as "older scores"; they cannot be assigned to a mode or song. Call `bd_ui_report_board` from any new run loop, and never write `scores.txt` from the game (the hub owns it).
 
 ## Security & safety

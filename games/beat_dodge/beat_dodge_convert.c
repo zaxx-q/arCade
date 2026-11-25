@@ -36,12 +36,11 @@ typedef struct Obj {
 } Obj;
 
 static Ev g_events[MIDI_MAX_TRACKS *
-                   MIDI_MAX_NOTES];   /* ~260 KB: static, this code is only used by a tool and tests */
-static StepEv g_all[BD_MAX_STEPS];    /* dodge charts: both voices, the player's note wins a shared step */
-static StepEv g_voice1[BD_MAX_STEPS]; /* catch charts: the player voice only */
-static Obj g_obj[BD_MAX_STEPS];       /* the objects of the chart being built */
-static int g_lane[BD_MAX_STEPS];      /* lane (from pitch) of every note of the chart being built */
-static StepEv g_kept[BD_MAX_STEPS];   /* the notes that stay, to balance the lanes over */
+                   MIDI_MAX_NOTES]; /* ~260 KB: static, this code is only used by a tool and tests */
+static StepEv g_all[BD_MAX_STEPS];  /* every chart: both voices, the player's note wins a shared step */
+static Obj g_obj[BD_MAX_STEPS];     /* the objects of the chart being built */
+static int g_lane[BD_MAX_STEPS];    /* lane (from pitch) of every note of the chart being built */
+static StepEv g_kept[BD_MAX_STEPS]; /* the notes that stay, to balance the lanes over */
 
 /* difficulty presets, 3 dodge charts then 3 catch charts. grid / min_gap thin the LONE notes only (ribbons
  * are what makes every sound visible, so they are always kept); span_cap = most lanes one ribbon may touch.
@@ -287,8 +286,7 @@ static void place_ribbon(Build *b, const Obj *o, bd_ConvertStats *st, int chart_
     st->lost[chart_index]++;
 }
 
-/* Builds one chart from the notes ev[0..n) (both voices for a dodge chart, the player voice for a catch
- * chart). */
+/* Builds one chart from the notes ev[0..n) (both voices, for a dodge chart and for a catch chart alike). */
 static void build_chart(bd_Song *song, int chart_index, const StepEv *ev, int n, const Preset *p,
                         float step_sec, float lead, bd_ConvertStats *st) {
     bd_Chart *chart = &song->charts[chart_index];
@@ -430,7 +428,7 @@ bool bd_convert_midi(const MidiSong *midi, const char *title, const char *player
 
     /* 4. one note per 16th-note step. The step comes from bd_note_step, the function the metrics and the
      * audio use too, so a note and the bead made from it always agree. */
-    int all_n = 0, voice1_n = 0;
+    int all_n = 0;
     bool all_last_player = false;
     for (int i = 0; i < n; i++) {
         int step = bd_note_step(out->notes[i].start, STEPS_PER_BEAT);
@@ -447,23 +445,17 @@ bool bd_convert_midi(const MidiSong *midi, const char *title, const char *player
             all_n++;
             all_last_player = g_events[i].player;
         }
-        if (g_events[i].player && (voice1_n == 0 || g_voice1[voice1_n - 1].step != step)) {
-            g_voice1[voice1_n].step = step;
-            g_voice1[voice1_n].pitch = g_events[i].pitch;
-            voice1_n++;
-        }
     }
 
-    /* 5. one chart per preset: three dodge charts (both voices), three catch charts (player voice) */
+    /* 5. one chart per preset: three dodge charts and three catch charts. Every chart is made from the SAME
+     * notes (both voices), so in Beat Catch every sound is an object you have to catch: there is no "opponent
+     * turn" to wait out, and no note is left over as quiet backing because of whose voice it is. */
     float step_sec = 60.0f / (float)out->bpm / (float)STEPS_PER_BEAT;
     float lead = BD_LEAD_BEATS * 60.0f / (float)out->bpm;
     out->chart_count = PRESETS;
     for (int c = 0; c < PRESETS; c++) {
         const Preset *p = &k_preset[c];
-        if (p->kind == BD_CHART_DODGE)
-            build_chart(out, c, g_all, all_n, p, step_sec, lead, stats);
-        else
-            build_chart(out, c, g_voice1, voice1_n, p, step_sec, lead, stats);
+        build_chart(out, c, g_all, all_n, p, step_sec, lead, stats);
         if (!bd_chart_playable(out, c, NULL))
             return fail(err, err_size, "internal error: a converted chart fails the reachable-lane check");
         bd_ChartMetrics m;
@@ -482,13 +474,12 @@ static int cmp_int(const void *a, const void *b) {
     return (x > y) - (x < y);
 }
 
-/* Distinct onset steps of the melody, sorted: both voices for a dodge chart, the player voice (1) for a catch
- * chart, because that is the voice a catch chart is made from. */
-static int collect_onsets(const bd_Song *song, bd_ChartKind kind, int *out) {
+/* Distinct onset steps of the melody, sorted: both voices, because every chart (dodge or catch) is made from
+ * both of them. */
+static int collect_onsets(const bd_Song *song, int *out) {
     int n = 0;
     for (int i = 0; i < song->note_count; i++)
-        if (kind == BD_CHART_DODGE || song->notes[i].voice == 1)
-            out[n++] = bd_note_step(song->notes[i].start, song->steps);
+        out[n++] = bd_note_step(song->notes[i].start, song->steps);
     qsort(out, (size_t)n, sizeof(int), cmp_int);
     int m = 0;
     for (int i = 0; i < n; i++)
@@ -577,7 +568,7 @@ void bd_chart_metrics(const bd_Song *song, int chart, bd_ChartMetrics *out) {
 
     /* onsets and bursts */
     static int onset[BD_MAX_NOTES];
-    int n = collect_onsets(song, c->kind, onset), covered = 0, run_start = 0;
+    int n = collect_onsets(song, onset), covered = 0, run_start = 0;
     for (int i = 0; i < n; i++) {
         int step = onset[i];
         covered += step < c->length && c->lane[step] >= 0 ? 1 : 0;
