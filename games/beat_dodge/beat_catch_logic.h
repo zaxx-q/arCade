@@ -4,7 +4,8 @@
  *
  * This game shares the song format, the chart check and the clock with Beat Dodge (beat_dodge_logic.h): its
  * state embeds the same bd_Run. Only the rules below are new. The charts it plays are the "catch" charts of
- * each song (made from the player voice of the MIDI file, see docs/SONGS.md). */
+ * each song, made from the notes of both voices of the MIDI file just like the dodge charts (docs/SONGS.md).
+ */
 #ifndef BEAT_CATCH_LOGIC_H
 #define BEAT_CATCH_LOGIC_H
 

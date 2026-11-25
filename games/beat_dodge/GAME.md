@@ -96,7 +96,7 @@ multiplier : easy 1.0, normal 1.5, hard 2.0
 | `beat_dodge_ui.h` | Antarmuka bagian tampilan yang dipakai bersama oleh mode Dodge dan mode Catch (tanpa tipe raylib), termasuk `bd_ui_play_catch` | menambah fungsi tampilan bersama |
 | `beat_dodge_game.c` | Layar main Beat Dodge, `game_beat_dodge_def`, dan **implementasi** `bd_ui_*`: layar pilih lagu, pemutaran musik (WAV di memori), penggambaran lapangan | mengubah tampilan atau teks menu |
 | `tests/test_beat_dodge.c` | 34 unit test untuk logic dan semua lagu yang dikirim | mengubah aturan, format, atau menambah lagu |
-| `tests/test_beat_dodge_convert.c` | 9 unit test untuk konverter MIDI | mengubah konverter |
+| `tests/test_beat_dodge_convert.c` | 10 unit test untuk konverter MIDI | mengubah konverter |
 | `CMakeLists.txt` | Mendaftarkan game (`LOGIC` memuat dua file `.c`, `TESTS` dua file test) | menambah file baru |
 | `GAME.md`, `AGENTS.md` | Dokumen ini, dan instruksi AI agent (tidak diterjemahkan) | lihat catatan masing-masing |
 | `../../assets/beatmaps/` | `songs.txt` (daftar lagu di menu), `fnf/*.txt` (9 lagu hasil konversi) | menambah atau mengganti lagu |
@@ -298,20 +298,21 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 | `test_beat_event_fires_once_per_beat` | Dalam 2 detik pada 120 BPM, `beat_event` menyala 4 atau 5 kali |
 | `test_song_to_synth_uses_beats_not_seconds` | Not melodi dikonversi dari ketukan ke detik dengan benar dan digeser `delay` |
 | `test_notes_with_a_bead_are_lead_and_the_rest_is_backing` | Not yang langkahnya punya bead = voice 0; yang lain = voice 3; dua not di satu step sama-sama lead |
-| `test_every_lead_note_has_a_bead_in_every_shipped_chart` | Untuk semua chart yang dikirim: lead tepat bila ada bead, dan di chart dodge lebih dari separuh not adalah lead |
+| `test_every_lead_note_has_a_bead_in_every_shipped_chart` | Untuk semua chart yang dikirim: lead tepat bila ada bead, di chart dodge **dan** catch lebih dari separuh not adalah lead, dan di chart catch hard setidaknya 99% not adalah lead (not lawan tidak lagi jadi backing pelan) |
 | `test_menu` | Down mengganti lagu dan mulai di chart ke-2, Right dibatasi di chart terakhir, lagu berputar, Enter memilih |
 | `test_menu_only_offers_charts_of_its_own_kind` | Menu catch melewati lagu tanpa chart catch dan tidak pernah masuk ke chart dodge, dan sebaliknya |
 | `test_every_shipped_song_is_playable` | **Semua** chart di `songs.txt`: lane valid, >= 20 bead, durasi < 300 detik, lolos cek lane terjangkau dan punya jalur, tidak ada burst tanpa ribbon, tidak ada lane yang diabaikan >= 40 detik, dan jendela 5 detik berlane kosong rata-rata < 45% |
 | `test_monkey_is_safe` | Input acak di lagu bawaan dan di lagu penuh ribbon: lane, nyawa, dan skor selalu dalam batas |
 
-`tests/test_beat_dodge_convert.c` (9 test):
+`tests/test_beat_dodge_convert.c` (10 test):
 
 | Test | Menjaga aturan apa |
 |------|--------------------|
 | `test_basic_conversion` | Judul, BPM, 6 chart (3 dodge lalu 3 catch) dengan nama dan jumlah lane yang benar (3 / 3 / 4 untuk dodge, 3 / 4 / 4 untuk catch), voice pemain dan lawan, semuanya lolos cek lane terjangkau |
 | `test_lone_notes_are_thinned_by_grid_and_minimum_gap` | Bead tunggal menghormati grid dan jeda minimum tiap kesulitan |
 | `test_rapid_notes_become_ribbons_that_obey_the_span_cap` | 200 not di setiap 16th: setiap bunyi tetap punya bead, semuanya menjadi ribbon (>= 25 ribbon, masing-masing paling lama 1,2 detik), lebarnya tidak melebihi batas 1 / 2 / 3 lane, tidak ada burst tanpa ribbon |
-| `test_catch_charts_use_the_player_voice_only` | Chart catch hanya berisi step milik not pemain, chart dodge mendengar kedua voice, dan catch easy lebih tipis dari catch normal |
+| `test_catch_charts_hear_both_voices` | Dua voice bergantian di setiap 8th note: keenam chart (dodge dan catch) berisi step not pemain **dan** step not lawan, semuanya 80 bead, tidak ada ribbon yang hilang, dan setiap bunyi yang terdengar punya bead (`covered` = 100%) |
+| `test_catch_keeps_the_opponents_lone_notes` | Not tunggal tiap 1 detik dari kedua voice: ketiga chart catch menyimpan semua 60 not, termasuk not lawan |
 | `test_hostile_songs_still_give_playable_charts` | Enam lagu acak (500 not, pitch melompat empat oktaf, 100 atau 190 BPM): keenam chart lolos cek lane terjangkau, tidak ada ribbon yang hilang, tidak ada burst tanpa ribbon |
 | `test_lanes_follow_pitch` | Pitch rendah di kiri, tinggi di kanan, semua lane terpakai |
 | `test_same_pitch_always_same_lane_and_same_step_dedupes` | Pitch yang sama selalu satu lane; dua not di step yang sama jadi satu (not pemain menang) |
@@ -378,7 +379,7 @@ Catatan pengukuran: pembagi "rintangan per detik" adalah waktu rintangan terakhi
 
 **Hasil Fase 1: cek lane yang terjangkau (oracle).** Manusia model: `BD_HUMAN_STEP_SEC` = 0,12 detik per langkah lane. Dijalankan pada 27 chart yang dikirim sebelum ribbon (`midi2beatmap --metrics`): **27 dari 27 lolos** (9 per kesulitan), jadi 0,12 detik tidak perlu dirundingkan dengan pemilik. Baseline anti-camping: waktu terlama satu lane tanpa rintangan rata-rata 23,7 detik (easy), 19,1 (normal), 24,0 (hard); terlama 41,0 / 26,4 / 40,4 detik.
 
-**Hasil Fase 2: converter dengan ribbon, chart catch, dan perbaikan.** Setiap lagu sekarang punya enam chart (3 dodge dari kedua voice, 3 catch dari voice pemain). Rata-rata sembilan lagu setelah dikonversi ulang (`midi2beatmap --metrics assets/beatmaps/fnf/*.txt`), dibandingkan dengan baseline Fase 0 (`easy / normal / hard`, chart dodge):
+**Hasil Fase 2: converter dengan ribbon, chart catch, dan perbaikan.** Setiap lagu sekarang punya enam chart (3 dodge dan 3 catch, keenamnya dari kedua voice; chart catch semula hanya dari voice pemain, lihat keputusan 6 di "Mode Catch"). Tabel ini mengukur chart dodge. Rata-rata sembilan lagu setelah dikonversi ulang (`midi2beatmap --metrics assets/beatmaps/fnf/*.txt`), dibandingkan dengan baseline Fase 0 (`easy / normal / hard`, chart dodge):
 
 | Ukuran | Baseline | Sekarang |
 |--------|----------|----------|
@@ -393,7 +394,7 @@ Catatan pengukuran: pembagi "rintangan per detik" adalah waktu rintangan terakhi
 Catatan:
 1. Jumlah bead per detik naik (1,10 / 1,62 / 2,29 menjadi 3,9 / 4,0 / 4,3) karena setiap bunyi cepat sekarang punya bead. Jumlah OBJEK, yang menentukan kesulitan, jauh lebih kecil karena satu ribbon adalah satu objek: rata-rata per chart 84 / 88 / 113 objek (easy / normal / hard) dari 370 / 375 / 400 bead.
 2. Rantai nada dengan selisih paling besar 0,25 detik dipotong menjadi ribbon sepanjang paling lama 1,2 detik pada celah terbesar, dengan minimal dua bead di tiap sisi. Karena itu tidak ada ribbon yang berisi satu bead dan tidak ada ribbon yang dibuang.
-3. Perbaikan (repair) hampir tidak pernah bekerja: dari 2610 ribbon di 54 chart hanya 1 yang harus dipindah ke jendela lane lain dan 0 nada tunggal yang dibuang, karena jarak antar objek sudah lebih dari 0,25 detik. Lipatan karena batas lebar (span cap) terjadi pada 1361 ribbon.
+3. Perbaikan (repair) hampir tidak pernah bekerja: dari 3834 ribbon di 54 chart (27 dodge + 27 catch) hanya 36 yang harus dipindah ke jendela lane lain dan 1 nada tunggal yang dibuang, karena jarak antar objek hampir selalu lebih dari 0,25 detik. Lipatan karena batas lebar (span cap) terjadi pada 1841 ribbon.
 4. Lipatan juga melawan camping: jendela lane yang membiarkan lane yang lama menunggu tidak tersentuh diberi penalti (`FOLD_STARVE_SEC`, `FOLD_STARVE_WEIGHT`). Tanpa itu jendela 5 detik easy kosong 73%, jadi lebih buruk daripada baseline.
 5. **Drum bead tidak dipakai.** Rencana memintanya hanya bila hard tetap di atas 40%; hasilnya 38%. Dalam percobaan, bead tunggal di ketukan pada lane yang kosong lebih dari 4 detik menurunkan angka menjadi 11% / 20% / 29%, tetapi menambah bead yang tidak punya nada melodi, jadi tidak dikirim.
 6. Hard dengan 3 lane dicoba juga: jendela 5 detik kosong 27% (4 lane: 38%), tetapi same-lane 54% (4 lane: 39%). Tetap 4 lane sesuai rencana.
@@ -408,7 +409,7 @@ Catatan:
 | Bot teleport yang menunggu di lane objek berikutnya | tidak pernah kena, lebih dari separuh objeknya close call |
 | Diam di lane awal | kalah di 27 dari 27 chart; game over pada kira-kira 14% (easy), 10% (normal), 12% (hard) lagu; skor rata-rata 28 / 15 / 48 dari 1000 / 1500 / 2000 |
 
-Camper (berdiri di lane yang tidak pernah dipakai chart) menang tetapi hanya mendapat 50% sampai 62% poin maksimal dan nol close call, jadi bermain berani memang lebih menguntungkan. Pembagian audio: setiap lead note punya bead di chartnya (dites di semua chart yang dikirim), dan di chart dodge lebih dari separuh not adalah lead.
+Camper (berdiri di lane yang tidak pernah dipakai chart) menang tetapi hanya mendapat 50% sampai 62% poin maksimal dan nol close call, jadi bermain berani memang lebih menguntungkan. Pembagian audio: setiap lead note punya bead di chartnya (dites di semua chart yang dikirim), dan di semua chart (dodge maupun catch) lebih dari separuh not adalah lead.
 
 Catatan keputusan dan penyimpangan dari rencana: **drum bead tidak dikirim** (lihat catatan 5), **lane hard 4** (catatan 6), **jeda ribbon 0,25 detik** (bukan 0,20 detik di rencana), **rest di dalam ribbon diizinkan**, dan **skor memakai bilangan bulat** (versi `float` bisa menghasilkan 1999 untuk permainan sempurna pada chart dengan poin besar).
 
@@ -508,7 +509,7 @@ Bagian ini menjelaskan sistem lagu yang ditambahkan setelah design awal.
 
 - **Daftar lagu** (jumlah objek chart dodge easy / normal / hard; BPM): Bopeebo (100: 76 / 82 / 114), Satin Panties (110: 91 / 106 / 110), Roses (120: 85 / 85 / 89), High (125: 94 / 109 / 117), Eggnog (150: 72 / 73 / 113), South (165: 57 / 57 / 80), Dad Battle (180: 68 / 68 / 104), M.I.L.F (180: 103 / 103 / 153), Thorns (190: 110 / 110 / 138). Jumlah objek chart catch ada di bagian "Mode Catch".
 - **Kenapa lane diturunkan dari pitch:** file MIDI Friday Night Funkin' hanya menyimpan melodi (waktu dan nada), bukan lane panah. Konverter menaruh nada rendah di kiri dan nada tinggi di kanan, lalu menyeimbangkan supaya tiap lane kira-kira sama sering dipakai. Jumlah lane adalah keputusan gameplay, bukan data dari lagu.
-- **Cara konversi, versi singkat:** `core/src/midi.c` membaca not tiap track, `beat_dodge_convert.c` menggabungkan track lawan dan pemain, menjatuhkan tiap not ke step 16th terdekat (kalau dua not jatuh ke step yang sama, not pemain yang dipakai), menyambung not cepat menjadi ribbon, menipiskan not tunggal per kesulitan, memetakan pitch ke lane, memvalidasi dengan cek lane terjangkau, dan menyimpan seluruh melodi untuk musik. Chart catch dibuat dengan cara yang sama dari voice pemain saja.
+- **Cara konversi, versi singkat:** `core/src/midi.c` membaca not tiap track, `beat_dodge_convert.c` menggabungkan track lawan dan pemain, menjatuhkan tiap not ke step 16th terdekat (kalau dua not jatuh ke step yang sama, not pemain yang dipakai), menyambung not cepat menjadi ribbon, menipiskan not tunggal per kesulitan, memetakan pitch ke lane, memvalidasi dengan cek lane terjangkau, dan menyimpan seluruh melodi untuk musik. Chart catch dibuat dengan cara yang sama dan dari not yang sama (kedua voice), hanya preset kesulitannya yang berbeda.
 - **Menambah atau membangun ulang lagu:**
   ```bash
   cmake --preset logic && cmake --build --preset logic          # membangun build/logic/bin/midi2beatmap
@@ -519,7 +520,7 @@ Bagian ini menjelaskan sistem lagu yang ditambahkan setelah design awal.
   ```
 
 ## Mode Catch (dulu game terpisah "Beat Catch")
-Kebalikan mode Dodge: **tangkap, jangan hindari.** Setiap bunyi melodi pemain punya cincin yang jatuh ke garis, dan kamu harus sudah berdiri di lane-nya tepat saat cincin itu sampai. Lagunya sama persis dengan mode Dodge dan keduanya dipilih di layar pilih lagu lewat tombol besar **DODGE** / **CATCH**. Satu lagu punya enam chart: tiga untuk dodge (dari kedua voice melodi) dan tiga untuk catch (hanya dari voice pemain, "Boyfriend"); mode Catch hanya menampilkan chart catch. Mode ini memakai ulang format lagu, jam (`bd_Run`), cek lane yang terjangkau, menu, musik, dan penggambaran lapangan dari mode Dodge; yang baru hanya aturan *tangkap* di `beat_catch_logic.[ch]` dan loop mainnya di `beat_catch_game.c`.
+Kebalikan mode Dodge: **tangkap, jangan hindari.** Setiap bunyi melodi, dari **kedua voice** (lawan dan pemain), punya cincin yang jatuh ke garis, dan kamu harus sudah berdiri di lane-nya tepat saat cincin itu sampai. Tidak ada "giliran lawan" yang bisa ditunggu dan tidak ada not yang berbunyi pelan sebagai latar karena bukan not pemain: semua not diperlakukan sama, seperti di mode Dodge. Lagunya sama persis dengan mode Dodge dan keduanya dipilih di layar pilih lagu lewat tombol besar **DODGE** / **CATCH**. Satu lagu punya enam chart: tiga untuk dodge dan tiga untuk catch, keenamnya dari kedua voice melodi; mode Catch hanya menampilkan chart catch. Mode ini memakai ulang format lagu, jam (`bd_Run`), cek lane yang terjangkau, menu, musik, dan penggambaran lapangan dari mode Dodge; yang baru hanya aturan *tangkap* di `beat_catch_logic.[ch]` dan loop mainnya di `beat_catch_game.c`.
 
 ### Penjelasan sederhana
 Bayangkan lingkaran-lingkaran **kosong** (cincin) yang jatuh dari atas layar ke sebuah garis di bawah. Kamu adalah sebuah **cangkir** yang bisa digeser ke kiri dan kanan antar lane. Saat sebuah cincin menyentuh garis:
@@ -574,7 +575,7 @@ multiplier : easy 1.0, normal 1.5, hard 2.0
 **Sebelum loop utama:** `play()` di `beat_dodge_game.c` menampilkan layar pilih lagu (`bd_ui_select_song()`). Kalau pemain memilih mode CATCH, `play()` memanggil `bd_ui_play_catch(ctx, lagu, chart)` (di `beat_catch_game.c`). Mode headless (smoke) memainkan mode Dodge lalu mode Catch pada chart tersulit lagu pertama, masing-masing separuh dari jumlah frame, tanpa audio (screenshot `beat_dodge.png` dan `beat_dodge_catch.png`).
 
 1. `beat_catch_use_song()` memanggil `bd_run_start()` (jam, lane awal di tengah) lalu `reset_rules()` (health 100, combo 0, `max_points`, multiplier).
-2. `bd_ui_music_start()`: kalau ada audio dan melodi, melodi di-render synthesizer menjadi WAV di memori dan dimainkan. Not yang punya bead di chart yang dipilih berbunyi sebagai lead terang, yang lain sebagai backing pelan (`bd_song_to_synth`). Tanpa melodi tapi ada audio: tick metronom.
+2. `bd_ui_music_start()`: kalau ada audio dan melodi, melodi di-render synthesizer menjadi WAV di memori dan dimainkan. Not yang punya bead di chart yang dipilih berbunyi sebagai lead terang, yang lain sebagai backing pelan (`bd_song_to_synth`). Karena chart catch memuat not kedua voice, not lawan juga lead; backing hanya tersisa untuk not tunggal yang ditipiskan easy dan normal (di hard kurang dari 1%). Tanpa melodi tapi ada audio: tick metronom.
 
 **Setiap frame:**
 
@@ -682,13 +683,15 @@ Dihitung dengan memainkan chart asli lewat `beat_catch_step`, dan chart-nya diuk
 | Ukuran | easy | normal | hard |
 |--------|------|--------|------|
 | Lane | 3 | 4 | 4 |
-| Bead per chart | 197 | 204 | 219 |
-| Objek per chart (ribbon + bead tunggal) | 47 (38 + 9) | 54 (38 + 16) | 69 (38 + 31) |
-| Bead per detik | 2,09 | 2,17 | 2,34 |
+| Bead per chart | 370 | 379 | 407 |
+| Objek per chart (ribbon + bead tunggal) | 84 (71 + 13) | 93 (71 + 22) | 120 (71 + 49) |
+| Bead per detik | 3,94 | 4,04 | 4,34 |
 | Bot kecepatan manusia (ikut `bd_chart_plan`, satu ketukan panah tiap 0,1 detik): bead tertangkap, objek gagal | 100%, 0 | 100%, 0 | 100%, 0 |
 | Bot sempurna | 1000 | 1500 | 2000 |
-| Diam di lane awal: game over pada | 32% lagu | 32% lagu | 22% lagu |
-| Diam di lane awal: skor | 20 | 63 | 51 |
+| Diam di lane awal: game over pada | 18% lagu | 18% lagu | 12% lagu |
+| Diam di lane awal: skor | 11 | 41 | 14 |
+
+Angka di atas diukur setelah chart catch dibuat dari kedua voice (keputusan 6). Sebelumnya, dengan voice pemain saja: 197 / 204 / 219 bead (2,09 / 2,17 / 2,34 per detik), 47 / 54 / 69 objek, dan pemain yang diam kalah pada 32% / 32% / 22% lagu. Chart catch sekarang kira-kira dua kali lebih padat; bot kecepatan manusia tetap menangkap semuanya, dan pemain yang diam kalah lebih cepat.
 
 #### Keputusan dan penyimpangan dari rencana (dan kenapa)
 1. **Toleransi menurut span objek, bukan "1 untuk semua bead ribbon".** Rencana awal memberi toleransi 1 pada setiap bead ribbon. Tes pertama memperlihatkan bahwa dengan 3 lane, pemain yang berdiri diam di lane tengah mendapat skor penuh 1000 di Roses easy, karena ribbon yang berada di satu lane pun tetap tertangkap dari lane sebelahnya. Sekarang ribbon yang tetap di satu lane (span 0) butuh lane tepat, dan hanya ribbon yang benar-benar pindah lane (span 1 atau 2) ditangkap dari tengahnya. Argumennya tetap sama: tidak ada yang bisa mengikuti perpindahan lane tiap 80 ms. Chart catch dibuat ulang dengan pemeriksa kelayakan yang sama.
@@ -696,6 +699,7 @@ Dihitung dengan memainkan chart asli lewat `beat_catch_step`, dan chart-nya diuk
 3. **Combo dipertahankan** (keputusan pemilik): menghitung bead, bukan objek, dan pengali memakai combo *sebelum* bead itu.
 4. **Skor dalam bilangan bulat.** `1000 * multiplier * points / max_points` dihitung dengan `long long`, supaya skor sempurna persis sama dengan batasnya (versi `float` bisa menghasilkan 1999 pada chart dengan poin besar). Dipakai juga oleh Beat Dodge.
 5. **Lane:** easy 3, normal 4, hard 4 sesuai rencana. Chart catch hard tidak punya jeda minimum antar bead tunggal, yang membatasi hanya cek lane terjangkau (`BD_HUMAN_STEP_SEC` = 0,12 detik per lane).
+6. **Chart catch dari kedua voice, bukan hanya voice pemain.** Semula chart catch dibuat dari voice pemain ("Boyfriend") saja, jadi pemain harus menunggu gilirannya sementara not lawan hanya berbunyi pelan sebagai backing. Sekarang keenam chart dibuat dari not yang sama (`g_all` di `beat_dodge_convert.c`), sama seperti mode Dodge: semua not adalah bead yang harus ditangkap dan berbunyi lead. Tidak ada aturan atau angka keseimbangan yang diubah (`BC_*`, `bd_catch_tolerance`, preset kesulitan tetap), dan cek lane terjangkau tetap tidak dilonggarkan: semua 27 chart catch lolos, bot kecepatan manusia menang di semuanya, dan pemain yang diam kalah di semuanya. Akibatnya chart catch kira-kira dua kali lebih padat (lihat tabel di atas). Not tunggal yang ditipiskan oleh preset easy dan normal tetap berbunyi sebagai backing pelan, sama seperti di Dodge; kalau suatu hari semua not harus bisa ditangkap di semua kesulitan, ubah `grid` dan `min_gap` preset catch easy dan normal di `k_preset`.
 
 #### Ide berikutnya (belum dikerjakan)
 - [ ] Playtest manusia untuk mengatur `BC_HEALTH_PER_MISS` dan `BC_HEALTH_PER_CLEAN_OBJECT`.

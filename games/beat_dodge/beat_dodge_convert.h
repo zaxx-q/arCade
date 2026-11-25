@@ -3,8 +3,9 @@
  * What a MIDI file gives us: note TIMES and PITCHES (the Friday Night Funkin' MIDI packs hold each
  * character's melody, not the arrow lanes). So lanes are DERIVED from pitch: every distinct pitch is placed
  * on a lane by its rank in the song's pitch range (low notes left, high notes right, each lane used about
- * equally). Six charts come out: easy / normal / hard for Beat Dodge (both voices) and easy / normal / hard
- * for Beat Catch (the player voice).
+ * equally). Six charts come out: easy / normal / hard for Beat Dodge and easy / normal / hard for Beat Catch.
+ * All six are made from the notes of BOTH voices (the opponent's and the player's), so Beat Catch treats
+ * every note like Beat Dodge does: nothing is skipped because it is "the other side's turn".
  *
  * How a chart is made:
  *   1. notes at most BD_RIBBON_GAP_SEC apart form a chain; a chain longer than BD_RIBBON_MAX_SEC is split at
