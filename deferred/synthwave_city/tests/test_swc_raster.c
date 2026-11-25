@@ -197,6 +197,54 @@ static void test_a_gradient_with_several_stops(void) {
     swc_cv_destroy(cv);
 }
 
+static void test_an_even_gradient_spaces_its_stops_and_a_radial_one_grows_from_the_centre(void) {
+    SwcCanvas *cv = swc_cv_create(W, H);
+    uint32_t rgb[4] = {0x000000, 0xff0000, 0x000000, 0xff0000};
+    SwcGradient g = swc_gradient_even(0, 0, 90, 0, rgb, 4); /* stops at 0, 30, 60, 90 */
+    CHECK_EQ_INT(g.stop_count, 4);
+    CHECK_NEAR(g.stop_at[1], 1.0 / 3.0, 1e-12);
+    CHECK_NEAR(g.stop_at[2], 2.0 / 3.0, 1e-12);
+    swc_cv_fill_gradient(cv, &g);
+    swc_cv_fill_rect(cv, 0, 0, W, H);
+    CHECK_NEAR(red(cv, 30, 5), 255, 6);
+    CHECK_NEAR(red(cv, 60, 5), 0, 6);
+    CHECK_NEAR(red(cv, 15, 5), 127, 6);
+    CHECK_EQ_INT(red(cv, 97, 5), 255); /* past the last stop: clamped to its colour */
+    swc_cv_destroy(cv);
+
+    cv = swc_cv_create(W, H);
+    SwcGradient r = swc_gradient_radial2(50, 50, 0, 50, 50, 40, 0x000000, 0xff0000);
+    CHECK(r.radial);
+    swc_cv_fill_gradient(cv, &r);
+    swc_cv_fill_rect(cv, 0, 0, W, H);
+    CHECK_NEAR(red(cv, 50, 50), 0, 8);   /* the centre has the first colour */
+    CHECK_NEAR(red(cv, 70, 50), 127, 8); /* half way out: half way between the two */
+    CHECK_NEAR(red(cv, 50, 30), 127, 8); /* the same in every direction */
+    CHECK_EQ_INT(red(cv, 95, 50), 255);  /* outside the big circle: the last colour */
+    swc_cv_destroy(cv);
+}
+
+static void test_a_slice_moves_sideways_without_clearing_what_it_leaves(void) {
+    SwcCanvas *cv = swc_cv_create(W, H);
+    swc_cv_fill_rgb(cv, 0xff0000);
+    swc_cv_fill_rect(cv, 2, 0, 2, 20);  /* a marker, columns 2..3 */
+    swc_cv_fill_rect(cv, 10, 0, 4, 20); /* a bar, columns 10..13 */
+    swc_cv_shift_slice(cv, 0, 5, 50, 5, 7);
+    for (int y = 0; y < 20; y++) {
+        bool inside = y >= 5 && y < 10;
+        CHECK_EQ_INT(red(cv, 2, y), 255);               /* what the slice leaves behind keeps its colour */
+        CHECK_EQ_INT(red(cv, 18, y), inside ? 255 : 0); /* the bar lands 7 to the right, in the box only */
+        CHECK_EQ_INT(red(cv, 9, y), inside ? 255 : 0);  /* the marker, 7 to the right of column 2 */
+        CHECK_EQ_INT(red(cv, 11, y),
+                     inside ? 0 : 255); /* the slice overwrote the old bar with its left part */
+        CHECK_EQ_INT(red(cv, 16, y), 0);
+    }
+    /* moving it would leave the canvas: nothing happens */
+    swc_cv_shift_slice(cv, 60, 30, 30, 4, 20);
+    swc_cv_shift_slice(cv, 5, 30, 30, 4, -20);
+    swc_cv_destroy(cv);
+}
+
 static void test_a_rectangle_clip_limits_drawing_and_restore_lifts_it(void) {
     SwcCanvas *cv = fresh();
     swc_cv_save(cv);
@@ -468,6 +516,8 @@ int main(void) {
     RUN(test_a_gradient_runs_between_its_points_and_clamps);
     RUN(test_a_gradient_follows_the_transform);
     RUN(test_a_gradient_with_several_stops);
+    RUN(test_an_even_gradient_spaces_its_stops_and_a_radial_one_grows_from_the_centre);
+    RUN(test_a_slice_moves_sideways_without_clearing_what_it_leaves);
     RUN(test_a_rectangle_clip_limits_drawing_and_restore_lifts_it);
     RUN(test_a_circle_clip_and_a_nested_clip_intersect);
     RUN(test_arcs_turn_the_way_a_browser_turns_them);

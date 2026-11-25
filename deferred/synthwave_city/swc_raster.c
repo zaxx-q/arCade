@@ -323,6 +323,35 @@ static void coverage(SwcCanvas *cv, EdgeList *l, SwcFillRule rule, int bx0, int 
 /* Painting                                                                                             */
 /* ---------------------------------------------------------------------------------------------------- */
 
+/* Where a point falls along a radial gradient: the largest t whose circle (centre and radius interpolated
+ * from the two given) passes through it with a radius of zero or more. 0 when no circle does. */
+static double radial_t(const SwcGradient *g, double x, double y) {
+    double dx = x - g->x0, dy = y - g->y0;
+    double cx = g->x1 - g->x0, cy = g->y1 - g->y0, dr = g->r1 - g->r0;
+    /* |d - t c|^2 = (r0 + t dr)^2  <=>  a t^2 - 2 b t + c0 = 0 */
+    double a = cx * cx + cy * cy - dr * dr;
+    double b = dx * cx + dy * cy + g->r0 * dr;
+    double c0 = dx * dx + dy * dy - g->r0 * g->r0;
+    double roots[2];
+    int n = 0;
+    if (fabs(a) < 1e-12) {
+        if (fabs(b) > 1e-12)
+            roots[n++] = c0 / (2.0 * b);
+    } else {
+        double disc = b * b - a * c0;
+        if (disc >= 0.0) {
+            double sq = sqrt(disc);
+            double r1 = (b + sq) / a, r2 = (b - sq) / a;
+            roots[n++] = r1 > r2 ? r1 : r2;
+            roots[n++] = r1 > r2 ? r2 : r1;
+        }
+    }
+    for (int i = 0; i < n; i++)
+        if (g->r0 + roots[i] * dr >= 0.0)
+            return roots[i];
+    return 0.0;
+}
+
 static void paint_at(const Paint *p, const Mat *inv, double px, double py, float rgb[3]) {
     if (!p->gradient) {
         rgb[0] = (float)((p->rgb >> 16) & 255u);
@@ -332,8 +361,13 @@ static void paint_at(const Paint *p, const Mat *inv, double px, double py, float
     }
     const SwcGradient *g = &p->g;
     Pt u = mat_apply(inv, px, py);
-    double dx = g->x1 - g->x0, dy = g->y1 - g->y0, len2 = dx * dx + dy * dy;
-    double t = len2 > 0 ? ((u.x - g->x0) * dx + (u.y - g->y0) * dy) / len2 : 0.0;
+    double t;
+    if (g->radial) {
+        t = radial_t(g, u.x, u.y);
+    } else {
+        double dx = g->x1 - g->x0, dy = g->y1 - g->y0, len2 = dx * dx + dy * dy;
+        t = len2 > 0 ? ((u.x - g->x0) * dx + (u.y - g->y0) * dy) / len2 : 0.0;
+    }
     int n = g->stop_count;
     if (n <= 0) {
         rgb[0] = rgb[1] = rgb[2] = 0;
@@ -604,6 +638,55 @@ void swc_cv_stroke_box(SwcCanvas *cv, bool on, double x0, double y0, double x1, 
 }
 void swc_cv_stroke_hole(SwcCanvas *cv, double inner) {
     cur(cv)->hole = inner;
+}
+
+/* The widest slice swc_cv_shift_slice moves, in pixels. */
+#define SLICE_MAX 4096
+
+static int round_js(double v) { /* Math.round: halves go up */
+    return (int)floor(v + 0.5);
+}
+
+void swc_cv_shift_slice(SwcCanvas *cv, double x, double y, double w, double h, double dx) {
+    const Mat *m = &cur(cv)->ctm;
+    int sx = round_js(m->e + x), sy = round_js(m->f + y), sw = round_js(w), sh = round_js(h);
+    int move = round_js(dx);
+    if (sw <= 0 || sh <= 0 || sw > SLICE_MAX || sx < 0 || sy < 0 || sx + sw > cv->w || sy + sh > cv->h ||
+        sx + move < 0 || sx + move + sw > cv->w)
+        return;
+    uint8_t row[SLICE_MAX * 4];
+    for (int j = 0; j < sh; j++) {
+        uint8_t *line = cv->px + ((size_t)(sy + j) * (size_t)cv->w) * 4u;
+        memcpy(row, line + (size_t)sx * 4u, (size_t)sw * 4u);
+        memcpy(line + (size_t)(sx + move) * 4u, row, (size_t)sw * 4u);
+    }
+}
+
+SwcGradient swc_gradient_even(double x0, double y0, double x1, double y1, const uint32_t *rgb, int count) {
+    SwcGradient g;
+    memset(&g, 0, sizeof(g));
+    g.x0 = x0;
+    g.y0 = y0;
+    g.x1 = x1;
+    g.y1 = y1;
+    if (count > SWC_GRADIENT_STOPS)
+        count = SWC_GRADIENT_STOPS;
+    g.stop_count = count;
+    for (int i = 0; i < count; i++) {
+        g.stop_at[i] = count > 1 ? (double)i / (double)(count - 1) : 0.0;
+        g.stop_rgb[i] = rgb[i];
+    }
+    return g;
+}
+
+SwcGradient swc_gradient_radial2(double x0, double y0, double r0, double x1, double y1, double r1,
+                                 uint32_t from, uint32_t to) {
+    uint32_t pair[2] = {from, to};
+    SwcGradient g = swc_gradient_even(x0, y0, x1, y1, pair, 2);
+    g.r0 = r0;
+    g.r1 = r1;
+    g.radial = true;
+    return g;
 }
 
 SwcGradient swc_gradient2(double x0, double y0, double x1, double y1, uint32_t from, uint32_t to) {

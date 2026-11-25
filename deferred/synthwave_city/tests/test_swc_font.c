@@ -124,6 +124,52 @@ static void test_lower_case_draws_as_upper_case_and_unknown_characters_are_blank
     swc_cv_destroy(c);
 }
 
+static void test_the_few_lower_case_letters_have_their_own_shapes_and_heights(void) {
+    SwcFontStyle st = {100, 500, false, false, 0};
+    const char *letters = "velt";
+    int top[4], base[4];
+    for (int i = 0; i < 4; i++) {
+        SwcCanvas *cv = fresh();
+        swc_font_draw(cv, &st, (char[]){letters[i], 0}, 100, 150, 0, false);
+        int x0, y0, x1, y1;
+        CHECK(bounds(cv, &x0, &y0, &x1, &y1));
+        top[i] = 150 - y0;
+        base[i] = y1 - 149;
+        CHECK(x1 - x0 < 100 * (letters[i] == 'l' || letters[i] == 't' ? 0.30 : 0.60));
+        swc_cv_destroy(cv);
+    }
+    CHECK(abs(top[0] - 53) <= 2); /* v: the x-height, 0.53 em */
+    CHECK(abs(top[1] - 53) <= 2); /* e */
+    CHECK(abs(top[2] - 72) <= 2); /* l: an ascender, 0.72 em */
+    CHECK(abs(top[3] - 66) <= 2); /* t: 0.66 em */
+    for (int i = 0; i < 4; i++)
+        CHECK(abs(base[i]) <= 1); /* all stand on the baseline */
+
+    /* they are not the capitals */
+    SwcCanvas *a = fresh(), *b = fresh();
+    swc_font_draw(a, &st, "velvet", 10, 150, 0, false);
+    swc_font_draw(b, &st, "VELVET", 10, 150, 0, false);
+    CHECK(memcmp(swc_cv_pixels(a), swc_cv_pixels(b), (size_t)W * H * 4) != 0);
+    CHECK(swc_font_advance(&st, 'l') < swc_font_advance(&st, 'L'));
+    CHECK_NEAR(swc_font_measure(&st, "velvet"), 100 * (0.5 + 0.556 + 0.262 + 0.5 + 0.556 + 0.278), 1e-9);
+    swc_cv_destroy(a);
+    swc_cv_destroy(b);
+}
+
+static void test_a_dot_is_round_and_as_wide_as_the_stem(void) {
+    SwcFontStyle st = {100, 800, false, false, 0};
+    SwcCanvas *cv = fresh();
+    swc_font_draw(cv, &st, ".", 100, 150, 0, false);
+    double stem = swc_font_stem(&st);
+    double area = ink(cv);
+    CHECK_NEAR(area, 3.14159265 / 4.0 * stem * stem, 0.06 * stem * stem); /* a disc, not a square */
+    int x0, y0, x1, y1;
+    CHECK(bounds(cv, &x0, &y0, &x1, &y1));
+    CHECK(abs((x1 - x0 + 1) - (int)ceil(stem)) <= 2);
+    CHECK(abs((x1 - x0) - (y1 - y0)) <= 1);
+    swc_cv_destroy(cv);
+}
+
 static void test_italic_leans_the_top_to_the_right(void) {
     SwcFontStyle st = {100, 900, false, false, 0};
     SwcFontStyle it = {100, 900, true, false, 0};
@@ -180,6 +226,8 @@ int main(void) {
     RUN(test_every_character_draws_ink_and_stays_near_its_advance);
     RUN(test_capitals_stand_on_the_baseline_with_the_cap_height);
     RUN(test_lower_case_draws_as_upper_case_and_unknown_characters_are_blank);
+    RUN(test_the_few_lower_case_letters_have_their_own_shapes_and_heights);
+    RUN(test_a_dot_is_round_and_as_wide_as_the_stem);
     RUN(test_italic_leans_the_top_to_the_right);
     RUN(test_a_halo_is_wider_and_a_ring_leaves_the_letter_alone);
     RUN(test_the_same_text_gives_the_same_pixels);

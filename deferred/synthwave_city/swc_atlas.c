@@ -3,6 +3,7 @@
 #include "swc_atlas.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,14 +39,15 @@ typedef struct Txt {
     double size;
     int weight; /* 0: 800 */
     bool italic;
-    double track;          /* em */
-    int align;             /* 0 left, 1 center, 2 right */
-    uint32_t fill;         /* 0: ink W; NONE: outline only */
-    uint32_t grad0, grad1; /* a top-to-bottom gradient fill when grad0 is set */
-    uint32_t stroke;       /* 0: none */
-    double stroke_w;       /* 0: size * 0.09 */
-    double max_w;          /* 0: no limit */
-    double stretch;        /* 0: 1 */
+    double track;  /* em */
+    int align;     /* 0 left, 1 center, 2 right */
+    uint32_t fill; /* 0: ink W; NONE: outline only */
+    uint32_t
+        grad[SWC_GRADIENT_STOPS]; /* a top-to-bottom gradient fill of these inks, evenly spaced, when set */
+    uint32_t stroke;              /* 0: none */
+    double stroke_w;              /* 0: size * 0.09 */
+    double max_w;                 /* 0: no limit */
+    double stretch;               /* 0: 1 */
     bool mono;
 } Txt;
 
@@ -78,8 +80,11 @@ static double type_at(G *g, const char *s, double x, double y, const Txt *st, bo
         swc_cv_fill_rgb(g, st->stroke);
         swc_font_draw(g, &fs, s, 0, 0, lw, st->fill == NONE);
     }
-    if (st->grad0 != 0) {
-        SwcGradient gr = swc_gradient2(0, -st->size * 0.74, 0, 0, st->grad0, st->grad1);
+    if (st->grad[0] != 0) {
+        int n = 0;
+        while (n < SWC_GRADIENT_STOPS && st->grad[n] != 0)
+            n++;
+        SwcGradient gr = swc_gradient_even(0, -st->size * 0.74, 0, 0, st->grad, n);
         swc_cv_fill_gradient(g, &gr);
         swc_font_draw(g, &fs, s, 0, 0, 0, false);
     } else if (st->fill != NONE) {
@@ -350,7 +355,6 @@ static void bulbs(G *g, double x, double y, double w, double h, double pitch, ui
 }
 
 static const char *const HEART[] = {".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."};
-static const char *const COIN[] = {".XXXX.", "XX..XX", "X.XX.X", "X.XX.X", "XX..XX", ".XXXX."};
 
 static void pixels(G *g, const char *const *rows, int nrows, double x, double y, double s, uint32_t ink) {
     swc_cv_fill_rgb(g, ink);
@@ -603,28 +607,106 @@ static void speed_lines(G *g, double x0, double x1, double y0, double y1, SwcRng
 }
 
 /* ---------------------------------------------------------------------------------------------------- */
+/* Radio station parts: the five stations share big italic frequency numerals, an FM tag and a genre line; */
+/* each has its own motif.                                                                                  */
+/* ---------------------------------------------------------------------------------------------------- */
+
+/* An FM tuning scale, 88 to 108, with its needle on freq. */
+static void dial(G *g, double x, double y, double w, double freq, uint32_t ink, uint32_t needle) {
+#define DIAL_AT(f) (x + (((f) - 88.0) / 20.0) * w)
+    line(g, x, y, x + w, y, ink, 2);
+    for (int f = 88; f <= 108; f++) {
+        bool major = f % 4 == 0;
+        line(g, DIAL_AT(f), y, DIAL_AT(f), y - (major ? 9 : 5), ink, major ? 2 : 1.2);
+        if (major) {
+            char num[8];
+            snprintf(num, sizeof(num), "%d", f);
+            TXT(g, num, DIAL_AT(f), y + 10, .size = 10, .weight = 700, .align = CENTER, .fill = ink,
+                .mono = true);
+        }
+    }
+    line(g, DIAL_AT(freq), y - 16, DIAL_AT(freq), y + 4, needle, 3);
+    disc(g, DIAL_AT(freq), y - 17, 3.5, needle);
+#undef DIAL_AT
+}
+
+/* Big frequency numerals with a small FM tag after them. `st` has the size, weight, italic, max width and
+ * fills of the numerals. Returns the right edge. */
+static double frequency(G *g, const char *s, double x, double y, const Txt *st, uint32_t tag) {
+    double w = type_at(g, s, x, y, st, false);
+    TXT(g, "FM", x + w + 8, y + st->size * 0.18, .size = st->size * 0.28, .weight = 900, .italic = true,
+        .track = 0.1, .fill = tag);
+    return x + w;
+}
+
+/* A faceted crystal shard: facets in dim inks round a ridge, edges white-hot. */
+static void shard(G *g, const double *pts, int n_values, const double ridge[2], const uint32_t *inks,
+                  int ink_count) {
+    int n = n_values / 2;
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        POLY(g, ridge[0], ridge[1], pts[i * 2], pts[i * 2 + 1], pts[j * 2], pts[j * 2 + 1]);
+        swc_cv_fill_rgb(g, inks[i % ink_count]);
+        swc_cv_fill(g, SWC_NONZERO);
+    }
+    swc_cv_line_join(g, SWC_JOIN_MITER);
+    poly(g, pts, n_values);
+    swc_cv_stroke_rgb(g, IW);
+    swc_cv_line_width(g, 2.5);
+    swc_cv_stroke(g);
+    for (int i = 0; i < n; i++)
+        line(g, ridge[0], ridge[1], pts[i * 2], pts[i * 2 + 1], i % 2 == 0 ? IAW : IA, 1.4);
+}
+
+/* A fluted classical column standing on y, top at y - h. */
+static void column(G *g, double cx, double y, double h, double w, uint32_t ink, uint32_t cap) {
+    swc_cv_fill_rgb(g, cap);
+    swc_cv_fill_rect(g, cx - w * 0.8, y - h, w * 1.6, h * 0.05);
+    swc_cv_fill_rect(g, cx - w * 0.66, y - h * 0.95, w * 1.32, h * 0.035);
+    ring(g, cx - w * 0.62, y - h * 0.9, w * 0.17, cap, 2);
+    ring(g, cx + w * 0.62, y - h * 0.9, w * 0.17, cap, 2);
+    swc_cv_fill_rgb(g, ink);
+    swc_cv_fill_rect(g, cx - w / 2, y - h * 0.9, w, h * 0.84);
+    swc_cv_fill_rgb(g, IK);
+    for (int i = 1; i < 4; i++)
+        swc_cv_fill_rect(g, cx - w / 2 + (i * w) / 4 - 1, y - h * 0.86, 2, h * 0.76);
+    swc_cv_fill_rgb(g, cap);
+    swc_cv_fill_rect(g, cx - w * 0.68, y - h * 0.06, w * 1.36, h * 0.03);
+    swc_cv_fill_rect(g, cx - w * 0.8, y - h * 0.03, w * 1.6, h * 0.03);
+}
+
+/* A chequered floor in perspective between the horizon y0 and y1. */
+static void checker_floor(G *g, double x0, double x1, double y0, double y1, double tile, uint32_t ink_a,
+                          uint32_t ink_b) {
+    swc_cv_save(g);
+    swc_cv_begin_path(g);
+    swc_cv_rect(g, x0, y0, x1 - x0, y1 - y0);
+    swc_cv_clip(g, SWC_NONZERO);
+    double cx = (x0 + x1) / 2;
+    int rows = 6;
+    int half = (int)ceil(((x1 - x0) / 2) / (tile * 0.18)) + 1;
+#define CHECKER_Y(v) (y0 + (y1 - y0) * pow((v), 1.7))
+#define CHECKER_S(y) (0.18 + 0.82 * (((y) - y0) / (y1 - y0)))
+    for (int j = 0; j < rows; j++) {
+        double ya = CHECKER_Y((double)j / rows), yb = CHECKER_Y((double)(j + 1) / rows);
+        double sa = CHECKER_S(ya), sb = CHECKER_S(yb);
+        for (int i = -half; i < half; i++) {
+            POLY(g, cx + i * tile * sa, ya, cx + (i + 1) * tile * sa, ya, cx + (i + 1) * tile * sb, yb,
+                 cx + i * tile * sb, yb);
+            swc_cv_fill_rgb(g, ((i + j) & 1) == 0 ? ink_a : ink_b);
+            swc_cv_fill(g, SWC_NONZERO);
+        }
+    }
+#undef CHECKER_Y
+#undef CHECKER_S
+    swc_cv_restore(g);
+}
+
+/* ---------------------------------------------------------------------------------------------------- */
 /* Wide adverts, 512 x 256                                                                              */
 /* ---------------------------------------------------------------------------------------------------- */
 
 typedef void (*AdFn)(G *g, SwcRng *rng);
-
-/* NOVA COLA */
-static void wide_nova_cola(G *g, SwcRng *rng) {
-    (void)rng;
-    can(g, 92, 130, 78, 176, -0.2);
-    static const double dots[6][3] = {{168, 52, 9},   {186, 96, 5},  {160, 150, 7},
-                                      {182, 196, 11}, {204, 152, 4}, {148, 104, 4}};
-    for (int i = 0; i < 6; i++)
-        ring(g, dots[i][0], dots[i][1], dots[i][2], IB, 2.5);
-    TXT(g, "NOVA", 214, 74, .size = 96, .weight = 900, .italic = true, .fill = IA, .stroke = IW,
-        .stroke_w = 5, .max_w = 280);
-    TXT(g, "COLA", 236, 152, .size = 96, .weight = 900, .italic = true, .grad0 = IBH, .grad1 = IB,
-        .max_w = 258);
-    set_hgrad(g, 214, 498, IA, IB);
-    swc_cv_fill_rect(g, 214, 201, 284, 4);
-    TXT(g, "ICE COLD / ZERO GRAVITY", 216, 224, .size = 17, .weight = 700, .track = 0.2, .fill = IW,
-        .max_w = 280);
-}
 
 /* HYPERLINE */
 static void wide_hyperline(G *g, SwcRng *rng) {
@@ -657,24 +739,13 @@ static void wide_hyperline(G *g, SwcRng *rng) {
         .fill = IW, .mono = true, .max_w = 470);
 }
 
-/* KIRO NOODLE BAR */
-static void wide_kiro(G *g, SwcRng *rng) {
-    bowl(g, 104, 150, 76);
-    TXT(g, "KIRO", 206, 82, .size = 118, .weight = 900, .fill = IA, .stroke = IW, .stroke_w = 5,
-        .stretch = 1.08, .max_w = 250);
-    TXT(g, "NOODLE BAR", 208, 156, .size = 34, .weight = 800, .track = 0.16, .fill = IB, .max_w = 248);
-    badge(g, 208, 190, 170, 40, "OPEN 25 HRS", IW, false);
-    glyph_run(g, 474, 34, 20, 6, rng, IAB, true);
-    line(g, 462, 26, 462, 232, IA2, 2);
-}
-
 /* SUNSET FM 88.8 */
 static void wide_sunset_fm(G *g, SwcRng *rng) {
     sun(g, 118, 118, 92, IAH, IA, 6);
     line(g, 14, 214, 226, 214, IB, 2);
     TXT(g, "SUNSET FM", 240, 46, .size = 46, .weight = 900, .italic = true, .fill = IW, .max_w = 258);
-    TXT(g, "88.8", 236, 122, .size = 112, .weight = 900, .italic = true, .grad0 = IBH, .grad1 = IB,
-        .stroke = IK, .max_w = 262);
+    TXT(g, "88.8", 236, 122, .size = 112, .weight = 900, .italic = true, .grad = {IBH, IB}, .stroke = IK,
+        .max_w = 262);
     badge(g, 242, 188, 104, 40, "ON AIR", IA, true);
     bars(g, 362, 230, 136, 46, 12, rng, IAB, IA);
     TXT(g, "ALL NIGHT SYNTH", 120, 234, .size = 13, .weight = 700, .track = 0.28, .align = CENTER, .fill = IB,
@@ -697,45 +768,6 @@ static void wide_zephyra(G *g, SwcRng *rng) {
         .stroke = IK, .stroke_w = 6, .max_w = 120);
     TXT(g, "TWIN TURBO", 498, 232, .size = 13, .weight = 700, .track = 0.2, .align = RIGHT, .fill = IW,
         .stroke = IK, .stroke_w = 5, .mono = true, .max_w = 120);
-}
-
-/* ARCADE PALACE */
-static void wide_arcade_palace(G *g, SwcRng *rng) {
-    (void)rng;
-    bulbs(g, 22, 22, 468, 212, 18, IW, IA2);
-    TXT(g, "ARCADE", 256, 86, .size = 96, .weight = 900, .align = CENTER, .fill = IA, .stroke = IW,
-        .stroke_w = 5, .max_w = 400);
-    TXT(g, "PALACE", 256, 150, .size = 40, .weight = 800, .track = 0.5, .align = CENTER, .fill = IB,
-        .max_w = 380);
-    for (int i = 0; i < 3; i++)
-        pixels(g, HEART, 6, 62 + i * 40, 184, 5, IAW);
-    pixels(g, COIN, 6, 418, 182, 6, IAB);
-    TXT(g, "INSERT COIN", 300, 200, .size = 22, .weight = 700, .track = 0.12, .align = CENTER, .fill = IW,
-        .mono = true, .max_w = 200);
-}
-
-/* LUX CAPSULE HOTEL */
-static void wide_lux(G *g, SwcRng *rng) {
-    (void)rng;
-    for (int j = 0; j < 3; j++) {
-        for (int i = 0; i < 3; i++) {
-            bool lit = i == 1 && j == 1;
-            rr(g, 26 + i * 56, 40 + j * 62, 46, 50, 16);
-            if (lit) {
-                set_vgrad(g, 40 + j * 62, 90 + j * 62, IAH, IA);
-                swc_cv_fill(g, SWC_NONZERO);
-            }
-            swc_cv_stroke_rgb(g, lit ? IW : IB2);
-            swc_cv_line_width(g, 3);
-            swc_cv_stroke(g);
-        }
-    }
-    moon(g, 470, 46, 22, IW);
-    TXT(g, "LUX", 212, 84, .size = 112, .weight = 900, .fill = IAH, .stroke = IW, .stroke_w = 3,
-        .stretch = 1.25, .max_w = 220);
-    TXT(g, "CAPSULE HOTEL", 214, 148, .size = 28, .weight = 800, .track = 0.2, .fill = IB, .max_w = 282);
-    badge(g, 214, 184, 150, 42, "VACANCY", IA, true);
-    TXT(g, "FROM 39 A NIGHT", 380, 205, .size = 13, .weight = 700, .track = 0.12, .fill = IW, .max_w = 118);
 }
 
 /* ORBIT AIRLINES */
@@ -937,10 +969,185 @@ static void wide_gravball(G *g, SwcRng *rng) {
         .max_w = 290);
 }
 
+/* OBSIDIAN 93.3, darksynth: a black crystal, torn video lines, nearly all ink A. */
+static void wide_obsidian(G *g, SwcRng *rng) {
+    for (double y = 22; y < 236; y += 11) {
+        if (!swc_rng_chance(rng, 0.55))
+            continue;
+        double x0 = swc_rng_range(rng, 14, 120);
+        double len = swc_rng_range(rng, 20, 90);
+        uint32_t ink = swc_rng_chance(rng, 0.3) ? IAW : IA3;
+        double lw = swc_rng_range(rng, 2, 5);
+        line(g, x0, y, x0 + len, y, ink, lw);
+    }
+    static const double crystal[] = {92, 16, 150, 74, 140, 186, 84, 244, 34, 166, 50, 62};
+    static const double ridge[2] = {96, 122};
+    static const uint32_t facets[] = {IA3, IK, IA2, IK, IA3, IA2};
+    shard(g, crystal, 12, ridge, facets, 6);
+    POLY(g, 158, 150, 182, 176, 160, 214);
+    swc_cv_fill_rgb(g, IA2);
+    swc_cv_fill(g, SWC_NONZERO);
+    POLY(g, 24, 32, 44, 44, 30, 70);
+    swc_cv_fill_rgb(g, IA3);
+    swc_cv_fill(g, SWC_NONZERO);
+    TXT(g, "OBSIDIAN", 194, 40, .size = 50, .weight = 900, .italic = true, .track = 0.04, .fill = IA,
+        .stroke = IW, .stroke_w = 2.5, .stretch = 0.86, .max_w = 300);
+    TXT(g, "93.3", 186, 116, .size = 108, .weight = 900, .italic = true, .fill = IB2, .max_w = 236);
+    frequency(g, "93.3", 190, 116,
+              &(Txt){.size = 108,
+                     .weight = 900,
+                     .italic = true,
+                     .max_w = 236,
+                     .grad = {IAW, IA, IA2},
+                     .stroke = IK,
+                     .stroke_w = 4},
+              IW);
+    line(g, 194, 172, 498, 172, IA, 3);
+    dial(g, 194, 210, 236, 93.3, IA, IW);
+    badge(g, 442, 188, 56, 28, "LIVE", IA, true);
+    TXT(g, "DARKSYNTH ALL NIGHT", 194, 236, .size = 13, .weight = 800, .track = 0.34, .fill = IW,
+        .mono = true, .max_w = 304);
+    swc_cv_shift_slice(g, 186, 88, 312, 7, 9);
+    swc_cv_shift_slice(g, 186, 132, 312, 4, -7);
+    swc_cv_shift_slice(g, 20, 104, 160, 6, 8);
+}
+
+/* VELVET 97.1, chillwave: a crescent moon over still water, soft gradients, light wide type. */
+static void wide_velvet(G *g, SwcRng *rng) {
+    /* Sky: a dim glow round the moon that fades to nothing, and a few stars. */
+    SwcGradient glow = swc_gradient_radial2(112, 86, 30, 112, 100, 118, IA3, IK);
+    swc_cv_fill_gradient(g, &glow);
+    swc_cv_fill_rect(g, 14, 14, 208, 144);
+    for (int i = 0; i < 16; i++) {
+        double x = swc_rng_range(rng, 20, 216), y = swc_rng_range(rng, 20, 120),
+               r = swc_rng_range(rng, 0.8, 1.8);
+        disc(g, x, y, r, i % 3 == 0 ? IBW : IW);
+    }
+    /* The moon: a soft halo, then the crescent in a gradient. */
+    for (int i = 0; i < 4; i++)
+        ring(g, 112, 86, 50 + i * 9, i % 2 == 0 ? IA3 : IB3, 2);
+    swc_cv_save(g);
+    swc_cv_begin_path(g);
+    swc_cv_arc(g, 112, 86, 46, 0, TAU, false);
+    swc_cv_clip(g, SWC_NONZERO);
+    swc_cv_begin_path(g);
+    swc_cv_rect(g, 60, 36, 104, 104);
+    swc_cv_arc(g, 132, 74, 40, 0, TAU, false);
+    swc_cv_clip(g, SWC_EVENODD);
+    set_vgrad(g, 40, 132, IW, IAH);
+    swc_cv_fill_rect(g, 60, 36, 104, 104);
+    swc_cv_restore(g);
+    line(g, 16, 158, 220, 158, IB, 2);
+    /* Its reflection: stripes that shorten and break up with depth. */
+    for (int i = 0; i < 9; i++) {
+        double y = 166 + i * 8.5, half = 40 - i * 3.6, wob = sin(i * 1.7) * 6;
+        line(g, 112 - half + wob, y, 112 + half * 0.3 + wob, y, i % 2 == 0 ? IAH : IA2, 3 - i * 0.2);
+        line(g, 112 + half * 0.45 + wob, y, 112 + half + wob, y, IA2, 2.5 - i * 0.2);
+    }
+    for (int i = 0; i < 5; i++)
+        line(g, 18 + i * 9, 170 + i * 15, 70 + i * 4, 170 + i * 15, IB3, 2);
+    for (int i = 0; i < 5; i++)
+        line(g, 160 - i * 4, 176 + i * 14, 216 - i * 6, 176 + i * 14, IB3, 2);
+    TXT(g, "velvet", 362, 44, .size = 54, .weight = 400, .track = 0.32, .align = CENTER, .fill = IW,
+        .max_w = 262);
+    line(g, 244, 82, 480, 82, IB2, 1.5);
+    frequency(g, "97.1", 246, 132, &(Txt){.size = 96, .weight = 600, .max_w = 196, .grad = {IBH, IB, IB2}},
+              IA);
+    TXT(g, "CHILLWAVE / LATE HOURS", 362, 190, .size = 14, .weight = 600, .track = 0.36, .align = CENTER,
+        .fill = IAH, .max_w = 252);
+    rr(g, 300, 210, 124, 28, 14);
+    swc_cv_stroke_rgb(g, IB);
+    swc_cv_line_width(g, 2);
+    swc_cv_stroke(g);
+    disc(g, 318, 224, 5, IA);
+    TXT(g, "ON AIR", 372, 224, .size = 15, .weight = 600, .track = 0.3, .align = CENTER, .fill = IW,
+        .max_w = 80);
+}
+
+/* STARPORT 101.5, spacesynth: a star at the vanishing point, lasers converging on it, chrome type. */
+static void wide_starport(G *g, SwcRng *rng) {
+    const double vx = 112, vy = 120;
+    for (int i = 0; i < 70; i++) {
+        double x = swc_rng_range(rng, 14, 498), y = swc_rng_range(rng, 14, 242);
+        if (x > 200 && y > 40 && y < 200)
+            continue;
+        double r = swc_rng_range(rng, 0.7, 1.7);
+        disc(g, x, y, r, swc_rng_chance(rng, 0.25) ? IBW : IW);
+    }
+    /* Lasers: bright near the star, dim where they run behind the type. */
+    for (int i = 0; i < 16; i++) {
+        double a = ((double)i / 16) * TAU + 0.1;
+        double ex = vx + cos(a) * 420, ey = vy + sin(a) * 420;
+        SwcGradient gr = swc_gradient2(vx, 0, ex, 0, i % 2 == 0 ? IA : IB, IK);
+        swc_cv_stroke_gradient(g, &gr);
+        swc_cv_line_width(g, i % 4 == 0 ? 3 : 1.6);
+        swc_cv_begin_path(g);
+        swc_cv_move_to(g, vx, vy);
+        swc_cv_line_to(g, ex, ey);
+        swc_cv_stroke(g);
+    }
+    for (int i = 0; i < 4; i++)
+        ring(g, vx, vy, 30 * pow(1.6, i), i % 2 == 0 ? IB3 : IA3, 1.6);
+    burst(g, vx, vy, 52, 8, IA2);
+    burst(g, vx, vy, 40, 16, IAB);
+    burst(g, vx, vy, 22, 4, IW);
+    disc(g, vx, vy, 9, IW);
+    chevrons(g, 152, 214, 26, 3, IB, 0.7);
+    TXT(g, "STARPORT", 206, 48, .size = 56, .weight = 900, .italic = true, .grad = {IW, IBW, IB3, IB, IBH},
+        .stroke = IW, .stroke_w = 1.5, .max_w = 292);
+    frequency(g, "101.5", 208, 124,
+              &(Txt){.size = 96,
+                     .weight = 900,
+                     .italic = true,
+                     .max_w = 236,
+                     .grad = {IAH, IA, IA2},
+                     .stroke = IW,
+                     .stroke_w = 2.5},
+              IB);
+    TXT(g, "SPACESYNTH NONSTOP", 210, 180, .size = 17, .weight = 800, .italic = true, .track = 0.22,
+        .fill = IW, .max_w = 288);
+    dial(g, 210, 216, 220, 101.5, IB, IAW);
+    badge(g, 446, 196, 52, 28, "ON", IA, true);
+}
+
+/* PLAZA 104.3, mallsoft: columns under an arch, a chequered floor, letters spaced wide. */
+static void wide_plaza(G *g, SwcRng *rng) {
+    (void)rng;
+    checker_floor(g, 12, 500, 196, 246, 46, IA3, IB3);
+    line(g, 12, 196, 500, 196, IB, 2);
+    column(g, 48, 196, 176, 26, IB3, IW);
+    column(g, 464, 196, 176, 26, IB3, IW);
+    swc_cv_stroke_rgb(g, IA2);
+    swc_cv_line_width(g, 3);
+    swc_cv_begin_path(g);
+    swc_cv_ellipse(g, 256, 34, 196, 18, 0, PI_, TAU, false);
+    swc_cv_stroke(g);
+    line(g, 60, 34, 452, 34, IA2, 3);
+    TXT(g, "P L A Z A", 256, 62, .size = 34, .weight = 400, .track = 0.3, .align = CENTER, .fill = IW,
+        .max_w = 330);
+    frequency(g, "104.3", 104, 128,
+              &(Txt){.size = 86,
+                     .weight = 900,
+                     .italic = true,
+                     .max_w = 220,
+                     .grad = {IAH, IA},
+                     .stroke = IW,
+                     .stroke_w = 2},
+              IB);
+    /* A potted palm, as in every atrium. */
+    palm(g, 410, 142, 62, 0.2, IB2);
+    POLY(g, 390, 140, 428, 140, 422, 158, 396, 158);
+    swc_cv_fill_rgb(g, IA2);
+    swc_cv_fill(g, SWC_NONZERO);
+    line(g, 388, 140, 430, 140, IW, 2);
+    TXT(g, "MALLSOFT / OPEN TIL CLOSE", 256, 180, .size = 14, .weight = 700, .track = 0.3, .align = CENTER,
+        .fill = IAH, .mono = true, .max_w = 330);
+}
+
 static const AdFn WIDE_ADS[] = {
-    wide_nova_cola, wide_hyperline, wide_kiro,  wide_sunset_fm, wide_zephyra, wide_arcade_palace,
-    wide_lux,       wide_orbit,     wide_costa, wide_strata,    wide_mira,    wide_megamall,
-    wide_kilovolt,  wide_magneta,   wide_oku,   wide_gravball,
+    wide_obsidian, wide_hyperline, wide_velvet, wide_sunset_fm, wide_zephyra, wide_starport,
+    wide_plaza,    wide_orbit,     wide_costa,  wide_strata,    wide_mira,    wide_megamall,
+    wide_kilovolt, wide_magneta,   wide_oku,    wide_gravball,
 };
 #define WIDE_AD_COUNT ((int)(sizeof(WIDE_ADS) / sizeof(WIDE_ADS[0])))
 
@@ -970,8 +1177,7 @@ static void tall_kiro(G *g, SwcRng *rng) {
 static void tall_hotel(G *g, SwcRng *rng) {
     (void)rng;
     moon(g, 128, 50, 24, IW);
-    stack(g, "HOTEL", 128, 128, 60,
-          (Txt){.size = 70, .weight = 900, .grad0 = IBH, .grad1 = IB, .max_w = 110});
+    stack(g, "HOTEL", 128, 128, 60, (Txt){.size = 70, .weight = 900, .grad = {IBH, IB}, .max_w = 110});
     line(g, 44, 96, 44, 396, IA, 3);
     line(g, 212, 96, 212, 396, IA, 3);
     badge(g, 38, 404, 180, 40, "VACANCY", IA, true);
@@ -999,8 +1205,8 @@ static void tall_nova_cola(G *g, SwcRng *rng) {
                                       {226, 330, 10}, {48, 392, 7},  {212, 120, 4}};
     for (int i = 0; i < 6; i++)
         ring(g, dots[i][0], dots[i][1], dots[i][2], IB, 2.5);
-    TXT(g, "COLA", 128, 444, .size = 76, .weight = 900, .italic = true, .align = CENTER, .grad0 = IBH,
-        .grad1 = IB, .max_w = 216);
+    TXT(g, "COLA", 128, 444, .size = 76, .weight = 900, .italic = true, .align = CENTER, .grad = {IBH, IB},
+        .max_w = 216);
     TXT(g, "ICE COLD", 128, 492, .size = 14, .weight = 700, .track = 0.4, .align = CENTER, .fill = IW,
         .max_w = 200);
 }
@@ -1022,8 +1228,8 @@ static void tall_open(G *g, SwcRng *rng) {
     disc(g, 128, 176, 6, IW);
     TXT(g, "25", 128, 338, .size = 150, .weight = 900, .italic = true, .align = CENTER, .fill = IA,
         .stroke = IW, .stroke_w = 5, .max_w = 216);
-    TXT(g, "HRS", 128, 436, .size = 56, .weight = 900, .track = 0.3, .align = CENTER, .grad0 = IBH,
-        .grad1 = IB, .max_w = 200);
+    TXT(g, "HRS", 128, 436, .size = 56, .weight = 900, .track = 0.3, .align = CENTER, .grad = {IBH, IB},
+        .max_w = 200);
     TXT(g, "WE NEVER CLOSE", 128, 488, .size = 13, .weight = 700, .track = 0.2, .align = CENTER, .fill = IW,
         .mono = true, .max_w = 210);
 }
@@ -1034,8 +1240,8 @@ static void tall_sunset(G *g, SwcRng *rng) {
     palm(g, 62, 256, 150, 0.4, IK);
     palm(g, 62, 256, 150, 0.4, IB2);
     line(g, 20, 256, 236, 256, IB, 2.5);
-    TXT(g, "88.8", 128, 310, .size = 96, .weight = 900, .italic = true, .align = CENTER, .grad0 = IBH,
-        .grad1 = IB, .max_w = 212);
+    TXT(g, "88.8", 128, 310, .size = 96, .weight = 900, .italic = true, .align = CENTER, .grad = {IBH, IB},
+        .max_w = 212);
     TXT(g, "SUNSET FM", 128, 374, .size = 30, .weight = 900, .italic = true, .align = CENTER, .fill = IW,
         .max_w = 212);
     bars(g, 30, 452, 196, 44, 14, rng, IAB, IA);
@@ -1156,6 +1362,8 @@ static void strip_items(int index, Items *it) {
         add_word(it, "SKYLANE 4 DELAYS", IAB, false, false, 0, 0);
         add_diamond(it, IA);
         add_word(it, "RAIN OF LIGHT AT MIDNIGHT", IB, false, false, 0, 0);
+        add_diamond(it, IA);
+        add_word(it, "OBSIDIAN 93.3 FM", IAW, true, false, 900, 0);
         add_diamond(it, IA);
         break;
     case 2:

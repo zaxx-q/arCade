@@ -22,6 +22,13 @@ typedef struct Glyph {
     const char *path;
 } Glyph;
 
+/* A lower-case letter: a glyph that is shorter than the capitals and has its own side bearing. */
+typedef struct LowerGlyph {
+    Glyph glyph;
+    double height;  /* em, from the baseline to the top of the box */
+    double bearing; /* em, left of the box */
+} LowerGlyph;
+
 static const Glyph GLYPHS[] = {
     {' ', 0.28, ""},
     {'A', 0.72, "M-0.06 -0.12 L0.5 1 L1.06 -0.12 M0.2 0.32 L0.8 0.32"},
@@ -54,9 +61,9 @@ static const Glyph GLYPHS[] = {
     {'0', 0.64, "A0.5 0.5 0.5 0.5 90 450 Z"},
     {'1', 0.50, "M0.05 0.76 L0.62 1 L0.62 0"},
     {'2', 0.62, "A0.5 0.75 0.5 0.25 165 -40 L0 0 L1 0"},
-    {'3', 0.62, "A0.48 0.75 0.46 0.25 150 -90 L0.3 0.5 M0.48 0.5 A0.48 0.25 0.52 0.25 90 -150"},
+    {'3', 0.62, "A0.46 0.76 0.46 0.24 118 -90 L0.4 0.52 M0.46 0.52 A0.5 0.26 0.5 0.26 90 -118"},
     {'4', 0.64, "M0.75 0 L0.75 1 L-0.02 0.3 L1.02 0.3"},
-    {'5', 0.62, "M0.92 1 L0.1 1 L0.04 0.52 A0.5 0.33 0.5 0.33 135 -145"},
+    {'5', 0.62, "M0.92 1 L0.1 1 L0.06 0.56 A0.5 0.31 0.5 0.31 130 -140"},
     {'6', 0.64, "A0.5 0.335 0.5 0.335 90 450 Z M0 0.335 C0 0.78 0.3 1 0.95 0.98"},
     {'7', 0.60, "M0 1 L1 1 L0.34 0"},
     {'8', 0.64, "A0.5 0.755 0.42 0.245 90 450 Z A0.5 0.255 0.5 0.255 90 450 Z"},
@@ -68,10 +75,28 @@ static const Glyph GLYPHS[] = {
     {'-', 0.40, "M0 0.38 L1 0.38"},
 };
 #define GLYPH_COUNT ((int)(sizeof(GLYPHS) / sizeof(GLYPHS[0])))
+/* The few lower-case letters the adverts use (the radio station VELVET), with a regular face's proportions:
+ * an x-height of 0.53 em, ascenders 0.66 to 0.72. */
+static const LowerGlyph LOWER[] = {
+    {{'e', 0.556, "M0 0.5 L1 0.5 A0.5 0.5 0.5 0.5 0 322"}, 0.53, 0.04},
+    {{'l', 0.262, "M0.5 0 L0.5 1"}, 0.72, 0.067},
+    {{'t', 0.278, "M0.36 1 L0.36 0.3 A0.86 0.3 0.5 0.3 180 270 M0 0.8 L0.95 0.8"}, 0.66, 0.012},
+    {{'v', 0.500, "M-0.06 1.12 L0.5 0 L1.06 1.12"}, 0.53, 0.008},
+};
+#define LOWER_COUNT ((int)(sizeof(LOWER) / sizeof(LOWER[0])))
 /* A monospaced capital I has its serifs. */
 static const char MONO_I[] = "M0.1 1 L0.9 1 M0.5 1 L0.5 0 M0.1 0 L0.9 0";
 
-static const Glyph *find_glyph(char c) {
+/* The glyph of a character; the box height and the left bearing (em) are 0 for the capital's own. */
+static const Glyph *find_glyph(char c, double *height, double *bearing) {
+    *height = 0;
+    *bearing = 0;
+    for (int i = 0; i < LOWER_COUNT; i++)
+        if (LOWER[i].glyph.c == c) {
+            *height = LOWER[i].height;
+            *bearing = LOWER[i].bearing;
+            return &LOWER[i].glyph;
+        }
     int u = toupper((unsigned char)c);
     for (int i = 0; i < GLYPH_COUNT; i++)
         if (GLYPHS[i].c == (char)u)
@@ -82,7 +107,8 @@ static const Glyph *find_glyph(char c) {
 double swc_font_advance(const SwcFontStyle *st, char c) {
     if (st->mono)
         return 0.6 * st->size;
-    const Glyph *g = find_glyph(c);
+    double height, bearing;
+    const Glyph *g = find_glyph(c, &height, &bearing);
     return (g != NULL ? g->advance : 0.6) * st->size;
 }
 
@@ -94,7 +120,7 @@ double swc_font_measure(const SwcFontStyle *st, const char *text) {
 }
 
 double swc_font_stem(const SwcFontStyle *st) {
-    double e = st->weight >= 900 ? 0.195 : (st->weight >= 800 ? 0.165 : 0.14);
+    double e = st->weight >= 900 ? 0.195 : (st->weight >= 800 ? 0.165 : (st->weight > 500 ? 0.14 : 0.092));
     if (st->mono)
         e *= 0.88;
     return e * st->size;
@@ -214,23 +240,25 @@ void swc_font_draw(SwcCanvas *cv, const SwcFontStyle *st, const char *text, doub
         swc_cv_stroke_hole(cv, sw - widen);
     double pen = 0;
     for (const char *c = text; *c; c++) {
-        const Glyph *g = find_glyph(*c);
+        double height, bearing;
+        const Glyph *g = find_glyph(*c, &height, &bearing);
         double adv = swc_font_advance(st, *c);
         if (g != NULL && g->path[0] != 0) {
             Frame f;
-            f.bear = st->mono ? 0.05 * st->size : BEARING * st->size;
+            f.bear = st->mono ? 0.05 * st->size : (bearing > 0 ? bearing : BEARING) * st->size;
             f.bw = adv - 2.0 * f.bear;
-            f.cap = cap;
+            f.cap = height > 0 ? height * st->size : cap;
             f.sw = sw;
             const char *path = (st->mono && toupper((unsigned char)*c) == 'I') ? MONO_I : g->path;
             swc_cv_save(cv);
             swc_cv_translate(cv, pen, 0);
             double hx = widen / 2.0, slack = 0.5;
             double bw = f.bw > sw ? f.bw : sw;
-            swc_cv_stroke_box(cv, true, f.bear - slack - hx, -cap - hx, f.bear + bw + slack + hx, hx);
+            swc_cv_stroke_box(cv, true, f.bear - slack - hx, -f.cap - hx, f.bear + bw + slack + hx, hx);
             swc_cv_begin_path(cv);
             bool dots = build_path(cv, path, &f);
-            (void)dots;
+            if (dots) /* a dot is a zero-length stroke: a round cap makes it round, as a bold face's is */
+                swc_cv_line_cap(cv, SWC_CAP_ROUND);
             swc_cv_stroke(cv);
             swc_cv_restore(cv);
         }

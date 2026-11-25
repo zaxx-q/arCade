@@ -140,6 +140,56 @@ static void test_the_whole_atlas_draws_quickly(void) {
 
 /* ---- the work in pieces ---- */
 
+/* Sum of each colour channel over a cell (the three inks of the ads are mostly one channel each). */
+static void channel_sums(const SwcCanvas *cv, const SwcAtlasCell *c, long sum[3]) {
+    sum[0] = sum[1] = sum[2] = 0;
+    for (int y = c->y; y < c->y + c->h; y++)
+        for (int x = c->x; x < c->x + c->w; x++) {
+            const uint8_t *p = px(cv, x, y);
+            sum[0] += p[0];
+            sum[1] += p[1];
+            sum[2] += p[2];
+        }
+}
+
+/* Channel sums of the four station ads as the web version draws them at seed 1984 (read from its atlas):
+ * the port draws with its own letter shapes, so it has to come within 12 % (or 25000 of a faint channel) of
+ * each. */
+static const struct {
+    int index;
+    long sum[3];
+} STATION_ADS[4] = {
+    {0, {6392632, 98406, 1710129}},   /* OBSIDIAN */
+    {2, {2689612, 1739940, 1298590}}, /* VELVET */
+    {5, {3884396, 2887216, 2308553}}, /* STARPORT */
+    {6, {3990615, 2674757, 1485404}}, /* PLAZA */
+};
+
+static void test_the_four_station_ads_carry_the_ink_of_the_web_versions_ads(void) {
+    SwcCanvas *cv = swc_atlas_draw_all(SEED);
+    SwcAtlasCell cells[SWC_ATLAS_CELL_COUNT];
+    int n = swc_atlas_layout(cells);
+    int found = 0;
+    for (int i = 0; i < n; i++) {
+        if (cells[i].kind != SWC_CELL_WIDE)
+            continue;
+        for (int k = 0; k < 4; k++) {
+            if (cells[i].index != STATION_ADS[k].index)
+                continue;
+            long sum[3];
+            channel_sums(cv, &cells[i], sum);
+            found++;
+            for (int ch = 0; ch < 3; ch++) {
+                double want = (double)STATION_ADS[k].sum[ch];
+                double room = want * 0.12 > 25000.0 ? want * 0.12 : 25000.0;
+                CHECK_NEAR((double)sum[ch], want, room);
+            }
+        }
+    }
+    CHECK_EQ_INT(found, 4);
+    swc_cv_destroy(cv);
+}
+
 static void test_a_job_drawn_cell_by_cell_makes_the_same_atlas(void) {
     SwcAtlasJob job;
     CHECK(swc_atlas_job_start(&job, SEED));
@@ -228,6 +278,7 @@ static void test_the_texture_rows_are_flipped_and_done_in_any_chunks(void) {
 }
 
 int main(void) {
+    RUN(test_the_four_station_ads_carry_the_ink_of_the_web_versions_ads);
     RUN(test_a_job_drawn_cell_by_cell_makes_the_same_atlas);
     RUN(test_an_unfinished_job_is_freed_without_a_leak);
     RUN(test_half_floats_have_the_right_bits);

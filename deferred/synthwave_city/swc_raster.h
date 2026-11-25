@@ -18,10 +18,15 @@ typedef enum SwcLineJoin { SWC_JOIN_MITER = 0, SWC_JOIN_ROUND, SWC_JOIN_BEVEL } 
 
 #define SWC_GRADIENT_STOPS 6
 
-/* A linear gradient between two points (in the user space of the moment it is used), with colour stops at
- * positions 0..1 in increasing order. Colours are 0xRRGGBB. */
+/* A gradient with colour stops at positions 0..1 in increasing order (colours are 0xRRGGBB), either linear
+ * between two points, or radial between two circles (x0, y0, r0) and (x1, y1, r1), as a canvas's
+ * createLinearGradient and createRadialGradient make them; the points are in the user space of the moment
+ * it is used. A pixel the circles do not reach takes the first colour (a canvas leaves it unpainted; the
+ * drawings made here have the first circle inside the second, which reaches every pixel). */
 typedef struct SwcGradient {
     double x0, y0, x1, y1;
+    double r0, r1;
+    bool radial;
     int stop_count;
     double stop_at[SWC_GRADIENT_STOPS];
     uint32_t stop_rgb[SWC_GRADIENT_STOPS];
@@ -58,6 +63,12 @@ void swc_cv_miter_limit(SwcCanvas *cv, double limit);
 
 /* A two-stop gradient, as the canvas's createLinearGradient + two addColorStop calls. */
 SwcGradient swc_gradient2(double x0, double y0, double x1, double y1, uint32_t from, uint32_t to);
+/* A linear gradient with `count` (2..SWC_GRADIENT_STOPS) colours evenly spaced from the first point to the
+ * second. */
+SwcGradient swc_gradient_even(double x0, double y0, double x1, double y1, const uint32_t *rgb, int count);
+/* A radial gradient between two circles, with two colour stops. */
+SwcGradient swc_gradient_radial2(double x0, double y0, double r0, double x1, double y1, double r1,
+                                 uint32_t from, uint32_t to);
 
 /* ---- paths ---- */
 void swc_cv_begin_path(SwcCanvas *cv);
@@ -76,6 +87,12 @@ void swc_cv_fill(SwcCanvas *cv, SwcFillRule rule);
 void swc_cv_stroke(SwcCanvas *cv);
 void swc_cv_clip(SwcCanvas *cv, SwcFillRule rule);
 void swc_cv_fill_rect(SwcCanvas *cv, double x, double y, double w, double h);
+
+/* Moves what is drawn in the box x, y, w, h (user space, whole pixels after the translation is applied and
+ * rounded) sideways by dx pixels, like reading a slice with getImageData and putting it back with
+ * putImageData: unaffected by the clip, the pixels it uncovers keep their colour. Only the translation of the
+ * transform counts. The box must lie inside the canvas, and the moved slice too. */
+void swc_cv_shift_slice(SwcCanvas *cv, double x, double y, double w, double h, double dx);
 
 /* ---- extras for text drawn as strokes ---- */
 /* Strokes (and fills) paint with the current FILL style instead of the stroke style until it is switched
