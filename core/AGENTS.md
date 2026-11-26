@@ -12,7 +12,8 @@ Shared library for every game and arCade. Two parts: **pure C** (`core/src`, hea
 | `include/arcade/input.h`, `src/input.c` | `ArcadeInput`, reproducible `ArcadeMonkey` |
 | `include/arcade/rng.h` | deterministic PCG32 |
 | `include/arcade/playfield.h` | header-only portrait playfield (480 x 684 under the HUD): `ARC_PF_*`, `arc_pf_from_screen`, `arc_pf_to_screen`, `arc_pf_contains` |
-| `include/arcade/leaderboard.h` | text-file scores, insertion sort, linear + binary search; "boards": one table per mode/level stored as the key `<game id>:<board>` (`lb_board_key`, `lb_boards_for_game`, `lb_top_for_all_boards`) |
+| `include/arcade/leaderboard.h` | text-file scores, insertion sort, linear + binary search; "boards": one table per mode/level stored as the key `<game id>:<board>` (`lb_board_key`, `lb_boards_for_game`, `lb_top_for_all_boards`); rankings show ONE best row per player (`lb_top_best`, `lb_rank_of`, `lb_best_of`, `lb_search_best`); each table keeps at most `LB_MAX_PER_BOARD` rows and a full file evicts from its fullest table (never the globally lowest score) |
+| `include/arcade/lbnet.h`, `src/lbnet.c` | online leaderboard without a network: wire format (spec in the header comment), outbox of unsent scores, cache of received tables, retry/back-off client driven through an `LbnTransport` the app provides (libcurl in `app/net_curl.c`, a fake in the tests). Time is passed in (`now`), never read; the client trusts nothing from the server and the server must trust nothing from the client |
 | `include/arcade/sandbox.h`, `src/sandbox*.c` | falling-sand engine (hub background + `deferred/sandbox`), split into grid/step (`sandbox.c`), element table (`sandbox_elements.c`), movement (`sandbox_move.c`), chemistry (`sandbox_react.c`), temperature (`sandbox_heat.c`: conduction, phase changes, `k_thermal[]`), explosions and radiation (`sandbox_burst.c`: sparks and gamma rays, i.e. flying particles) and cell colour (`sandbox_color.c`); guide: `docs/SANDBOX.md` |
 | `include/arcade/vault.h`, `src/vault.c` | the hub's "vault": a stone basin in the sandbox that opens when it is full (unlocks the deferred games; pure, no window) |
 | `include/arcade/sortlib.h` | bubble/selection/insertion sort with swap counters |
@@ -33,7 +34,7 @@ Pure part: any C99 compiler + CMake (`cmake --preset logic`). Front-end part nee
 - Portable C99 only: use `ARC_PI` (not `M_PI`), `arc_strlcpy`/`arc_stricmp` (not `strlcpy`/`strcasecmp`/`strdup`), no VLAs, no POSIX/Windows headers.
 - Pure files never include `raylib.h` or `arcade/gfx.h`; `gfx.h` is the only header that does.
 - Fixed-size arrays and caller-owned structs: no `malloc` in hot paths; large structs are passed by pointer.
-- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_sortlib`, `test_sandbox`, `test_vault`).
+- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_lbnet`, `test_sortlib`, `test_sandbox`, `test_vault`).
 - API changes to `GameContext`, `GameDef`, `ArcadeInput`, `arcade_loop_*`, `arcade_poll`: update **all** of `core/gfx/gfx.c`, `input.c` (monkey), `app/`, `games/_template`, and every game; ask first.
 
 ## Security & safety

@@ -49,7 +49,7 @@ Kesimpulan: apa yang diperlihatkan proyek ini. Saran: backlog (bagian 7 "Roadmap
 | 11 | Prosedur, fungsi | setiap `*_step`, `*_init`, helper seperti `spawn_enemy` |
 | 12 | Rekursif, fungsi matematika | `carve()` (echo_maze), `trace()` (laser_mirrors), `sqrtf`, `sinf`, `cosf` |
 | 13 | File handling, struct, enum | `lb_load/lb_save`, file lagu Beat Dodge; `ScoreEntry`, `ElementId`, `LmCell` |
-| 14 | Searching, sorting | `lb_sort` (insertion), `lb_find_player` (linear), `lb_binary_search_name`, `sortlib` + `sort_it` |
+| 14 | Searching, sorting | `lb_sort` (insertion), `lb_find_player` (linear), `lb_binary_search_name`, `lb_top_best` (insertion ke daftar terurut yang pendek), `sortlib` + `sort_it` |
 
 ## Siap menjelaskan
 Tugas ini menggantikan ujian akhir, jadi setiap anggota harus bisa menjelaskan game miliknya sendiri: struct state-nya, fungsi `step`, satu test, dan tabel konsep kuliahnya. Minta AI assistant kamu untuk "jelaskan `<id>_logic.c` baris per baris dengan bahasa sederhana" dan "sederhanakan bagian yang berbelit" setelah implementasi selesai. Cek juga aturan mata kuliahmu soal penggunaan AI, dan cantumkan di tempat yang diwajibkan.
