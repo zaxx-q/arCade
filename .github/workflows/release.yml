@@ -44,6 +44,7 @@ jobs:
       skip: ${{ steps.v.outputs.skip }}
       version: ${{ steps.v.outputs.version }}
       tag: ${{ steps.v.outputs.tag }}
+      previous_tag: ${{ steps.v.outputs.previous_tag }}
       bump: ${{ steps.v.outputs.bump }}
     steps:
       - uses: actions/checkout@v7
@@ -169,10 +170,14 @@ jobs:
       contents: write # create the tag and the release
     env:
       TAG: ${{ needs.version.outputs.tag }}
+      PREV_TAG: ${{ needs.version.outputs.previous_tag }}
       PRERELEASE: ${{ inputs.prerelease }}
       DRY_RUN: ${{ inputs.dry_run }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v7
         with:
           pattern: release-*
@@ -182,12 +187,35 @@ jobs:
         run: cd dist && sha256sum * | tee SHA256SUMS.txt
       - name: Create the release
         run: |
+          notes_file="${RUNNER_TEMP}/RELEASE_NOTES.md"
+          api_notes="$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$TAG" \
+            -f target_commitish="$GITHUB_SHA" \
+            ${PREV_TAG:+ -f previous_tag_name="$PREV_TAG"} 2>/dev/null | jq -r '.body // empty' || true)"
+
+          if printf '%s' "$api_notes" | grep -q "## What's Changed"; then
+            printf '%s\n' "$api_notes" > "$notes_file"
+          else
+            range="$GITHUB_SHA"
+            if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "none" ]; then
+              range="$PREV_TAG..$GITHUB_SHA"
+            fi
+            commit_notes="$(git log --no-merges --format='* %s (%h)' "$range" || true)"
+            compare_url="https://github.com/$GITHUB_REPOSITORY/compare/${PREV_TAG:-HEAD}...$TAG"
+            {
+              echo "## What's Changed"
+              printf '%s\n\n' "$commit_notes"
+              echo "**Full Changelog**: $compare_url"
+            } > "$notes_file"
+          fi
+
           if [ "$DRY_RUN" = "true" ]; then
-            echo "Dry run: would publish $TAG with:"; ls -l dist
+            echo "Dry run: would publish $TAG with notes:"; cat "$notes_file"
+            ls -l dist
             echo "### Dry run for $TAG (nothing published)" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "arCade $TAG" --generate-notes)
+          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "arCade $TAG" --notes-file "$notes_file")
           if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
           gh release create "$TAG" "${args[@]}" dist/*
           echo "### Released $TAG" >> "$GITHUB_STEP_SUMMARY"
