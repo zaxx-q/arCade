@@ -2,9 +2,46 @@
  * screenshots. Used by CI (headless build) and handy locally to check that nothing crashes. */
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "app.h"
 #include "arcade/gfx.h"
+
+/* The Online tab and the online line of the result screen, drawn by a client that has no network: it is
+ * switched on, "received" two tables earlier (one fresh, one hours old) and was told how the shown run did.
+ */
+static void sample_online(AppState *app) {
+    static const char *const online_names[14] = {"Zul",  "Rina", "Budi",  "Sari", "Tono", "Wati", "Yoga",
+                                                 "Dewi", "Eko",  "Fajar", "Gita", "Ana",  "Hadi", "Ivan"};
+    lbn_init(&app->lbn, NULL);
+    app->online_ready = true;
+    app->lbn.enabled = true; /* set directly: lbn_enable() refuses a client without a transport */
+    const long long now = (long long)time(NULL);
+    static OnlineTable t;
+    for (int k = 0; k < 2; k++) {
+        memset(&t, 0, sizeof(t));
+        snprintf(t.key, sizeof(t.key), "%s", k == 0 ? "different_color" : "loop_lap");
+        t.fetched = now - (k == 0 ? 125 : 3 * 3600);
+        t.players = k == 0 ? 87 : 40;
+        t.count = 14;
+        for (int i = 0; i < t.count; i++) { /* Ana is 12th: below the ten rows on screen */
+            t.rows[i].rank = i + 1;
+            snprintf(t.rows[i].player, sizeof(t.rows[i].player), "%s", online_names[i]);
+            t.rows[i].score = (k == 0 ? 380 : 60) - i * (k == 0 ? 17 : 3);
+            t.rows[i].stamp = 1700000000LL + i;
+        }
+        lbn_cache_put(&app->lbn.cache, &t);
+    }
+    if (app->last_game != NULL) { /* the server's answer to the run on the result screen */
+        LbnAck *ack = &app->lbn.ack;
+        lb_board_key(ack->table, sizeof(ack->table), app->last_game->id, app->last_board);
+        snprintf(ack->player, sizeof(ack->player), "%s", app->player);
+        ack->valid = true;
+        ack->score = app->last_result.score;
+        ack->rank = 3;
+        ack->players = 87;
+    }
+}
 
 /* Renders each hub screen (name, menu, archive, result, leaderboard) with sample data, so CI and the README
  * screenshots cover the hub UI too. Most of them show the default backdrop (the city); one shows the menu on
@@ -25,17 +62,28 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
         for (int k = 0; k < 4; k++)
             lb_add(&app->lb, key, names[(b + k) % 7], 1650 - b * 120 - k * 210, 1700001000LL + b * 10 + k);
     }
+    /* A long board: 14 players, more than the ten rows on screen, and the current player (Ana) is the last of
+     * them, so the leaderboard shows her row pinned under the visible ones. */
+    static const char *const more[] = {"Hana", "Indra", "Joko", "Kiki", "Lina", "Made", "Nina"};
+    char long_key[LB_GAME_LEN];
+    lb_board_key(long_key, sizeof(long_key), "beat_dodge", "Dodge / Thorns / easy");
+    for (int k = 0; k < 14; k++)
+        lb_add(&app->lb, long_key, k < 7 ? names[k] : more[k - 7], 1500 - ((k + 13) % 14) * 90,
+               1700002000LL + k);
     snprintf(app->player, sizeof(app->player), "Ana");
     app->selected = app->game_count > 1 ? 1 : 0;
     app->last_game = app->game_count > 0 ? app->games[0] : NULL;
     app->last_result.score = 1280;
     app->last_result.finished = true;
     app->last_rank = 1;
+    app->last_best = 1280;
+    app->last_improved = true;
     /* the result screen names the table when the game used one */
     snprintf(app->last_board, sizeof(app->last_board), "%s",
              app->last_game != NULL && strcmp(app->last_game->id, "beat_dodge") == 0
                  ? "Dodge / Bopeebo / normal"
                  : "");
+    sample_online(app);
 
     backdrop_init(opt->seed);
     /* 15 s of sand and water, then 15 s of the drone's tour, so the screenshots show settled scenes */
@@ -210,7 +258,7 @@ int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_di
     MakeDirectory(opt->out_dir);
 
     AppState *app = NULL;
-    static AppState storage; /* AppState holds a 28 KB leaderboard: static, not stack */
+    static AppState storage; /* AppState holds a ~190 KB leaderboard: static, not stack */
     app = &storage;
     app_sort_games(app);
 

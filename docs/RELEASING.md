@@ -23,6 +23,19 @@
 5. Label: buat `full-ci` (PR dengan label ini juga menjalankan jalur lengkap).
 6. Jalankan Actions -> Release dengan `dry_run = true` sekali untuk melihat semua job lolos sebelum rilis sungguhan pertama.
 
+## Leaderboard online di rilis
+Setiap rilis membawa tab Online. Supaya game tetap jalan di komputer yang hanya punya library desktop, libcurl **tidak diambil dari sistem**: ia dibangun dari source dan ditautkan statis (`cmake/ArcadeCurl.cmake`, dipakai lewat `-DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON` di `release.yml`).
+- **Windows:** TLS lewat Schannel (bagian dari Windows, sertifikat dari penyimpanan sertifikat Windows). Tidak ada OpenSSL dan tidak ada DLL tambahan; janji "tanpa DLL tambahan" tetap berlaku.
+- **Linux:** OpenSSL ditautkan statis (runner perlu `libssl-dev`, yang menyertakan `libssl.a` dan `libcrypto.a`). Lokasi file sertifikat CA berbeda di tiap distro, jadi `app/net_curl.c` mencarinya saat game berjalan: `$SSL_CERT_FILE`, lalu lokasi umum Debian/Ubuntu, Fedora/RHEL, openSUSE, Alpine, dan FreeBSD. Kalau tidak ada, tab Online tampil offline: skor **tidak pernah** dikirim tanpa memeriksa sertifikat server.
+- `ON` berarti dependensi yang hilang **menggagalkan build**, bukan rilis diam-diam tanpa tab Online. Setelah build, job rilis memeriksa bahwa binary berisi kode online dan tidak bergantung pada libcurl/OpenSSL (Linux: `ldd`) atau DLL yang bukan milik Windows (Windows: `lib*.dll`, `zlib*.dll`).
+- PR juga memeriksanya: job `linux` membangun konfigurasi yang sama (`build/bundled`, tanpa membangun raylib) dan `windows-mingw` memakainya untuk build penuh. `windows-msvc` memakai `-DARCADE_ONLINE=OFF`.
+- **Dry-run:** perubahan pada langkah build rilis harus dicoba dengan `dry_run = true` sebelum merge.
+
+### Menaikkan versi curl
+1. Ubah `ARCADE_CURL_VERSION` dan `ARCADE_CURL_SHA256` **bersamaan** di `cmake/ArcadeCurl.cmake` (hash dari `sha256sum` file `.tar.xz` di https://github.com/curl/curl/releases), dan baca ulang opsi CMake versi barunya (nama opsi curl bisa berubah antarversi).
+2. Ganti teks lisensi curl di `THIRD_PARTY_NOTICES.md` dengan isi `COPYING` dari tarball itu, disalin persis.
+3. Jalankan Release dengan `dry_run = true`.
+
 ## Menaikkan job yang tidak memblokir
 `windows-msvc` dan `smoke` memakai `continue-on-error: true`. Setelah keduanya hijau beberapa kali berturut-turut, hapus baris itu di `.github/workflows/checks.yml` supaya mereka ikut memblokir.
 

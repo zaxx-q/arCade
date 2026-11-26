@@ -41,6 +41,12 @@ newrepo; commit "feat: a"; tag v1.4.2; commit "refactor!: drop old api"
 check "bang -> major" version 2.0.0
 newrepo; commit "feat: a"; tag v1.4.2; commit "fix: x" "BREAKING CHANGE: changes the save format"
 check "BREAKING CHANGE footer -> major" version 2.0.0
+newrepo; commit "feat: a"; tag v1.4.2; commit "Merge pull request #46 from owner/feat" "feat!: breaking change in PR body"
+check "merge commit body with bang -> major" version 2.0.0
+newrepo; commit "feat: a"; tag v1.4.2; commit "Merge pull request #45 from owner/feat" "feat: new feature in PR body"
+check "merge commit body with feat -> minor" version 1.5.0
+newrepo; commit "feat: a"; tag v1.4.2; commit "Merge pull request #44 from owner/fix" "fix: bugfix in PR body"
+check "merge commit body with fix -> patch" version 1.4.3
 
 newrepo; commit "feat: a"; tag v1.4.2; commit "update stuff"
 check "free text -> patch" version 1.4.3

@@ -27,6 +27,41 @@ applications, and to alter it and redistribute it freely, subject to the followi
   3. This notice may not be removed or altered from any source distribution.
 ```
 
+## curl / libcurl (version set in `ARCADE_CURL_VERSION` in `cmake/ArcadeCurl.cmake`, currently 8.23.0)
+
+Used by the online leaderboard for HTTPS. Release builds download the source (pinned by SHA-256) and link it statically; development builds use the system's libcurl when there is one, and that is not redistributed. https://curl.se / https://github.com/curl/curl
+
+The license text below is the `COPYING` of that release, copied exactly.
+
+```
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright (c) 1996 - 2026, Daniel Stenberg, <daniel@haxx.se>, and many
+contributors, see the THANKS file.
+
+All rights reserved.
+
+Permission to use, copy, modify, and distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright
+notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall not
+be used in advertising or otherwise to promote the sale, use or other dealings
+in this Software without prior written authorization of the copyright holder.
+```
+
+## OpenSSL (Linux release builds only)
+
+libcurl uses OpenSSL for TLS on Linux, and the Linux release links it statically (OpenSSL 3.x, from `libssl-dev` on the release runner). Windows builds use Schannel, the TLS of Windows, and contain no OpenSSL. Copyright (c) The OpenSSL Project Authors. Apache License 2.0, full text at https://www.apache.org/licenses/LICENSE-2.0. https://www.openssl.org / https://github.com/openssl/openssl
+
 ## Synthwave City (game): `deferred/synthwave_city/`
 
 A C99 port of *Synthwave City* by Kris E. Granholm (https://github.com/highsierralabs/Synthwave_City), MIT license (full text at the end of this file). The city, traffic, and song generators, the flight model, and the hologram data (including the made-up ad brand names) were ported from TypeScript to C and matched to the original number for number. The GLSL scene shaders in `deferred/synthwave_city/shaders/` were copied with adjustments to GLSL 3.30: all of them except `bloom_*.frag`, `post.frag`, and the glue files `fullscreen.vert`, `prelude_vs.glsl`, and `prelude_fs.glsl`. No images, fonts, or audio files from that project were copied: the ad images are drawn by code and the sound is rendered by arCade's own synthesizer.

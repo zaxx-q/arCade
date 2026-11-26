@@ -5,6 +5,7 @@
 
 #include "app.h"
 #include "arcade/gfx.h"
+#include "online.h"
 #include "arcade/str.h"
 #include "arcade/version.h"
 
@@ -114,7 +115,7 @@ int main(int argc, char **argv) {
     if (opt.list_games)
         return list_games(opt.show_all);
 
-    static AppState app; /* static: contains the 28 KB leaderboard */
+    static AppState app; /* static: contains the ~190 KB leaderboard and the online client */
     memset(&app, 0, sizeof(app));
     resolve_dirs(&opt, app.data_dir, sizeof(app.data_dir), app.assets_dir, sizeof(app.assets_dir));
     if (opt.smoke)
@@ -126,7 +127,9 @@ int main(int argc, char **argv) {
                  ? "/"
                  : "");
     lb_load(&app.lb, app.scores_path); /* a missing file just means "no scores yet" */
-    arc_strlcpy(app.player, "PLAYER", sizeof(app.player));
+    online_init(&app);                 /* the online leaderboard: on by default, after the first-run notice */
+    /* app.player stays empty: the name screen is the first one and does not accept an empty name, so nobody
+     * plays under a default one */
     app_sort_games(&app);
 
     arcade_gfx_init(false, app.assets_dir);
@@ -139,6 +142,9 @@ int main(int argc, char **argv) {
         app_open_archive(&app);
         backdrop_vault_open_now();
     }
+
+    if (online_first_run(&app)) /* on by default: tell the player what is shared, before anything is sent */
+        screen_online_first_run(&app);
 
     Screen s = SCR_NAME;
     while (s != SCR_QUIT && !arcade_quit_requested()) {
@@ -162,6 +168,7 @@ int main(int argc, char **argv) {
             break;
         }
     }
+    online_shutdown(&app);
     backdrop_shutdown();
     arcade_gfx_shutdown();
     return 0;

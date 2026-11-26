@@ -15,6 +15,9 @@ Kontrol ditampilkan di menu untuk game yang sedang dipilih.
 
 Skor disimpan di scores.txt di sebelah programnya. Hapus file itu untuk mereset leaderboard.
 Beat Dodge & Catch punya papan skor sendiri untuk setiap mode, lagu, dan kesulitan: di leaderboard, pilih game itu dengan Left/Right lalu ganti papan dengan Up/Down.
+Leaderboard online menyala secara bawaan. Saat pertama dibuka ada layar pemberitahuan yang menjelaskan apa yang dikirim: tekan Enter untuk membiarkannya menyala, N atau Esc untuk mematikannya.
+Kalau menyala, L membuka leaderboard langsung di tab Online (Tab: pindah ke skor lokal, R: segarkan, O: matikan skor online). Pilihanmu disimpan di online.cfg.
+Linux: untuk memeriksa sertifikat server, game memakai file sertifikat CA sistem (paket ca-certificates). Kalau tidak ada, tab Online tampil offline dan tidak ada yang dikirim.
 Progres Gritty Golf disimpan di gritty_save_<nama>.dat di folder yang sama (satu file per pemain). Hapus file itu untuk mengulang dari level pertama.
 
 Command line (opsional):

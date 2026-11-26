@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-22 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-25 -->
 
 # AGENTS.md - .github/
 
@@ -23,6 +23,8 @@ Validate workflow YAML locally with actionlint (`actionlint` in the repo root, n
 
 - Presets used by CI: `logic`, `dev`, `release`, `asan`, `headless` (see `CMakePresets.json`). Reproduce a CI failure locally with the same preset.
 - Dry-run a release without publishing: Actions -> Release -> Run workflow -> `dry_run = true`.
+- The Online leaderboard ships in every release: `release.yml` (both OSes) and the `windows-mingw` check configure with `-DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON`. libcurl is then built from source and linked statically (`cmake/ArcadeCurl.cmake`: Schannel on Windows, the static OpenSSL of `libssl-dev` on Linux), so the game needs no libcurl at run time. `ON` makes a missing dependency fail the build instead of shipping without the Online tab. After the build, the release jobs assert that the binary contains the online code and has no libcurl/OpenSSL dependency (`ldd` on Linux, `objdump` imports of `lib*.dll`/`zlib*.dll` on Windows). The `linux` check builds the same bundled configuration (targets `test_online`, `arcade_online_probe`, no raylib build) and `windows-msvc` passes `-DARCADE_ONLINE=OFF` (it must not pick up a MinGW libcurl).
+- Updating curl is a release-affecting change: see `docs/RELEASING.md`, and dry-run.
 
 ## Workflow conventions
 

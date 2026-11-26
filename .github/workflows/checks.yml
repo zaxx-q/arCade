@@ -16,7 +16,7 @@ permissions:
 
 env:
   CLANG_FORMAT_VERSION: "18.1.8"
-  LINUX_DEPS: ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
+  LINUX_DEPS: ninja-build libcurl4-openssl-dev libssl-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
 
 jobs:
   lint:
@@ -58,6 +58,19 @@ jobs:
           build/dev/bin/arCade --list
           expected="$(find games -mindepth 1 -maxdepth 1 -type d ! -name '_*' | wc -l)"
           build/dev/bin/arCade --list | tail -n 1 | grep -qx "${expected} game(s)"
+      - name: Online leaderboard tests (the player's choice; libcurl from the system)
+        run: ctest --preset dev -R '^app\.'
+      - name: Online leaderboard with libcurl built in, as in the release (no raylib build needed)
+        run: |
+          cmake -S . -B build/bundled -G Ninja -DCMAKE_BUILD_TYPE=Release -DARCADE_WERROR=ON -DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON
+          cmake --build build/bundled --target test_online arcade_online_probe
+          build/bundled/bin/test_online
+          deps="$(ldd build/bundled/bin/arcade_online_probe)"
+          printf '%s\n' "$deps"
+          if printf '%s\n' "$deps" | grep -Eq 'libcurl|libssl|libcrypto'; then
+            echo "::error::libcurl was not linked statically"
+            exit 1
+          fi
 
   windows-mingw:
     name: windows-mingw
@@ -81,14 +94,16 @@ jobs:
           cmake --preset logic
           cmake --build --preset logic
           ctest --preset logic
-      - name: Full build (raylib + hub)
+      - name: Full build (raylib + hub, libcurl built in with Schannel, as in the release)
         run: |
-          cmake --preset dev
+          cmake --preset dev -DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON
           cmake --build --preset dev
       - name: Hub starts and every game is registered (no window needed)
         run: |
           build/dev/bin/arCade.exe --version
           build/dev/bin/arCade.exe --list
+      - name: Online leaderboard tests (the player's choice; the built-in libcurl starts)
+        run: ctest --preset dev -R '^app\.'
 
   # ---------------------------------------------------------------- full lane
   sanitizers:
@@ -144,7 +159,7 @@ jobs:
       - name: Build + test with MSVC (warnings are not errors yet)
         shell: bash
         run: |
-          cmake -S . -B build/msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl
+          cmake -S . -B build/msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DARCADE_ONLINE=OFF
           cmake --build build/msvc
           ctest --test-dir build/msvc --output-on-failure
           build/msvc/bin/arCade.exe --version
