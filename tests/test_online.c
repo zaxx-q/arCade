@@ -178,6 +178,60 @@ static void test_a_damaged_or_foreign_config_means_off_and_never_asks(void) {
     forget_files();
 }
 
+/* A fake menu: `n` games listed, row `selected` highlighted. Only game_count and selected are read. */
+static void fake_menu(int n, int selected) {
+    g_app.game_count = n;
+    g_app.selected = selected;
+}
+
+static void test_the_leaderboard_opens_on_the_online_tab_when_online_scores_are_on(void) {
+    forget_files();
+    start_program();
+    int tab = -1;
+    /* Before the player has answered the first-run notice nothing is on, so nothing online is shown either.
+     */
+    fake_menu(5, 3);
+    CHECK(!online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 0); /* the local "all games" tab */
+
+    online_answer_first_run(&g_app, true);
+    fake_menu(5, 3);
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 4); /* the game highlighted in the menu: tabs 1.. are games[0..] */
+    fake_menu(5, 0);
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 1);
+    fake_menu(5, 4);
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 5); /* the last game */
+    fake_menu(5, 5);      /* a selection outside the list never points outside the tabs */
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 1);
+    fake_menu(5, 9);
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 1);
+    fake_menu(5, -1);
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 1);
+    fake_menu(0, 0); /* no game at all: there is no table to show, the tab stays "all" */
+    CHECK(online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 0);
+
+    online_set_enabled(&g_app,
+                       false); /* the player turned it off (O): the next visit opens on the local tab */
+    fake_menu(5, 3);
+    CHECK(!online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 0);
+    end_program();
+
+    start_program(); /* and after a restart too: the choice is remembered */
+    fake_menu(5, 3);
+    CHECK(!online_leaderboard_start(&g_app, &tab));
+    CHECK_EQ_INT(tab, 0);
+    end_program();
+    forget_files();
+}
+
 static void test_the_server_address_is_never_blank(void) {
     start_program();
     CHECK_STR_EQ(online_server(), "http://127.0.0.1:9"); /* what this test was built with */
@@ -192,6 +246,7 @@ int main(void) {
     RUN(test_closing_the_window_without_answering_asks_again_next_time);
     RUN(test_turning_it_off_later_forgets_what_was_waiting);
     RUN(test_a_damaged_or_foreign_config_means_off_and_never_asks);
+    RUN(test_the_leaderboard_opens_on_the_online_tab_when_online_scores_are_on);
     RUN(test_the_server_address_is_never_blank);
     return TEST_SUMMARY();
 }

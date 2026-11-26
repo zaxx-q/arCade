@@ -526,7 +526,7 @@ static void draw_first_run(float t) {
     gfx_text_center(server, cx, 406, 18, ARC_COL_CYAN);
     gfx_text_center("Your scores on this computer always stay here. You can change this at any time:", cx,
                     454, 18, ARC_COL_DIM);
-    gfx_text_center("press L for the leaderboard, Tab for Online, then O.", cx, 480, 18, ARC_COL_DIM);
+    gfx_text_center("press L for the leaderboard (it opens on Online), then O.", cx, 480, 18, ARC_COL_DIM);
     const Hint hints[] = {{"Enter", "keep it on"}, {"N", "turn it off"}};
     draw_hint_row_centered(600, hints, (int)ARC_ARRAY_LEN(hints));
 }
@@ -895,9 +895,12 @@ static void draw_leaderboard_view(const AppState *app, const LbView *v, bool sea
 }
 
 Screen screen_leaderboard(AppState *app) {
-    int tab = 0;   /* 0 = all games, 1.. = one game from the registry (the Online tab has no "all games") */
-    int board = 0; /* on a game with boards: 0 = all boards, 1.. = one board (see tab_boards) */
-    bool online = false; /* Local / Online tab */
+    int tab = 0; /* 0 = all games, 1.. = one game from the registry (the Online tab has no "all games") */
+    /* The Online tab opens first when online scores are on (see online_leaderboard_start), else the local one
+     */
+    bool online = online_leaderboard_start(app, &tab);
+    int board = online ? 1 : 0; /* on a game with boards: 0 = all boards, 1.. = one board (see tab_boards) */
+    bool ask_first = online;    /* the table on screen is asked for in the first frame */
     bool searching = false;
     char query[LB_NAME_LEN] = "";
     int qlen = 0;
@@ -908,9 +911,10 @@ Screen screen_leaderboard(AppState *app) {
         t += ARC_DT;
         online_tick(app);
         bool rebuild = false; /* the tab, the board, the search text or the mode changed */
-        bool ask = false;     /* ask the server for the table now shown */
+        bool ask = ask_first; /* ask the server for the table now shown */
         bool refresh = false; /* ... even if the copy is fresh */
-        int scroll = 0;       /* rows to scroll this frame */
+        ask_first = false;
+        int scroll = 0; /* rows to scroll this frame */
         if (searching) {
             for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
                 if (c >= 32 && c < 127 && c != '|' && qlen < LB_NAME_LEN - 1) {
@@ -1047,10 +1051,19 @@ Screen screen_leaderboard(AppState *app) {
 
 /* ---------------------------------------------------------------- previews (smoke runner / screenshots) */
 const char *screens_preview_name(int which) {
-    static const char *const names[PREVIEW_COUNT] = {
-        "hub_name",       "hub_menu",         "hub_archive",           "hub_archive_end",
-        "hub_result",     "hub_leaderboard",  "hub_leaderboard_board", "hub_leaderboard_you",
-        "hub_online_off", "hub_online_table", "hub_online_offline",    "hub_online_first_run"};
+    static const char *const names[PREVIEW_COUNT] = {"hub_name",
+                                                     "hub_menu",
+                                                     "hub_archive",
+                                                     "hub_archive_end",
+                                                     "hub_result",
+                                                     "hub_leaderboard",
+                                                     "hub_leaderboard_board",
+                                                     "hub_leaderboard_you",
+                                                     "hub_leaderboard_open",
+                                                     "hub_online_off",
+                                                     "hub_online_table",
+                                                     "hub_online_offline",
+                                                     "hub_online_first_run"};
     return (which >= 0 && which < PREVIEW_COUNT) ? names[which] : "hub_unknown";
 }
 
@@ -1083,6 +1096,19 @@ void screens_draw_preview(AppState *app, int which, float t) {
         int board = which == PREVIEW_LEADERBOARD_YOU ? boards : (boards > 1 ? 2 : 0);
         build_view(app, &g_lbv, tab, board, false, "");
         draw_leaderboard_view(app, &g_lbv, false, "", t);
+        break;
+    }
+    case PREVIEW_LEADERBOARD_OPEN: {
+        /* The screen as screen_leaderboard() starts it, with the game whose table smoke.c cached selected. */
+        const int was_selected = app->selected;
+        for (int i = 0; i < app->game_count; i++)
+            if (strcmp(app->games[i]->id, "different_color") == 0)
+                app->selected = i;
+        int tab = 0;
+        bool online = online_leaderboard_start(app, &tab);
+        rebuild_view(app, online, tab, online ? 1 : 0, false, "");
+        draw_leaderboard_view(app, &g_lbv, false, "", t);
+        app->selected = was_selected;
         break;
     }
     case PREVIEW_ONLINE_FIRST_RUN:

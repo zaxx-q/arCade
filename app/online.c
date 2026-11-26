@@ -113,6 +113,15 @@ void online_set_enabled(AppState *app, bool on) {
     save_choice(app, on);
 }
 
+bool online_leaderboard_start(const AppState *app, int *tab) {
+    *tab = 0;
+    if (!online_enabled(app))
+        return false;
+    if (app->game_count > 0)
+        *tab = (app->selected >= 0 && app->selected < app->game_count) ? app->selected + 1 : 1;
+    return true;
+}
+
 void online_tick(AppState *app) {
     if (app->online_ready && !app->online_first_run)
         lbn_update(&app->lbn, now_seconds());

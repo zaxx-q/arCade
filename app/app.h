@@ -63,6 +63,7 @@ typedef enum ScreenPreview {
     PREVIEW_LEADERBOARD,
     PREVIEW_LEADERBOARD_BOARD, /* a game's tab on one of its boards (needs scores saved under boards) */
     PREVIEW_LEADERBOARD_YOU,   /* a long board: the current player's row is pinned under the visible ones */
+    PREVIEW_LEADERBOARD_OPEN,  /* what L opens with online scores on: the Online tab, on the selected game */
     PREVIEW_ONLINE_OFF,     /* the Online tab before the player turned it on: what is sent, and the choice */
     PREVIEW_ONLINE_TABLE,   /* the Online tab with a table from the server */
     PREVIEW_ONLINE_OFFLINE, /* the Online tab while the server cannot be reached: cached table, waiting scores

@@ -31,6 +31,13 @@ bool online_first_run(const AppState *app);
 /* The answer: keep it on, or turn it off. Saved, so the notice is not shown again. */
 void online_answer_first_run(AppState *app, bool keep_on);
 
+/* Where the leaderboard screen opens. With online scores on it opens on the Online tab, on the game that is
+ * selected in the menu (that is also the game just played when it comes from the result screen: tables are
+ * per game). Otherwise (turned off, the first-run notice not answered yet, or a build without libcurl) it
+ * opens on the local tab, "all games". Returns true for the Online tab; *tab is the screen's tab number (0 =
+ * all games, 1.. = app->games[*tab - 1]). */
+bool online_leaderboard_start(const AppState *app, int *tab);
+
 void online_tick(AppState *app); /* once per hub frame; never blocks */
 void online_submit(AppState *app, const char *table,
                    int score);                         /* a ranked run finished (player = app->player) */
