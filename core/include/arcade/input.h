@@ -9,9 +9,11 @@
 
 typedef struct ArcadeInput {
     float move_x, move_y;                                       /* -1..1  WASD / arrow keys   */
+    float move_z;                                               /* -1..1  Q (down) / E (up)   */
     float aim_x, aim_y;                                         /* pointer position in pixels */
     bool fire, fire_pressed;                                    /* left mouse button          */
     bool alt, alt_pressed;                                      /* right mouse button         */
+    bool shift;                                                 /* either Shift key, held     */
     bool action, action_pressed;                                /* Space / Enter              */
     bool left_pressed, right_pressed, up_pressed, down_pressed; /* one-shot direction presses */
     int wheel;                                                  /* mouse wheel steps          */

@@ -348,9 +348,14 @@ Screen screen_menu(AppState *app) {
         bool esc = IsKeyPressed(KEY_ESCAPE);
 
         if (flying) {
-            if (esc) { /* Esc gives the menu back; the same press must not also quit the hub */
-                flying = false;
-                backdrop_set_flying(false);
+            if (esc) {
+                if (backdrop_city_grabbed()) {
+                    /* ESC frees the mouse first; the next ESC gives the menu back */
+                    backdrop_city_mouse_free();
+                } else {
+                    flying = false;
+                    backdrop_set_flying(false);
+                }
                 esc = false;
             } else {
                 /* The whole screen is the game: no menu, no hints, just the city and its own HUD. The first

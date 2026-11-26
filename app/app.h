@@ -82,7 +82,9 @@ void backdrop_set_flying(bool flying);    /* false hands the camera back to the 
 void backdrop_fly(const ArcadeInput *in); /* one step with the player's input, instead of backdrop_update */
 void backdrop_pause_audio(bool paused);   /* silence the city's soundtrack while another game plays */
 void backdrop_toggle_mute(void);
-bool backdrop_city_touring(void); /* the drone has the camera (smoke test) */
+bool backdrop_city_touring(void);    /* the drone has the camera (smoke test) */
+bool backdrop_city_grabbed(void);    /* the mouse is grabbed (pointer lock) */
+void backdrop_city_mouse_free(void); /* free a grabbed mouse */
 
 /* Sand only: the vault. These work on the sand scene whichever scene is shown. */
 bool backdrop_vault_is_open(void);         /* the vault was filled (latched) */

@@ -23,7 +23,7 @@ Dokumen untuk manusia (`README.md`, `docs/`, `GAME.md`) ditulis dalam bahasa Ind
 - Semua `AGENTS.md` sengaja tetap berbahasa Inggris karena dibaca oleh AI agent.
 - `docs/raylib_subset.md` dibuat otomatis (`tools/gen_raylib_subset.sh`), jangan diedit manual.
 - Komentar di dalam kode (`*.c`, `*.h`) masih berbahasa Inggris.
-- Teks lisensi di `LICENSE` dan `THIRD_PARTY_NOTICES.md` tetap dalam bahasa aslinya.
+- `LICENSE` dan `THIRD_PARTY_NOTICES.md` ditulis dalam bahasa Inggris.
 
 ## 1. Pasang tool
 
@@ -174,7 +174,7 @@ Jalankan pengecekan ini untuk memverifikasi setiap layer proyek di lokal:
 - [x] Matriks CI otomatis (Linux gcc/clang, Windows MinGW, Windows MSVC, AddressSanitizer, cppcheck, smoke run headless).
 - [x] Pipeline rilis otomatis dengan packaging lintas platform dan artifact screenshot (`v0.1.1`).
 - [x] Port 8 game dari proyek saudara `simple-games` (hanya aturan, tanpa aset): `post_it`, `master_juggler`, `bw_reflex`, `different_color`, `spike_dart`, `loop_lap`, `tower_stacker`, `new_star`, lengkap dengan unit test, front-end, dan `GAME.md`.
-- [x] Port `synthwave_city` dari proyek web Synthwave_City (MIT, Kris E. Granholm): rencana kota dan lagu dicocokkan angka demi angka dengan versi TypeScript, tampilan 3D rlgl tanpa shader, lengkap dengan unit test, front-end, dan `GAME.md`.
+- [x] Port `synthwave_city` dari proyek web Synthwave_City: rencana kota dan lagu dicocokkan angka demi angka dengan versi TypeScript, tampilan 3D rlgl tanpa shader, lengkap dengan unit test, front-end, dan `GAME.md`.
 - [x] Hub memakai Synthwave City sebagai latar belakang hidup di belakang menu (klik latar belakang untuk bermain, `Esc` kembali ke menu, tombol kecil/`B` menukar ke sandbox dengan vault); game-nya dipindah ke `deferred/` dan dipanggil lewat `synthwave_city_session.h`.
 
 ### Fase 2: Polish Game & Mekanik (Sedang Berjalan)

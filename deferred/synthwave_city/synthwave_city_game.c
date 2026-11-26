@@ -6,6 +6,8 @@
  *   - play(): the normal game, started from the hub's archive or by a smoke run (own loop);
  *   - the guest session (synthwave_city_session.h): the hub runs it behind its menu, in the hub's loop. */
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "arcade/gfx.h"
@@ -134,12 +136,18 @@ static void music_stop(Soundtrack *m) {
 /* ------------------------------------------------------------------ the scripted flight of smoke runs */
 
 /* Smoke runs replace the random "monkey" with a short film that touches every control: the tour, the three
- * moods, free flight with a boost, a jump to a viewpoint and a look-around drag. It repeats every 900 frames.
+ * moods, free flight with a boost, glides to viewpoints, a look-around drag, hiding the UI, going back to the
+ * tour (the join and the blend), the three quality tiers and the states of the layer switch. It repeats every
+ * 900 frames.
  * The frame at 299 (the default smoke length) shows a canyon flight in the Miami mood. */
 static void scripted_input(int frame, ArcadeInput *in) {
     int f = frame % 900;
     arcade_input_clear(in);
     switch (f) {
+    case 20:
+    case 24:
+        in->typed = 'h'; /* the UI away for four frames, and back */
+        break;
     case 100:
         in->typed = 't'; /* midnight */
         break;
@@ -167,6 +175,19 @@ static void scripted_input(int frame, ArcadeInput *in) {
     case 760:
         in->action = in->action_pressed = true; /* back to the tour */
         break;
+    case 790:
+    case 800:
+    case 810:
+        in->typed = 'v'; /* medium, low, high again (the GPU renderer only; the CPU one has no tiers) */
+        break;
+    case 840:
+    case 850:
+    case 860:
+    case 870:
+    case 880:
+    case 890:
+        in->typed = 'l'; /* beams, air, street, holograms, nothing, everything again */
+        break;
     default:
         break;
     }
@@ -189,34 +210,168 @@ static void scripted_input(int frame, ArcadeInput *in) {
     }
 }
 
+/* ------------------------------------------------------------------ renderer choice and debug switches */
+
+/* The GPU renderer runs on a real OpenGL 3.3 context; the software rasteriser of the headless smoke run (and
+ * a GPU that cannot make the render targets) gets the CPU renderer, which looks the same everywhere. */
+enum { RENDERER_CPU_ONLY, RENDERER_CPU, RENDERER_GPU };
+
+/* Headless runs only: environment variables steer the verification harness (not available to players).
+ *   SWC_RENDERER=cpu|gpu   SWC_VIEW=1..6 (fly nowhere: stay at that viewpoint)   SWC_MOOD=0..2
+ *   SWC_FREEZE=seconds (stops the clock)   SWC_LAYERS=bits (1 sky, 2 legacy city, 4 buildings, 8 beams, 16
+ * ground, 32 air traffic, 64 street life, 128 holograms)   SWC_POST=0 SWC_BLOOM=0 SWC_REFLECT=0
+ *   SWC_LIVE=0..15 (the layer switch of the L key: 1 beams, 2 air traffic, 4 street life, 8 holograms; either
+ *   renderer)
+ *   SWC_POSE=x,y,z,yaw,pitch[,roll[,fov]] (stay at this pose instead of a viewpoint; roll in radians, fov in
+ *   degrees, 62 by default)
+ *   SWC_KEYS=frame:char,... (press these keys at these frames, e.g. "20:n,40:h"; at most 16)
+ *   SWC_TIER=low|medium|high (the V key's state, "high" by default)   SWC_MSAA=0 (no multisampling)
+ *   SWC_INTERACTIVE=1 (behave like a real window: the adaptive render scale and the start-up work spread over
+ *   frames; off in harness runs, whose frame times mean nothing and whose first frame must be complete) */
+typedef struct DebugSwitches {
+    bool on;
+    int view;      /* -1: none */
+    int mood;      /* -1: none */
+    double freeze; /* < 0: none */
+    bool force_cpu;
+    int live; /* the layer switch's mask */
+    bool has_pose;
+    double pose[5];
+    double pose_roll, pose_fov;
+    int key_frame[16], key_char[16], key_count;
+    SwcTier tier;
+    bool msaa;
+    bool interactive;
+} DebugSwitches;
+
+static double env_number(const char *name, double fallback) {
+    const char *v = getenv(name);
+    return v != NULL && v[0] != '\0' ? atof(v) : fallback;
+}
+
+static DebugSwitches debug_read(bool headless) {
+    DebugSwitches d;
+    memset(&d, 0, sizeof(d));
+    d.view = -1;
+    d.mood = -1;
+    d.freeze = -1.0;
+    d.live = (int)SWC_LIVE_ALL;
+    d.pose_fov = SWC_FOV_DEG;
+    d.tier = SWC_TIER_HIGH;
+    d.msaa = true;
+    if (!headless)
+        return d;
+    d.on = true;
+    d.view = (int)env_number("SWC_VIEW", 0.0) - 1;
+    d.mood = (int)env_number("SWC_MOOD", -1.0);
+    d.freeze = env_number("SWC_FREEZE", -1.0);
+    const char *r = getenv("SWC_RENDERER");
+    d.force_cpu = r != NULL && strcmp(r, "cpu") == 0;
+    d.live = (int)env_number("SWC_LIVE", (double)SWC_LIVE_ALL);
+    const char *pose = getenv("SWC_POSE");
+    if (pose != NULL && sscanf(pose, "%lf,%lf,%lf,%lf,%lf,%lf,%lf", &d.pose[0], &d.pose[1], &d.pose[2],
+                               &d.pose[3], &d.pose[4], &d.pose_roll, &d.pose_fov) >= 5)
+        d.has_pose = true;
+    for (const char *k = getenv("SWC_KEYS"); k != NULL && *k != '\0' && d.key_count < 16;) {
+        int frame = 0, n = 0;
+        char c = 0;
+        if (sscanf(k, "%d:%c%n", &frame, &c, &n) < 2)
+            break;
+        d.key_frame[d.key_count] = frame;
+        d.key_char[d.key_count++] = c;
+        k += n;
+        if (*k == ',')
+            k++;
+    }
+    swc_tier_from_name(getenv("SWC_TIER"), &d.tier);
+    d.msaa = env_number("SWC_MSAA", 1.0) != 0.0;
+    d.interactive = env_number("SWC_INTERACTIVE", 0.0) != 0.0;
+    return d;
+}
+
 /* ------------------------------------------------------------------ HUD */
 
+/* The HUD is laid out for the hub's 1280 x 720 window. A window of another size (a maximised or full-screen
+ * one) gets the same layout scaled by its height, anchored to the bottom, so the text stays where the eye
+ * expects it and does not shrink into a corner. At 720 pixels every number below is what it always was. */
 #define SHADE_TOP 540
 #define SHADE_STRIPS 18
 #define SHADE_STRIP_H 10 /* the shade covers y = 540..720, darkest at the bottom */
 
-/* `esc_does` names what Esc does right now: "leave" in play(), "menu" when the hub is the host. */
-static void draw_overlay(const synthwave_city_State *s, float t, const char *esc_does) {
+typedef struct HudInfo {
+    int renderer;
+    unsigned live;    /* the layer switch (the L key) */
+    SwcTier tier;     /* the quality tier (the V key) */
+    double scale;     /* the scene's share of the window's pixels per side */
+    int msaa;         /* samples in use */
+    char toast[48];   /* the last L or V press's new state, for a moment */
+    bool grabbed;     /* the mouse is grabbed: the cursor is hidden and the mouse looks */
+    float toast_left; /* seconds the toast stays */
+} HudInfo;
+
+static int hud_px(float k, int v) {
+    return (int)floorf((float)v * k + 0.5f);
+}
+
+static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *h, const char *esc_does) {
     double speed = sqrt(s->cam.vx * s->cam.vx + s->cam.vy * s->cam.vy + s->cam.vz * s->cam.vz);
+    float k = (float)GetScreenHeight() / (float)ARC_SCREEN_H;
+    int width = GetScreenWidth();
     /* a soft shade behind the text, so it stays readable over bright sky */
     for (int i = 0; i < SHADE_STRIPS;
          i++) { /* plain strips: a gradient quad is not blended right by the CPU rasteriser */
-        float k = (float)(i + 1) / (float)SHADE_STRIPS;
-        DrawRectangle(0, SHADE_TOP + i * SHADE_STRIP_H, 1280, SHADE_STRIP_H,
-                      Fade(BLACK, 0.62f * k * sqrtf(k)));
+        float f = (float)(i + 1) / (float)SHADE_STRIPS;
+        int y0 = hud_px(k, SHADE_TOP + i * SHADE_STRIP_H),
+            y1 = hud_px(k, SHADE_TOP + (i + 1) * SHADE_STRIP_H);
+        DrawRectangle(0, y0, width, y1 - y0, Fade(BLACK, 0.62f * f * sqrtf(f)));
     }
     const char *mode = s->touring ? "TOUR" : "FLY";
-    gfx_text(TextFormat("%s   ALT %.0f m   SPEED %.0f km/h   %.1f km", mode, s->cam.y, speed * 3.6,
-                        s->distance / 1000.0),
-             24, 650, 18, ARC_COL_CYAN);
+    char gpu[64] = "";
+    if (h->renderer == RENDERER_GPU) { /* the tier, and what it costs the picture: MSAA, a reduced scale */
+        int n = snprintf(gpu, sizeof(gpu), "   GPU %s", swc_tier_label(h->tier));
+        if (h->msaa > 0 && n > 0 && n < (int)sizeof(gpu))
+            n += snprintf(gpu + n, sizeof(gpu) - (size_t)n, "   MSAA %dx", h->msaa);
+        if (h->scale < 0.995 && n > 0 && n < (int)sizeof(gpu))
+            snprintf(gpu + n, sizeof(gpu) - (size_t)n, "   RES %.0f%%", h->scale * 100.0);
+    }
+    gfx_text(TextFormat("%s   ALT %.0f m   SPEED %.0f km/h   %.1f km   CITY %u%s%s%s%s", mode, s->cam.y,
+                        speed * 3.6, s->distance / 1000.0, (unsigned)s->city.seed, gpu,
+                        h->live != SWC_LIVE_ALL ? "   " : "",
+                        h->live != SWC_LIVE_ALL ? swc_layers_label(h->live) : "",
+                        h->grabbed ? "   MOUSE GRABBED (ESC frees it)" : ""),
+             hud_px(k, 24), hud_px(k, 650), hud_px(k, 18), ARC_COL_CYAN);
+    if (h->toast_left > 0.0f) /* the new state, for a moment, also when it is back to the start */
+        gfx_text(h->toast, hud_px(k, 24), hud_px(k, 600), hud_px(k, 20),
+                 Fade(ARC_COL_YELLOW, h->toast_left > 0.5f ? 0.95f : h->toast_left * 1.9f));
     if (t < 14.0f) {
-        gfx_text("WASD / arrows: fly   drag with the mouse: look   RIGHT MOUSE: boost   wheel: speed", 24,
-                 676, 16, Fade(ARC_COL_TEXT, 0.8f * (1.0f - t / 14.0f) + 0.15f));
-        gfx_text(TextFormat("SPACE: tour on / off   1-6: viewpoints   T: mood   M: mute   ESC: %s", esc_does),
-                 24, 696, 16, Fade(ARC_COL_TEXT, 0.8f * (1.0f - t / 14.0f) + 0.15f));
+        Color hint = Fade(ARC_COL_TEXT, 0.8f * (1.0f - t / 14.0f) + 0.15f);
+        const char *line1;
+        if (s->touring)
+            line1 = h->grabbed
+                        ? "DRAG: look   WHEEL: zoom   DOUBLE CLICK or WASD: fly   ESC: free the mouse   "
+                          "SPACE: stop the tour"
+                        : "DRAG: look   WHEEL: zoom   DOUBLE CLICK or WASD: fly   SPACE: stop the tour";
+        else
+            line1 = h->grabbed
+                        ? "MOUSE: look   WASD: fly   Q / E: down / up   SHIFT: boost   WHEEL: speed   "
+                          "ESC: free the mouse"
+                        : "WASD: fly   Q / E: down / up   SHIFT: boost   CLICK: grab the mouse to look   "
+                          "WHEEL: speed   SPACE: tour";
+        gfx_text(line1, hud_px(k, 24), hud_px(k, 676), hud_px(k, 16), hint);
+        gfx_text(
+            h->renderer == RENDERER_CPU_ONLY
+                ? TextFormat(
+                      "1-6: viewpoints   T: mood   N: new city   H: hide UI   L: layers   M: mute   ESC: %s",
+                      esc_does)
+                : TextFormat(
+                      "1-6: viewpoints   T: mood   N: new city   H: hide UI   L: layers   G: renderer   "
+                      "V: quality   M: mute   ESC: %s",
+                      esc_does),
+            hud_px(k, 24), hud_px(k, 696), hud_px(k, 16), hint);
     }
     if (s->view >= 0 && !s->touring)
-        gfx_text(s->views[s->view].name, 24, 626, 20, Fade(ARC_COL_MAGENTA, 0.9f));
+        gfx_text(s->views[s->view].name, hud_px(k, 24), hud_px(k, 626), hud_px(k, 20),
+                 Fade(ARC_COL_MAGENTA, 0.9f));
 }
 
 /* ------------------------------------------------------------------ one frame of the game */
@@ -233,13 +388,56 @@ static void game_step(synthwave_city_State *s, Soundtrack *m, const ArcadeInput 
 /* One picture: the city, and on top of it the HUD when `hud` is set. `scene_time` drives things that move on
  * their own (search lights), `hud_time` fades the controls help. */
 static void game_draw(const synthwave_city_State *s, float scene_time, bool hud, float hud_time,
-                      const char *esc_does) {
+                      const HudInfo *h, const char *esc_does) {
     ClearBackground(BLACK);
-    swc_render_scene(s, (double)scene_time);
+    if (h->renderer == RENDERER_GPU) {
+        swc_gpu_note_frame((double)GetFrameTime()); /* for the adaptive render scale */
+        swc_render_scene_gpu(s, (double)scene_time);
+    } else {
+        swc_render_scene(s, (double)scene_time);
+    }
     if (hud) {
         gfx_hud("Synthwave City", synthwave_city_score(s), swc_mood_name(s->mood));
-        draw_overlay(s, hud_time, esc_does);
+        draw_overlay(s, hud_time, h, esc_does);
     }
+}
+
+/* ------------------------------------------------------------------ the mouse grab */
+
+/* Grabbing the mouse hides the cursor and keeps it in the window, so that moving the mouse looks around
+ * without a button held (what pointer lock does in the web version). It is asked for by a click in free
+ * flight or by the double click that takes over from the tour (the logic's grab_wanted), never at the start.
+ */
+static void mouse_grab(synthwave_city_State *s, bool *grabbed, HudInfo *hud) {
+    if (*grabbed || !IsWindowFocused())
+        return;
+    DisableCursor();
+    *grabbed = true;
+    hud->grabbed = true;
+    swc_set_pointer_lock(s, true);
+    snprintf(hud->toast, sizeof(hud->toast), "MOUSE GRABBED   ESC frees it");
+    hud->toast_left = 2.5f;
+}
+
+static void mouse_free(synthwave_city_State *s, bool *grabbed, HudInfo *hud) {
+    if (!*grabbed)
+        return;
+    EnableCursor();
+    *grabbed = false;
+    hud->grabbed = false;
+    swc_set_pointer_lock(s, false);
+    snprintf(hud->toast, sizeof(hud->toast), "MOUSE FREE   click to grab it again");
+    hud->toast_left = 2.5f;
+}
+
+/* The loop condition. ESC frees a grabbed mouse first, as it leaves pointer lock in the browser; the next ESC
+ * leaves the game. (Smoke runs never grab, so they use the core's condition unchanged.) */
+static bool loop_running(synthwave_city_State *s, bool *grabbed, HudInfo *hud) {
+    if (*grabbed && IsKeyPressed(KEY_ESCAPE)) {
+        mouse_free(s, grabbed, hud);
+        return !WindowShouldClose();
+    }
+    return arcade_loop_running();
 }
 
 /* ------------------------------------------------------------------ the game */
@@ -247,24 +445,123 @@ static void game_draw(const synthwave_city_State *s, float scene_time, bool hud,
 static GameResult play(const GameContext *ctx) {
     static synthwave_city_State s; /* about 2.5 MB: static, like every big state in arCade */
     static Soundtrack music;
-    synthwave_city_init(&s, ctx->seed);
+    unsigned city_seed = ctx->headless ? ctx->seed : SWC_DEFAULT_SEED;
+    synthwave_city_init(&s, city_seed);
     swc_render_init();
-    music_start(&music, ctx->seed);
+    DebugSwitches dbg = debug_read(ctx->headless);
+    int renderer = RENDERER_CPU_ONLY;
+    bool gpu_ready = false;
+    if (swc_gpu_available()) {
+        gpu_ready = swc_gpu_init();
+        renderer = gpu_ready && !dbg.force_cpu ? RENDERER_GPU : RENDERER_CPU;
+        if (!gpu_ready)
+            renderer = RENDERER_CPU_ONLY;
+    }
+    if (dbg.on && gpu_ready) {
+        SwcGpuDebug g = {(int)env_number("SWC_LAYERS", 255.0), env_number("SWC_POST", 1.0) != 0.0,
+                         env_number("SWC_BLOOM", 1.0) != 0.0, env_number("SWC_REFLECT", 1.0) != 0.0,
+                         dbg.msaa};
+        swc_gpu_set_debug(&g);
+    }
+    SwcTier tier = dbg.tier; /* "high" unless a harness says otherwise */
+    if (gpu_ready) {
+        swc_gpu_set_tier(tier);
+        swc_gpu_set_interactive(!ctx->headless || dbg.interactive); /* a harness run is not a real window */
+    }
+    unsigned live =
+        (unsigned)dbg.live & SWC_LIVE_ALL; /* the layer switch: everything on unless a harness says so */
+    swc_live_layers_set(live);
+    HudInfo hud;
+    memset(&hud, 0, sizeof(hud));
+    if (dbg.view >= 0 && dbg.view < SWC_VIEW_COUNT)
+        swc_goto_view(&s, dbg.view);
+    if (dbg.has_pose)
+        swc_place_camera(&s, dbg.pose[0], dbg.pose[1], dbg.pose[2], dbg.pose[3], dbg.pose[4]);
+    if (dbg.mood >= 0)
+        s.mood = dbg.mood;
+    music_start(&music, city_seed);
     arcade_loop_begin(ctx); /* REQUIRED: resets the frame counter and smoke-test state */
     float t = 0.0f;
-    while (arcade_loop_running()) {
+    bool ui_hidden = false; /* H or P: the picture alone, for screenshots */
+    unsigned rolls = 0;     /* cities rolled so far with N */
+    bool grabbed = false;   /* the mouse is grabbed (the cursor is hidden) */
+    while (loop_running(&s, &grabbed, &hud)) {
+        if (grabbed && !IsWindowFocused())
+            mouse_free(&s, &grabbed, &hud); /* the cursor goes back to the desktop with the focus */
         ArcadeInput in;
-        if (ctx->headless)
+        if (ctx->headless && (dbg.view >= 0 || dbg.has_pose))
+            arcade_input_clear(&in); /* hold still at the chosen viewpoint */
+        else if (ctx->headless)
             scripted_input(arcade_frame_index(), &in);
         else
             arcade_poll(&in);
+        for (int k = 0; k < dbg.key_count; k++)
+            if (dbg.key_frame[k] == arcade_frame_index() && in.typed == 0)
+                in.typed = dbg.key_char[k];
+        if (in.typed == 'm' || in.typed == 'M')
+            music_set_muted(&music, !music.muted);
+        if (in.typed == 'h' || in.typed == 'H' || in.typed == 'p' || in.typed == 'P')
+            ui_hidden = !ui_hidden;
+        if (in.typed == 'n' || in.typed == 'N') {
+            /* A new city, as in the web version: the tour starts over in it and the soundtrack is its own.
+             * The seed is drawn from the launch seed and the count, so a smoke run rolls the same cities
+             * every time. */
+            uint32_t draw[2] = {(uint32_t)ctx->seed, ++rolls};
+            city_seed = swc_roll_seed(city_seed, swc_hash_ints(draw, 2));
+            swc_new_city(&s, city_seed);
+            if (dbg.has_pose)
+                swc_place_camera(&s, dbg.pose[0], dbg.pose[1], dbg.pose[2], dbg.pose[3], dbg.pose[4]);
+            music_stop(&music);
+            music_start(&music, city_seed);
+            snprintf(hud.toast, sizeof(hud.toast), "NEW CITY   %u", city_seed);
+            hud.toast_left = 2.5f;
+        }
+        if ((in.typed == 'g' || in.typed == 'G') && gpu_ready)
+            renderer = renderer == RENDERER_GPU ? RENDERER_CPU : RENDERER_GPU;
+        if (in.typed == 'l' || in.typed == 'L') {
+            live = swc_layers_next(live);
+            swc_live_layers_set(live);
+            snprintf(hud.toast, sizeof(hud.toast), "LAYERS   %s", swc_layers_label(live));
+            hud.toast_left = 2.5f;
+        }
+        if ((in.typed == 'v' || in.typed == 'V') && gpu_ready && renderer == RENDERER_GPU) {
+            tier = swc_tier_next(tier);
+            swc_gpu_set_tier(tier);
+            snprintf(hud.toast, sizeof(hud.toast), "QUALITY   %s", swc_tier_label(tier));
+            hud.toast_left = 2.5f;
+        }
         game_step(&s, &music, &in, ARC_DT);
+        if (s.grab_wanted) {
+            s.grab_wanted = false;
+            if (!ctx->headless) /* a smoke run has no cursor to grab */
+                mouse_grab(&s, &grabbed, &hud);
+        }
+        if (dbg.has_pose) { /* a harness holds the lean and the lens too */
+            s.roll = dbg.pose_roll;
+            s.fov = dbg.pose_fov;
+        }
+        if (dbg.mood >= 0)
+            s.mood = dbg.mood;
+        if (dbg.freeze >= 0.0)
+            s.clock = dbg.freeze;
+        if (dbg.freeze >= 0.0)
+            s.beat_time = dbg.freeze; /* the web version's beat on a frozen clock: time * BPM / 60 */
         t += ARC_DT;
+        hud.toast_left = hud.toast_left > ARC_DT ? hud.toast_left - ARC_DT : 0.0f;
+        hud.renderer = renderer;
+        hud.live = live;
+        hud.tier = tier;
+        hud.scale = renderer == RENDERER_GPU ? swc_gpu_render_scale() : 1.0;
+        hud.msaa = renderer == RENDERER_GPU ? swc_gpu_msaa_samples() : 0;
         BeginDrawing();
-        game_draw(&s, t, true, t, "leave");
+        game_draw(&s, t, !ui_hidden, t, &hud, "leave");
         arcade_frame_end(); /* REQUIRED instead of EndDrawing() */
     }
+    if (grabbed)
+        EnableCursor(); /* the hub gets its cursor back */
     music_stop(&music);
+    swc_live_layers_set(SWC_LIVE_ALL); /* the switch is the player's, not the next run's */
+    swc_gpu_shutdown();
     swc_render_shutdown();
     GameResult r;
     r.score = synthwave_city_score(&s);
@@ -281,8 +578,14 @@ typedef struct Guest {
     bool active;
     bool player_flies; /* the player holds the camera */
     bool hand_back;    /* the camera was just given back: the next step lets the drone take it again */
-    float time;        /* seconds since the session began: drives things that move on their own */
-    float hud_time;    /* seconds since the player took the camera: fades the controls help */
+    bool ui_hidden;
+    bool grabbed;   /* the mouse is grabbed (cursor hidden, pointer lock) */
+    float time;     /* seconds since the session began: drives things that move on their own */
+    float hud_time; /* seconds since the player took the camera: fades the controls help */
+    int renderer;
+    bool gpu_ready;
+    SwcTier tier;
+    HudInfo hud;
     Soundtrack music;
 } Guest;
 
@@ -295,6 +598,16 @@ void swc_session_begin(unsigned seed) {
     memset(&g_guest, 0, sizeof(g_guest));
     synthwave_city_init(&g_guest_state, seed);
     swc_render_init();
+    g_guest.renderer = RENDERER_CPU_ONLY;
+    g_guest.tier = SWC_TIER_HIGH;
+    if (swc_gpu_available()) {
+        g_guest.gpu_ready = swc_gpu_init();
+        g_guest.renderer = g_guest.gpu_ready ? RENDERER_GPU : RENDERER_CPU_ONLY;
+        if (g_guest.gpu_ready) {
+            swc_gpu_set_tier(g_guest.tier);
+            swc_gpu_set_interactive(true);
+        }
+    }
     music_start(&g_guest.music, seed); /* silent if there is no audio device: the game still runs */
     music_set_level(&g_guest.music, MUSIC_LEVEL_BEHIND_MENU);
     g_guest.active = true;
@@ -303,7 +616,10 @@ void swc_session_begin(unsigned seed) {
 void swc_session_end(void) {
     if (!g_guest.active)
         return;
+    if (g_guest.grabbed)
+        mouse_free(&g_guest_state, &g_guest.grabbed, &g_guest.hud);
     music_stop(&g_guest.music);
+    swc_gpu_shutdown();
     swc_render_shutdown();
     memset(&g_guest, 0, sizeof(g_guest));
 }
@@ -321,6 +637,8 @@ void swc_session_set_control(bool player) {
         g->hud_time = 0.0f; /* the controls help shows again each time the player takes the camera */
         g->hand_back = false;
     } else {
+        if (g->grabbed)
+            mouse_free(&g_guest_state, &g->grabbed, &g->hud);
         g->hand_back = true;
     }
     music_set_level(&g->music, player ? MUSIC_LEVEL_PLAYING : MUSIC_LEVEL_BEHIND_MENU);
@@ -338,15 +656,45 @@ void swc_session_update(const ArcadeInput *in, float dt) {
         g->hand_back = false;
         in = &idle;
     }
+    if (in->typed == 'h' || in->typed == 'H' || in->typed == 'p' || in->typed == 'P')
+        g->ui_hidden = !g->ui_hidden;
+    if ((in->typed == 'g' || in->typed == 'G') && g->gpu_ready)
+        g->renderer = g->renderer == RENDERER_GPU ? RENDERER_CPU : RENDERER_GPU;
+    if (in->typed == 'l' || in->typed == 'L') {
+        unsigned live = swc_layers_next(swc_live_layers());
+        swc_live_layers_set(live);
+        snprintf(g->hud.toast, sizeof(g->hud.toast), "LAYERS   %s", swc_layers_label(live));
+        g->hud.toast_left = 2.5f;
+    }
+    if ((in->typed == 'v' || in->typed == 'V') && g->gpu_ready && g->renderer == RENDERER_GPU) {
+        g->tier = swc_tier_next(g->tier);
+        swc_gpu_set_tier(g->tier);
+        snprintf(g->hud.toast, sizeof(g->hud.toast), "QUALITY   %s", swc_tier_label(g->tier));
+        g->hud.toast_left = 2.5f;
+    }
     game_step(&g_guest_state, &g->music, in, dt);
+    if (g_guest_state.grab_wanted) {
+        g_guest_state.grab_wanted = false;
+        if (IsWindowFocused())
+            mouse_grab(&g_guest_state, &g->grabbed, &g->hud);
+    }
+    if (g->grabbed && !IsWindowFocused())
+        mouse_free(&g_guest_state, &g->grabbed, &g->hud);
     g->time += dt;
     g->hud_time += dt;
+    g->hud.toast_left = g->hud.toast_left > dt ? g->hud.toast_left - dt : 0.0f;
 }
 
 void swc_session_draw(void) {
     if (!g_guest.active)
         return;
-    game_draw(&g_guest_state, g_guest.time, g_guest.player_flies, g_guest.hud_time, "menu");
+    Guest *g = &g_guest;
+    g->hud.renderer = g->renderer;
+    g->hud.live = swc_live_layers();
+    g->hud.tier = g->tier;
+    g->hud.scale = g->renderer == RENDERER_GPU ? swc_gpu_render_scale() : 1.0;
+    g->hud.msaa = g->renderer == RENDERER_GPU ? swc_gpu_msaa_samples() : 0;
+    game_draw(&g_guest_state, g->time, g->player_flies && !g->ui_hidden, g->hud_time, &g->hud, "menu");
 }
 
 void swc_session_pause_audio(bool paused) {
@@ -367,11 +715,20 @@ bool swc_session_touring(void) {
     return g_guest.active && g_guest_state.touring;
 }
 
+bool swc_session_grabbed(void) {
+    return g_guest.active && g_guest.grabbed;
+}
+
+void swc_session_mouse_free(void) {
+    if (g_guest.active && g_guest.grabbed)
+        mouse_free(&g_guest_state, &g_guest.grabbed, &g_guest.hud);
+}
+
 /* The hub finds this symbol through the generated registry. The name MUST be game_<id>_def. */
 const GameDef game_synthwave_city_def = {"synthwave_city",
                                          "Synthwave City",
                                          "Fly through an endless neon megacity at sunset",
-                                         "WASD fly - drag mouse look - Space tour - T mood",
+                                         "WASD QE fly - click grabs mouse - Space tour - 1-6 views",
                                          90,
                                          false, /* a sightseeing flight: nothing to rank */
                                          play};

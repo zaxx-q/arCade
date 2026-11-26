@@ -39,4 +39,12 @@ bool swc_session_muted(void);
 /* True while the drone flies the camera (the player has not taken it, or gave it back). */
 bool swc_session_touring(void);
 
+/* True while the mouse is grabbed (the cursor is hidden). The hub uses this to route ESC. */
+bool swc_session_grabbed(void);
+
+/* Frees the mouse (EnableCursor, pointer_lock off). The hub calls this when ESC is pressed while grabbed:
+ * the first ESC frees the mouse, the next one gives the menu back. Also called when the player gives back
+ * control to the drone. */
+void swc_session_mouse_free(void);
+
 #endif
