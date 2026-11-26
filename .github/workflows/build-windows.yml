@@ -1,4 +1,5 @@
-# On-demand Windows build. Trigger manually from any branch via Actions -> Build Windows -> Run workflow.
+# On-demand Windows build (one executable: assets/ is compiled into it). Trigger manually from any branch via
+# Actions -> Build Windows -> Run workflow.
 # The workflow file must live on the default branch (main) for GitHub to list it,
 # but you pick the target branch in the "Use workflow from" dropdown.
 name: Build Windows
@@ -23,7 +24,6 @@ jobs:
           update: false
           install: >-
             git
-            zip
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
@@ -33,19 +33,14 @@ jobs:
           cmake --build --preset release
       - name: Test
         run: ctest --preset release
-      - name: Package
+      - name: Package (one executable, nothing else)
         run: |
           sha="$(git rev-parse --short HEAD)"
-          name="arCade-${sha}-windows-x86_64"
-          mkdir -p "dist/$name"
-          cp build/release/bin/arCade.exe "dist/$name/"
-          cp -r assets "dist/$name/assets"
-          cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
-          [ -f packaging/PLAY.txt ] && cp packaging/PLAY.txt "dist/$name/README.txt"
-          (cd dist && zip -qr "$name.zip" "$name")
+          mkdir -p dist
+          cp build/release/bin/arCade.exe "dist/arCade-${sha}-windows-x86_64.exe"
       - uses: actions/upload-artifact@v6
         with:
           name: windows-build
-          path: dist/*.zip
+          path: dist/*.exe
           if-no-files-found: error
           retention-days: 14

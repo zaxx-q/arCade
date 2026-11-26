@@ -31,12 +31,12 @@ Logic-only builds need no raylib: `cmake --preset logic`. To see the game: `cmak
 - **Separate high-score tables (optional)**: a game with modes or levels can name the table of a run by writing it into `ctx->board` (`GAME_BOARD_LEN` bytes, may be NULL: check) before `play()` returns; the hub then records and ranks the score in `<id>:<board>` only. Leave it empty for one table per game (what every game did before). Example: `beat_dodge` (`bd_board_name`).
 - **Memory**: fixed-size arrays (`MAX_*` constants); big state is `static` in `play()`. No `malloc` unless justified in `GAME.md`.
 - **Window**: always 1280x720 (`ARC_SCREEN_W/H`), no fullscreen calls. HUD uses `gfx_hud()`; colours come from the `ARC_COL_*` palette.
-- **Audio** is optional: guard with `arcade_audio_ready()`; smoke runs and CI have no sound device. Don't read assets when `ctx->headless`.
+- **Audio** is optional: guard with `arcade_audio_ready()`; smoke runs and CI have no sound device. Sounds are only decoded when the device is ready.
 - **Naming**: function/struct prefix = `<id>_` (exception: `sandbox` uses `sbx_`). `GameDef.order`: 10 steps (menu order, lower first).
 - Keep it simple: course topics only (arrays, structs, enums, functions, recursion, files, sorting/searching, pointers). Comments explain *why*.
 
 ## Security & safety
-- Only write files under `ctx->data_dir`; read assets from `ctx->assets_dir`.
+- Only write files under `ctx->data_dir`. Get assets with `arc_asset_load(ctx->assets_dir, "<path inside assets/>")` (`arcade/assets.h`): they are compiled into the executable, `ctx->assets_dir` is just an optional override folder (NULL or "" = built in). Never `fopen()` an asset.
 - Validate every file you parse (see `bd_song_load`): reject bad input, never crash.
 
 ## PR/commit checklist

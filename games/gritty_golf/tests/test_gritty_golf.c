@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "arcade/assets.h"
 #include "arcade_test.h"
 #include "audio_stub.h"
+#include "gg/bmfont.h"
 #include "gritty_golf_logic.h"
 #include "solutions.h"
 
@@ -572,6 +574,61 @@ static void test_monkey_with_aim_assist(void) {
     run_monkey(8, 800, false);
 }
 
+/* ---- the bitmap fonts built into the executable ---------------------------------------------------- */
+static bool same_font(const BakedFont *a, const BakedFont *b) {
+    if (a->size != b->size || a->line_height != b->line_height || a->cap_height != b->cap_height ||
+        a->count != b->count || strcmp(a->atlas, b->atlas) != 0)
+        return false;
+    for (int i = 0; i < a->count; i++) {
+        const BakedGlyph *x = &a->glyphs[i], *y = &b->glyphs[i];
+        if (x->codepoint != y->codepoint || x->x != y->x || x->y != y->y || x->w != y->w || x->h != y->h ||
+            x->xoff != y->xoff || x->yoff != y->yoff || x->advance != y->advance)
+            return false;
+    }
+    return true;
+}
+
+/* Bmfont_Parse (text in memory, what the game uses) and Bmfont_Load (a file) share one parser: same result.
+ */
+static void test_builtin_fonts_parse_like_the_files(void) {
+    static const char *const names[] = {"silkscreen-8", "silkscreen-16"};
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        char rel[96], path[600], atlas[96];
+        snprintf(rel, sizeof(rel), "gritty_golf/font/%s.fnt", names[i]);
+        ArcAsset fnt = arc_asset_load("", rel);
+        CHECK(fnt.data != NULL && fnt.heap == NULL);
+        BakedFont parsed, from_file;
+        CHECK(Bmfont_Parse(&parsed, (const char *)fnt.data));
+        arc_asset_release(&fnt);
+        snprintf(path, sizeof(path), "%s/%s", ARCADE_ASSETS_DIR, rel);
+        CHECK(Bmfont_Load(&from_file, path));
+        CHECK(same_font(&parsed, &from_file));
+        CHECK(parsed.count > 90); /* printable ASCII */
+        /* the atlas image the font names is built in too, and is a PNG */
+        snprintf(atlas, sizeof(atlas), "gritty_golf/font/%s", parsed.atlas);
+        ArcAsset png = arc_asset_load("", atlas);
+        CHECK(png.data != NULL && png.size > 8 && memcmp(png.data + 1, "PNG", 3) == 0);
+    }
+}
+
+static void test_bmfont_parse_rejects_bad_text(void) {
+    BakedFont f;
+    const char good[] = "# a font\nFONT 8 9 5 2 a.png\n63 0 0 5 5 0 0 6\n65 5 0 5 5 0 0 6\n";
+    CHECK(Bmfont_Parse(&f, good));
+    CHECK_EQ_INT(f.count, 2);
+    CHECK_EQ_INT(Bmfont_Find(&f, 65)->x, 5);
+    CHECK_EQ_INT(Bmfont_Find(&f, 'Z')->codepoint, '?');                /* an unknown character shows as '?' */
+    CHECK(Bmfont_Parse(&f, "FONT 8 9 5 1 a.png\r\n63 0 0 5 5 0 0 6")); /* CRLF, no newline at the end */
+    CHECK(!Bmfont_Parse(&f, ""));                                      /* no header, no glyph */
+    CHECK(!Bmfont_Parse(&f, "63 0 0 5 5 0 0 6\n"));                    /* a glyph before the header */
+    /* not ascending (the '?' is first, so the binary search would still find it: only the order is wrong) */
+    CHECK(!Bmfont_Parse(&f, "FONT 8 9 5 3 a.png\n63 0 0 5 5 0 0 6\n66 5 0 5 5 0 0 6\n65 9 0 5 5 0 0 6\n"));
+    CHECK(!Bmfont_Parse(&f, "FONT 8 9 5 1 a.png\n65 0 0 5 5 0 0 6\n")); /* no '?' to fall back on */
+    CHECK(
+        !Bmfont_Parse(&f, "FONT 8 9 5 1 a.png\n63 0 0 5 five 0 0 6\n")); /* a glyph line with a bad number */
+    CHECK_EQ_INT(f.count, 0); /* a failed parse leaves nothing behind */
+}
+
 int main(void) {
     RUN(test_canvas_geometry);
     RUN(test_canvas_rects_fit);
@@ -595,5 +652,7 @@ int main(void) {
     RUN(test_same_input_same_result);
     RUN(test_monkey_never_breaks_invariants);
     RUN(test_monkey_with_aim_assist);
+    RUN(test_builtin_fonts_parse_like_the_files);
+    RUN(test_bmfont_parse_rejects_bad_text);
     return TEST_SUMMARY();
 }

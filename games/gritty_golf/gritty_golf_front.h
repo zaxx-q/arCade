@@ -9,9 +9,10 @@
 #include "gg/audio.h" /* Audio_Init / Audio_Shutdown / Audio_ToggleMute / Audio_PlaySfx (upstream interface) */
 #include "gritty_golf_logic.h"
 
-/* Loads textures, the two bitmap fonts and the 256x256 render target from `dir` (= <assets>/gritty_golf).
- * On a missing file it prints which one to stderr and returns false. */
-bool gritty_golf_front_init(const char *dir);
+/* Loads textures, the two bitmap fonts and the 256x256 render target. The files are assets
+ * (assets/gritty_golf/..., see arcade/assets.h): `assets_dir` is the optional override folder, NULL or "" =
+ * the copy built into the executable. On a missing file it prints which one to stderr and returns false. */
+bool gritty_golf_front_init(const char *assets_dir);
 void gritty_golf_front_shutdown(void);
 
 /* Draws the 256x256 game picture into its render texture. `mouse` is in canvas pixels (hover highlights).

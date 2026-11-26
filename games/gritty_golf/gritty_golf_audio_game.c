@@ -12,6 +12,7 @@
  * other off. We keep VOICES copies ("aliases") of every effect and rotate through them. */
 #include <stdio.h>
 
+#include "arcade/assets.h"
 #include "arcade/gfx.h"
 #include "arcade/rng.h"
 #include "gritty_golf_front.h"
@@ -31,15 +32,34 @@ static bool s_muted = false;
 static int s_volume = 70;
 static Rng s_rng; /* only the pitch of a sound effect depends on it, never the game rules */
 
+/* Decodes a .wav asset. A missing or broken file gives an empty Sound (silent), like raylib's LoadSound. */
+static Sound load_sound(const char *dir, const char *rel) {
+    Sound none = {0};
+    ArcAsset a = arc_asset_load(dir, rel);
+    if (a.data == NULL) {
+        fprintf(stderr, "gritty_golf: missing sound: %s\n", rel);
+        return none;
+    }
+    Wave w = LoadWaveFromMemory(".wav", a.data, (int)a.size);
+    arc_asset_release(&a);
+    if (!IsWaveValid(w))
+        return none;
+    Sound snd = LoadSoundFromWave(w); /* copies the samples */
+    UnloadWave(w);
+    return snd;
+}
+
+/* `asset_dir` is the optional override folder of arc_asset_load() (NULL or "" = the sounds built into the
+ * executable); upstream passed the folder that holds audio/ here, arCade passes the root of assets/. */
 bool Audio_Init(const char *asset_dir, int volume_percent) {
     if (!arcade_audio_ready())
         return false; /* smoke run or a machine without a sound card: the game stays silent */
 
     rng_seed(&s_rng, 0x6767u);
     for (int id = 0; id < SFX_COUNT; id++) {
-        char path[320];
-        snprintf(path, sizeof(path), "%s/audio/%s", asset_dir, SFX_FILES[id]);
-        s_voice[id][0] = LoadSound(path);
+        char rel[96];
+        snprintf(rel, sizeof(rel), "gritty_golf/audio/%s", SFX_FILES[id]);
+        s_voice[id][0] = load_sound(asset_dir, rel);
         for (int v = 1; v < VOICES; v++)
             s_voice[id][v] = LoadSoundAlias(s_voice[id][0]); /* shares the sample data */
         s_next[id] = 0;

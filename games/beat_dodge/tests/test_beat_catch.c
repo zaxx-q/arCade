@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arcade/assets.h"
 #include "arcade/str.h"
 #include "arcade_test.h"
 #include "beat_catch_logic.h"
@@ -333,7 +334,7 @@ static void test_the_clock_and_the_arrival_match_beat_dodge(void) {
 
 /* ------------------------------------------------------------------ the shipped songs */
 static void test_the_human_speed_bot_clears_every_shipped_catch_chart(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     static int8_t plan[BD_MAX_STEPS];
     int played = 0;
     for (int i = 0; i < n; i++)
@@ -353,7 +354,7 @@ static void test_the_human_speed_bot_clears_every_shipped_catch_chart(void) {
 }
 
 static void test_the_perfect_bot_scores_the_ceiling_on_shipped_charts(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     int played = 0;
     for (int i = 0; i < n; i++)
         for (int c = 0; c < g_list.songs[i].chart_count; c++) {
@@ -372,7 +373,7 @@ static void test_the_perfect_bot_scores_the_ceiling_on_shipped_charts(void) {
 }
 
 static void test_standing_still_loses_on_every_shipped_catch_chart(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     int played = 0;
     for (int i = 0; i < n; i++)
         for (int c = 0; c < g_list.songs[i].chart_count; c++) {
@@ -402,7 +403,9 @@ static void test_monkey_is_safe(void) {
         CHECK(beat_catch_score(&g_s) >= 0);
     }
     /* a real song full of ribbons: the invariants of the scoring hold for any input */
-    CHECK(bd_song_load(ARCADE_ASSETS_DIR "/beatmaps/fnf/thorns.txt", &g_song));
+    ArcAsset thorns = arc_asset_load("", "beatmaps/fnf/thorns.txt"); /* the copy built into the executable */
+    CHECK(thorns.data != NULL && bd_song_parse((const char *)thorns.data, thorns.size, &g_song));
+    arc_asset_release(&thorns);
     for (int c = 0; c < g_song.chart_count; c++) {
         if (g_song.charts[c].kind != BD_CHART_CATCH)
             continue;

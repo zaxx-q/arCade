@@ -55,6 +55,7 @@ jobs:
       - name: Hub starts and every game is registered (no window needed)
         run: |
           build/dev/bin/arCade --version
+          build/dev/bin/arCade --licenses > /dev/null
           build/dev/bin/arCade --list
           expected="$(find games -mindepth 1 -maxdepth 1 -type d ! -name '_*' | wc -l)"
           build/dev/bin/arCade --list | tail -n 1 | grep -qx "${expected} game(s)"
@@ -101,6 +102,7 @@ jobs:
       - name: Hub starts and every game is registered (no window needed)
         run: |
           build/dev/bin/arCade.exe --version
+          build/dev/bin/arCade.exe --licenses > /dev/null
           build/dev/bin/arCade.exe --list
       - name: Online leaderboard tests (the player's choice; the built-in libcurl starts)
         run: ctest --preset dev -R '^app\.'
@@ -188,19 +190,25 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
+      # The executable is copied ALONE into an empty folder first: every font, texture, sound and song must come
+      # from inside it (assets/ is compiled in), exactly like the file a player downloads.
       - name: Headless build + smoke run of every game (Linux)
         if: runner.os == 'Linux'
         run: |
           cmake --preset headless
           cmake --build --preset headless
-          build/headless/bin/arCade --smoke all --frames 600 --out smoke-out
+          mkdir standalone
+          cp build/headless/bin/arCade standalone/
+          (cd standalone && ./arCade --smoke all --frames 600 --out ../smoke-out)
       - name: Headless build + smoke run of every game (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
           cmake --preset headless
           cmake --build --preset headless
-          build/headless/bin/arCade.exe --smoke all --frames 600 --out smoke-out
+          mkdir standalone
+          cp build/headless/bin/arCade.exe standalone/
+          (cd standalone && ./arCade.exe --smoke all --frames 600 --out ../smoke-out)
       - uses: actions/upload-artifact@v6
         if: always()
         with:

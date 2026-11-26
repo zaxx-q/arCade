@@ -12,7 +12,8 @@
   | `[skip release]` di mana saja pada commit terbaru | tidak ada rilis |
 
   Level tertinggi yang menang. Rilis pertama adalah `v0.1.0`.
-- Setelah itu build Linux (`tar.gz`) dan Windows (`zip`) dipaketkan, `SHA256SUMS.txt` ditambahkan, dan GitHub Release dengan release notes otomatis dipublikasikan.
+- Setelah itu build Linux dan Windows dirilis sebagai **satu file executable** masing-masing (`arCade-vX.Y.Z-linux-x86_64` dan `arCade-vX.Y.Z-windows-x86_64.exe`; tanpa zip/tar, karena `assets/` dan teks lisensi sudah dikompilasi ke dalam program), `SHA256SUMS.txt` ditambahkan, dan GitHub Release dengan release notes otomatis dipublikasikan. Pengguna Linux perlu `chmod +x` setelah mengunduh (GitHub tidak menyimpan izin eksekusi).
+- Sebelum diunggah, setiap executable disalin sendirian ke folder kosong dan dijalankan dengan `--licenses`: ini membuktikan teks lisensinya memang ada di dalam file. Job `smoke` di `checks.yml` melakukan hal yang sama untuk `--smoke all`, jadi font, suara, tekstur, dan lagu yang tidak ikut terkompilasi akan menggagalkan CI.
 - Jalankan manual: **Actions -> Release -> Run workflow**: `bump` (auto/patch/minor/major), `prerelease`, `dry_run` (membangun semuanya tanpa mempublikasikan apa pun). Bump manual mengabaikan `[skip release]`.
 
 ## Setup repository sekali saja (lakukan manual di GitHub)

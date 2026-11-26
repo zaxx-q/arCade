@@ -246,8 +246,10 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 
 Build siap pakai untuk Linux dan Windows tersedia di [halaman releases](https://github.com/zaxx-q/arCade/releases/latest).
 
-- Windows: unzip `arCade-vX.Y.Z-windows-x86_64.zip` lalu jalankan `arCade.exe`.
-- Linux: ekstrak `arCade-vX.Y.Z-linux-x86_64.tar.gz` lalu jalankan `./arCade`.
+- Windows: unduh `arCade-vX.Y.Z-windows-x86_64.exe` lalu klik dua kali.
+- Linux: unduh `arCade-vX.Y.Z-linux-x86_64`, jalankan `chmod +x arCade-vX.Y.Z-linux-x86_64`, lalu `./arCade-vX.Y.Z-linux-x86_64`.
+
+Rilis berupa satu file saja, tanpa zip dan tanpa folder `assets/`: font, suara, tekstur, lagu, dan teks lisensi sudah dikompilasi ke dalam program. Teks lisensi dan atribusi pihak ketiga bisa dibaca dengan `arCade --licenses`.
 
 ### Build dari source
 

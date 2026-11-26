@@ -3,7 +3,8 @@
  *
  * A SONG (bd_Song) has up to six CHARTS (easy / normal / hard for the dodge mode and for the catch mode,
  * which shares this module) and an optional MELODY that the built-in synthesizer plays. Songs live in
- * assets/beatmaps/ as text files (format below) and are listed in assets/beatmaps/songs.txt.
+ * assets/beatmaps/ as text files (format below) and are listed in assets/beatmaps/songs.txt. Like every asset
+ * they are compiled into the executable (arcade/assets.h).
  * tools/midi2beatmap converts MIDI files into this format. */
 #ifndef BEAT_DODGE_LOGIC_H
 #define BEAT_DODGE_LOGIC_H
@@ -76,7 +77,10 @@ typedef struct bd_Song {
     bd_Note notes[BD_MAX_NOTES];
 } bd_Song;
 
-bool bd_song_load(const char *path, bd_Song *out); /* false if missing or invalid (out is untouched) */
+/* Parses the text of a song file (it need not end with a NUL). false if invalid (out is untouched). */
+bool bd_song_parse(const char *text, size_t text_len, bd_Song *out);
+bool bd_song_load(const char *path,
+                  bd_Song *out); /* the same for a file on disk; false if missing or invalid */
 bool bd_song_save(const char *path, const bd_Song *song);
 void bd_song_default(bd_Song *out, unsigned seed); /* built-in generated practice song, always valid */
 int bd_chart_beads(const bd_Chart *chart);         /* all beads */
@@ -141,14 +145,16 @@ bool bd_chart_playable(const bd_Song *song, int chart, int *fail_step);
  * use it to build a bot that taps one lane step per BD_HUMAN_STEP_SEC. */
 bool bd_chart_plan(const bd_Song *song, int chart, int8_t *plan);
 
-/* The songs listed in <dir>/songs.txt (one file name per line, relative to dir). Missing/invalid files are
- * skipped. */
+/* The songs listed in assets/beatmaps/songs.txt (one file name per line, relative to assets/beatmaps).
+ * Missing/invalid files are skipped. `assets_dir` is the optional override folder of arc_asset_load(): NULL
+ * or
+ * "" reads the songs built into the executable. */
 typedef struct bd_SongList {
     int count;
     int skipped;
     bd_Song songs[BD_MAX_SONGS];
 } bd_SongList;
-int bd_songlist_load(const char *dir, bd_SongList *out);
+int bd_songlist_load_assets(const char *assets_dir, bd_SongList *out);
 
 /* Song selection screen logic: Up/Down = song, Left/Right = difficulty, action = start. The menu only offers
  * the songs and charts of the mode it is in (kind: dodge charts or catch charts); the player switches the

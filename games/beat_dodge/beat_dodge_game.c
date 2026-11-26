@@ -551,9 +551,7 @@ static GameResult play_smoke(const GameContext *ctx) {
 }
 
 static GameResult play(const GameContext *ctx) {
-    char dir[700];
-    snprintf(dir, sizeof(dir), "%s/beatmaps", ctx->assets_dir ? ctx->assets_dir : "assets");
-    int count = bd_songlist_load(dir, &g_list);
+    int count = bd_songlist_load_assets(ctx->assets_dir, &g_list); /* the songs built into the executable */
     if (count == 0) /* no song files found: the built-in song, dodge only */
         return play_dodge(ctx, NULL, 0);
     if (ctx->headless)

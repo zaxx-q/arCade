@@ -28,7 +28,7 @@ the `gritty_golf_` prefix. The same exception already exists for `sandbox` (`sbx
 | `data/level_data.json`, `tools/`, `docs/`, `Makefile`, `CMakeLists.txt` | build-time/authoring material, not needed to run |
 The assets (`assets/audio`, `assets/font`, `assets/textures`) live in the arCade tree under `assets/gritty_golf/`.
 
-## Patches against upstream (10 in total)
+## Patches against upstream (11 in total)
 
 Anything not listed here must be byte-identical to upstream. Patches 5 to 7 only add comments; the CI cppcheck version can differ from the one used here (2.13), so a future run may need more of them: add each one to this table. Check with `diff -r` (see "Re-sync" below).
 
@@ -44,6 +44,7 @@ Anything not listed here must be byte-identical to upstream. Patches 5 to 7 only
 | 8 | `save.c` | replace the C11 `_Static_assert` with a C99 typedef-based compile-time size check | arCade compiles all C sources as strict C99, and MinGW rejects `_Static_assert` with `-Wpedantic -Werror`. |
 | 9 | `../tests/gg/test_files.c` | check `fopen()` results before corrupting save and records test files | Cppcheck reports the test's deliberate file operations as possible null-pointer dereferences when resource allocation fails. |
 | 10 | `../tests/gg/test_font_palette.c` | check the temporary font file `fopen()` result before writing | Cppcheck reports a possible null-pointer dereference when resource allocation fails. |
+| 11 | `bmfont.[ch]` | the body of the `fgets` loop in `Bmfont_Load` moves into `static parse_line()` and the final checks into `static finish()`; new `Bmfont_Parse(f, text)` runs the same two helpers over a NUL-terminated text in memory. `Bmfont_Load` behaves exactly as before | arCade compiles every asset into the executable (a release is one single file), so the `.fnt` metrics are parsed from memory instead of opened from a path. `Bmfont_Load` stays for upstream's tests; `../tests/test_gritty_golf.c` checks that both give the same font. |
 
 ## Build notes
 
@@ -67,7 +68,7 @@ Anything not listed here must be byte-identical to upstream. Patches 5 to 7 only
 2. `diff -r <old upstream>/src games/gritty_golf/gg` should show only the files and patches listed above. If it shows
    more, someone edited vendored code: undo it or add it to the table.
 3. Copy the new `src/*.[ch]` (minus the files in "NOT vendored") and `data/levels.[ch]` over `gg/`.
-4. Re-apply patches 1, 2, 5 and 6 (patches 3, 4 and 7 live in `tests/gg/`: same procedure with upstream `tests/`). Then run the CI cppcheck command from `.github/workflows/checks.yml` (job `static-analysis`) to see which suppressions are still needed.
+4. Re-apply patches 1, 2, 5, 6 and 11 (patches 3, 4 and 7 live in `tests/gg/`: same procedure with upstream `tests/`). Then run the CI cppcheck command from `.github/workflows/checks.yml` (job `static-analysis`) to see which suppressions are still needed.
 5. Compare the new `src/render.c`, `src/ui.c` and `src/audio.c` with `gritty_golf_render_game.c` and
    `gritty_golf_audio_game.c` by eye; port what matters.
 6. `cmake --preset logic && cmake --build --preset logic && ctest --preset logic -R "^gritty_golf\."` must pass, both

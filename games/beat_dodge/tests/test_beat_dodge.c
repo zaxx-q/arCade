@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arcade/assets.h"
 #include "arcade/game.h"
 #include "arcade/leaderboard.h"
 #include "arcade/str.h"
@@ -525,7 +526,7 @@ static void test_a_camper_scores_about_half(void) {
 }
 
 static void test_the_human_speed_bot_clears_every_shipped_dodge_chart(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     static int8_t plan[BD_MAX_STEPS];
     int played = 0;
     for (int i = 0; i < n; i++)
@@ -544,7 +545,7 @@ static void test_the_human_speed_bot_clears_every_shipped_dodge_chart(void) {
 }
 
 static void test_the_teleport_bot_is_never_hit_on_shipped_charts(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     for (int i = 0; i < n; i++)
         for (int c = 0; c < g_list.songs[i].chart_count; c++) {
             if (g_list.songs[i].charts[c].kind != BD_CHART_DODGE)
@@ -652,7 +653,7 @@ static void test_notes_with_a_bead_are_lead_and_the_rest_is_backing(void) {
 }
 
 static void test_every_lead_note_has_a_bead_in_every_shipped_chart(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     static SynthNote out[BD_MAX_NOTES];
     for (int i = 0; i < n; i++) {
         const bd_Song *song = &g_list.songs[i];
@@ -759,7 +760,7 @@ static void test_menu_only_offers_charts_of_its_own_kind(void) {
 
 /* Every shipped song must load and be playable: lanes in range, sensible density, and a perfect run wins. */
 static void test_every_shipped_song_is_playable(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     CHECK(n >= 1);                   /* at least one song is listed */
     CHECK_EQ_INT(g_list.skipped, 0); /* nothing listed in songs.txt may be broken */
     static int8_t plan[BD_MAX_STEPS];
@@ -805,7 +806,9 @@ static void test_monkey_is_safe(void) {
         CHECK(beat_dodge_score(&g_s) >= 0);
     }
     /* a real song full of ribbons: the invariants of the scoring hold for any input */
-    CHECK(bd_song_load(ARCADE_ASSETS_DIR "/beatmaps/fnf/thorns.txt", &g_song));
+    ArcAsset thorns = arc_asset_load("", "beatmaps/fnf/thorns.txt"); /* the copy built into the executable */
+    CHECK(thorns.data != NULL && bd_song_parse((const char *)thorns.data, thorns.size, &g_song));
+    arc_asset_release(&thorns);
     for (int c = 0; c < g_song.chart_count; c++) {
         if (g_song.charts[c].kind != BD_CHART_DODGE)
             continue;
@@ -860,7 +863,7 @@ static void test_a_long_title_is_cut_but_never_the_mode_or_the_difficulty(void) 
 }
 
 static void test_every_shipped_chart_has_its_own_table(void) {
-    int n = bd_songlist_load(ARCADE_ASSETS_DIR "/beatmaps", &g_list);
+    int n = bd_songlist_load_assets("", &g_list);
     CHECK(n >= 1);
     static char names[BD_MAX_SONGS * BD_MAX_CHARTS][LB_GAME_LEN];
     int count = 0;
@@ -898,11 +901,52 @@ static void test_scores_of_two_charts_are_ranked_apart(void) {
     CHECK_EQ_INT(top[0].score, 1800);
 }
 
+/* ---- songs built into the executable (arcade/assets.h) ---- */
+static void test_parser_reads_a_text_in_memory(void) {
+    const char head[] = "title Mem\nbpm 100\nchart easy 3\n";
+    const char text[] = "title Mem\nbpm 100\nchart easy 3\n0.1.2.0.1.2.\n# not part of the song";
+    size_t len = strlen(head) + strlen("0.1.2.0.1.2.\n");
+    CHECK(bd_song_parse(text, len, &g_song));
+    CHECK_STR_EQ(g_song.title, "Mem");
+    CHECK_EQ_INT(g_song.bpm, 100);
+    CHECK_EQ_INT(g_song.charts[0].length, 12);
+    /* only `len` bytes count, no NUL needed: cut inside the pattern, the chart is too short to be a chart */
+    CHECK(!bd_song_parse(text, strlen(head) + 4, &g_song));
+    CHECK(!bd_song_parse(text, 0, &g_song));
+}
+
+static void test_the_songs_built_in_are_found(void) {
+    int n = bd_songlist_load_assets("", &g_list);
+    CHECK(n >= 1);
+    CHECK_EQ_INT(g_list.skipped, 0);
+    int n2 = bd_songlist_load_assets(NULL, &g_list); /* NULL means the same as "" */
+    CHECK_EQ_INT(n2, n);
+    for (int i = 0; i < n; i++) {
+        CHECK(g_list.songs[i].title[0] != '\0');
+        CHECK(g_list.songs[i].chart_count >= 1);
+    }
+}
+
+/* An override folder (--assets-dir) with the same files must give exactly the same songs. */
+static void test_the_override_folder_gives_the_same_songs(void) {
+    int built_in = bd_songlist_load_assets("", &g_list);
+    char first_title[48];
+    arc_strlcpy(first_title, g_list.songs[0].title, sizeof(first_title));
+    int first_charts = g_list.songs[0].chart_count;
+    int from_disk = bd_songlist_load_assets(ARCADE_ASSETS_DIR, &g_list);
+    CHECK_EQ_INT(from_disk, built_in);
+    CHECK_STR_EQ(g_list.songs[0].title, first_title);
+    CHECK_EQ_INT(g_list.songs[0].chart_count, first_charts);
+}
+
 int main(void) {
     RUN(test_default_song_is_valid);
     RUN(test_parser_v2);
     RUN(test_parser_still_reads_the_first_file_format);
     RUN(test_parser_rejects_bad_files);
+    RUN(test_parser_reads_a_text_in_memory);
+    RUN(test_the_songs_built_in_are_found);
+    RUN(test_the_override_folder_gives_the_same_songs);
     RUN(test_save_and_load_round_trip);
     RUN(test_parser_v3_ribbons_and_catch_charts);
     RUN(test_parser_v1_and_v2_files_have_no_ribbons_and_dodge_kind);

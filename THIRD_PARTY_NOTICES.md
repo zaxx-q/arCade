@@ -1,5 +1,7 @@
 # Third-party notices
 
+A release is a single executable: everything in `assets/`, this file and `LICENSE` are compiled into it, and `arCade --licenses` prints them together with the two font licenses below.
+
 Apart from the items listed below, no assets are bundled: all other game graphics are drawn with raylib's shapes and its built-in font, and sounds are synthesized in code.
 
 <!-- Adding an asset? List it here with its creator, license, and URL, and cite it in the report's bibliography (e.g. a CC0 pack from kenney.nl). -->
@@ -73,13 +75,13 @@ The post-processing shaders (`bloom_*.frag`, `post.frag`) follow algorithms from
 *Gritty Golf: C Edition* by zaxx-q (github.com/zaxx-q/gritty-golf), copied with minimal changes; the list of changes and how to re-sync are in `games/gritty_golf/gg/VENDORED.md`. Its parts are under different licenses:
 
 - **Code, tests, textures, and logo** (`games/gritty_golf/gg/`, `games/gritty_golf/tests/gg/`, `assets/gritty_golf/textures/`): MIT, Copyright (c) 2026 zaxx-q (full text at the end of this file, also in `games/gritty_golf/gg/LICENSE`). Same terms as arCade.
-- **Silkscreen font** (`assets/gritty_golf/font/`): SIL Open Font License 1.1, Copyright 2001 The Silkscreen Project Authors (https://github.com/googlefonts/silkscreen). The full text is in `assets/gritty_golf/font/OFL-Silkscreen.txt` and must accompany the font in every distribution (the release package already includes `assets/`).
+- **Silkscreen font** (`assets/gritty_golf/font/`): SIL Open Font License 1.1, Copyright 2001 The Silkscreen Project Authors (https://github.com/googlefonts/silkscreen). The full text is in `assets/gritty_golf/font/OFL-Silkscreen.txt` and must accompany the font in every distribution (it is compiled into the executable; `arCade --licenses` prints it).
 - **Data for the 25 levels** (`games/gritty_golf/gg/levels.c`, `levels.h`): copyright of the original creator, *Escada Games*.
 - **`1bit-styx` color palette** (`games/gritty_golf/gg/palette_colors.h`): from Lospec, https://lospec.com/palette-list/1bit-styx
 
 ## Poiret One (font): `assets/fonts/PoiretOne-Regular.ttf`
 
-Copyright (c) 2011, Denis Masharov. SIL Open Font License 1.1: the full text is in `assets/fonts/OFL.txt` and must accompany the font in every distribution (the release package already includes `assets/`).
+Copyright (c) 2011, Denis Masharov. SIL Open Font License 1.1: the full text is in `assets/fonts/OFL.txt` and must accompany the font in every distribution (it is compiled into the executable; `arCade --licenses` prints it).
 
 ## Song data derived from Friday Night Funkin' MIDI transcriptions
 

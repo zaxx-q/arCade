@@ -58,6 +58,12 @@ Arah panah layer tidak berubah (`app/` memanggil front-end game, bukan sebalikny
 - `gritty_save_<nama>.dat` (di folder data yang sama): progres Gritty Golf per pemain, ditulis oleh engine yang disalin ke `games/gritty_golf/gg/` (checksum; file rusak diganti nama menjadi `.bad`).
 - `assets/beatmaps/*.txt`: file lagu (beat map) untuk Beat Dodge & Catch (formatnya didokumentasikan di `beat_dodge_logic.h`, lihat juga `docs/SONGS.md`).
 
+## Asset di dalam executable
+
+Seluruh isi `assets/` (font, suara, tekstur, lagu) ditambah `LICENSE` dan `THIRD_PARTY_NOTICES.md` dikompilasi ke dalam executable, sehingga rilis cukup satu file. `cmake/embed_assets.cmake` mengubah tiap file menjadi array byte C (`assets_data.c` di `build/<preset>/generated/`, dibuat saat build dan hanya dibuat ulang kalau ada asset yang berubah). Game tidak membuka file dengan `fopen`/`LoadTexture(path)`, melainkan meminta byte-nya lewat `arc_asset_load(ctx->assets_dir, "fonts/PoiretOne-Regular.ttf")` (`core/include/arcade/assets.h`) dan memberikannya ke fungsi `...FromMemory` milik raylib (`LoadImageFromMemory`, `LoadWaveFromMemory`, `LoadFontFromMemory`) atau ke parser (`bd_song_parse`, `Bmfont_Parse`).
+
+`--assets-dir DIR` (isi `ctx->assets_dir`) hanya untuk development: kalau file ada di folder itu, file itulah yang dipakai; kalau tidak, dipakai salinan di dalam executable. Default-nya kosong (semua dari dalam executable). Teks lisensi bisa dibaca dengan `arCade --licenses`.
+
 ## Versioning
 
 `ARCADE_VERSION` (variabel cache CMake) ditanam ke `arcade/version.h`; CI meneruskan `X.Y.Z` hasil perhitungan; build lokal memakai `git describe` atau `0.0.0-dev`. Ditampilkan di menu dan oleh `--version`.

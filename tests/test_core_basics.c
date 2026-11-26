@@ -130,12 +130,22 @@ static void test_cli(void) {
 
     char *none[] = {"hub"};
     CHECK(cli_parse(1, none, &o));
-    CHECK(!o.smoke && !o.show_help && !o.show_version && !o.list_games && !o.show_all);
+    CHECK(!o.smoke && !o.show_help && !o.show_version && !o.list_games && !o.show_all && !o.show_licenses);
     CHECK_EQ_INT(o.frames, 300);
+    CHECK_STR_EQ(o.assets_dir, ""); /* default: the assets built into the executable */
 
     char *all[] = {"hub", "--list", "--all"};
     CHECK(cli_parse(3, all, &o));
     CHECK(o.list_games && o.show_all);
+
+    char *lic[] = {"hub", "--licenses"};
+    CHECK(cli_parse(2, lic, &o));
+    CHECK(o.show_licenses);
+
+    char *dirs[] = {"hub", "--assets-dir", "my_assets", "--data-dir", "my_data"};
+    CHECK(cli_parse(5, dirs, &o));
+    CHECK_STR_EQ(o.assets_dir, "my_assets");
+    CHECK_STR_EQ(o.data_dir, "my_data");
 
     char *flags[] = {"hub", "--version", "--list", "-h"};
     CHECK(cli_parse(4, flags, &o));

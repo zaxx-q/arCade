@@ -14,10 +14,10 @@ static GameResult play(const GameContext *ctx) {
     static gritty_golf_State s;
     GameResult r = {0, false};
 
-    char dir[512];
-    snprintf(dir, sizeof(dir), "%s/gritty_golf", ctx->assets_dir ? ctx->assets_dir : "assets");
-    if (!gritty_golf_front_init(dir)) {
-        fprintf(stderr, "gritty_golf: could not load its assets from %s\n", dir);
+    const char *assets =
+        ctx->assets_dir ? ctx->assets_dir : ""; /* "" = the assets built into the executable */
+    if (!gritty_golf_front_init(assets)) {
+        fprintf(stderr, "gritty_golf: could not load its assets\n");
         return r; /* the hub shows the menu again */
     }
 
@@ -26,7 +26,7 @@ static GameResult play(const GameContext *ctx) {
     if (!ctx->headless) {
         gritty_golf_open_profile(&s, ctx->player ? ctx->player : "Player", ctx->data_dir);
         gritty_golf_show_splash(&s);
-        audio = Audio_Init(dir, SOUND_VOLUME); /* false when there is no sound device */
+        audio = Audio_Init(assets, SOUND_VOLUME); /* false when there is no sound device */
     }
 
     arcade_loop_begin(ctx);
