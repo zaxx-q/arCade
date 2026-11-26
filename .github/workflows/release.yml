@@ -66,16 +66,29 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
+          sudo apt-get install -y --no-install-recommends ninja-build libssl-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
       - name: Build, test, check version
         run: |
-          cmake --preset release -DARCADE_VERSION="$VERSION"
+          # The Online leaderboard ships in every release. libcurl is built from source and linked statically
+          # (cmake/ArcadeCurl.cmake, with the static OpenSSL of libssl-dev), so the game needs no libcurl when it
+          # runs. ON makes a missing dependency fail this build, instead of a release without the Online tab.
+          cmake --preset release -DARCADE_VERSION="$VERSION" -DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON
           cmake --build --preset release
           ctest --preset release
           strip build/release/bin/arCade
           vout="$(build/release/bin/arCade --version)"
           printf '%s\n' "$vout"
           printf '%s\n' "$vout" | grep -q "arCade $VERSION "
+      - name: Check that the Online leaderboard is built in and needs no libcurl or OpenSSL
+        run: |
+          # net_curl.c is only linked in when libcurl was found: its message is in the binary
+          grep -aq 'online: refusing the server address' build/release/bin/arCade
+          deps="$(ldd build/release/bin/arCade)"
+          printf '%s\n' "$deps"
+          if printf '%s\n' "$deps" | grep -Eq 'libcurl|libssl|libcrypto'; then
+            echo "::error::arCade needs libcurl or OpenSSL at run time: libcurl was not linked statically"
+            exit 1
+          fi
       - name: Package
         run: |
           name="arCade-v${VERSION}-linux-x86_64"
@@ -114,12 +127,26 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
       - name: Build (static, no extra DLLs needed), test, check version
         run: |
-          cmake --preset release -DARCADE_VERSION="$VERSION" -DCMAKE_EXE_LINKER_FLAGS="-static"
+          # The Online leaderboard ships in every release: libcurl is built from source and linked statically,
+          # with Schannel (the TLS of Windows) instead of OpenSSL (cmake/ArcadeCurl.cmake). ON makes a missing
+          # dependency fail this build, instead of a release without the Online tab.
+          cmake --preset release -DARCADE_VERSION="$VERSION" -DCMAKE_EXE_LINKER_FLAGS="-static" -DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON
           cmake --build --preset release
           ctest --preset release
           vout="$(build/release/bin/arCade.exe --version)"
           printf '%s\n' "$vout"
           printf '%s\n' "$vout" | grep -q "arCade $VERSION "
+      - name: Check that the Online leaderboard is built in and needs no extra DLLs
+        run: |
+          grep -aq 'online: refusing the server address' build/release/bin/arCade.exe
+          deps="$(objdump -p build/release/bin/arCade.exe | grep 'DLL Name')"
+          printf '%s\n' "$deps"
+          # Windows' own DLLs (KERNEL32, WS2_32, CRYPT32, ...) are fine. A lib*.dll or zlib*.dll comes from
+          # MSYS2 and would not exist on the player's computer.
+          if printf '%s\n' "$deps" | grep -Eiq 'DLL Name: (lib|zlib)'; then
+            echo "::error::arCade.exe imports a DLL that is not part of Windows: libcurl was not linked statically"
+            exit 1
+          fi
       - name: Package
         run: |
           name="arCade-v${VERSION}-windows-x86_64"

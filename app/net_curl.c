@@ -3,6 +3,7 @@
  * steps (the name lookup runs in a thread of libcurl, where the library was built that way). */
 #include <curl/curl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "arcade/str.h"
@@ -20,6 +21,49 @@ static bool g_tls;                /* the server address is https (else: http on 
 static char g_post[LBN_BODY_MAX]; /* libcurl keeps a pointer to the POST body until the request ends */
 static char g_answer[LBN_BODY_MAX];
 static size_t g_answer_len;
+
+#ifdef ARCADE_CURL_NEEDS_CA_BUNDLE
+/* A libcurl built into the program (static, with OpenSSL: cmake/ArcadeCurl.cmake) has no certificate store of
+ * its own, and the path of the build computer would be wrong on most others. So the file of trusted
+ * certificates is looked for here, once, when the program starts: $SSL_CERT_FILE (the OpenSSL convention)
+ * first, then the places where the common distributions keep it. If there is none, https requests fail like
+ * an unreachable server does ("offline"). They are never sent without checking the server's certificate. */
+static const char *const CA_BUNDLE_PATHS[] = {
+    "/etc/ssl/certs/ca-certificates.crt",                /* Debian, Ubuntu, Arch, Gentoo */
+    "/etc/pki/tls/certs/ca-bundle.crt",                  /* Fedora, RHEL and relatives */
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", /* the file the one above points to */
+    "/etc/ssl/ca-bundle.pem",                            /* openSUSE */
+    "/etc/ssl/cert.pem",                                 /* Alpine, macOS, OpenBSD */
+    "/usr/local/share/certs/ca-root-nss.crt",            /* FreeBSD */
+};
+static char g_ca_file[512]; /* the one found; "" = none */
+
+/* A file that exists and has something in it (a directory opens too, but nothing can be read from it). */
+static bool is_usable_file(const char *path) {
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL)
+        return false;
+    int first = fgetc(fp);
+    fclose(fp);
+    return first != EOF;
+}
+
+static void find_ca_bundle(void) {
+    g_ca_file[0] = '\0';
+    const char *env = getenv("SSL_CERT_FILE");
+    if (env != NULL && strlen(env) < sizeof(g_ca_file) && is_usable_file(env)) {
+        arc_strlcpy(g_ca_file, env, sizeof(g_ca_file));
+        return;
+    }
+    for (size_t i = 0; i < sizeof(CA_BUNDLE_PATHS) / sizeof(CA_BUNDLE_PATHS[0]); i++)
+        if (is_usable_file(CA_BUNDLE_PATHS[i])) {
+            arc_strlcpy(g_ca_file, CA_BUNDLE_PATHS[i], sizeof(g_ca_file));
+            return;
+        }
+    fprintf(stderr, "online: no file of trusted certificates found (set SSL_CERT_FILE to one), so the "
+                    "online leaderboard cannot connect\n");
+}
+#endif
 
 /* libcurl hands the answer over in pieces. An answer bigger than ours is not an answer of this server:
  * returning 0 aborts the transfer, which comes out as "no answer" (status 0). */
@@ -54,6 +98,10 @@ bool net_open(const char *base_url) {
     }
     arc_strlcpy(g_base, base_url, sizeof(g_base));
     g_tls = strncmp(base_url, "https://", 8) == 0;
+#ifdef ARCADE_CURL_NEEDS_CA_BUNDLE
+    if (g_tls)
+        find_ca_bundle();
+#endif
     return true;
 }
 
@@ -116,6 +164,16 @@ static bool net_start(void *ctx, const char *method, const char *path, const cha
 
     curl_easy_setopt(g_easy, CURLOPT_URL, url);
     limit_protocols(g_easy);
+#ifdef ARCADE_CURL_NEEDS_CA_BUNDLE
+    if (g_tls && g_ca_file[0] != '\0')
+        curl_easy_setopt(g_easy, CURLOPT_CAINFO, g_ca_file);
+#endif
+#ifdef CURLSSLOPT_REVOKE_BEST_EFFORT
+    /* Schannel (Windows) refuses a connection when it cannot reach the server that says whether the
+     * certificate was revoked (some company networks and hotspots block it). Go on in that case: the
+     * certificate itself is still checked. Other TLS libraries ignore this. */
+    curl_easy_setopt(g_easy, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_REVOKE_BEST_EFFORT);
+#endif
     curl_easy_setopt(g_easy, CURLOPT_FOLLOWLOCATION,
                      0L); /* a redirect is a hotspot's login page: not our answer */
     curl_easy_setopt(g_easy, CURLOPT_HTTPHEADER, g_headers);

@@ -37,7 +37,7 @@ pacman -S --needed git mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake min
 
 Lalu tambahkan `C:\msys64\ucrt64\bin` (dan `C:\msys64\usr\bin` untuk `bash`) ke PATH Windows, atau buka VS Code dari shell MSYS2 UCRT64 (`code .`). Pasang Git for Windows kalau belum ada (menyediakan Git Bash, yang menjalankan script `tools/*.sh`).
 `gcc`, **`g++`** (project CMake milik raylib mengaktifkan C++; kode kita sendiri C murni), dan CMake >= 3.25 wajib ada.
-Opsional, untuk leaderboard online: `pacman -S mingw-w64-ucrt-x86_64-curl-winssl` (belum diuji di Windows; tanpa ini game tetap dibangun, tanpa tab Online).
+Opsional, untuk leaderboard online: tidak perlu memasang paket apa pun. Konfigurasikan dengan `-DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON`: libcurl dibangun dari source dan ditautkan statis, dengan Schannel (TLS milik Windows) sebagai TLS-nya. Itu persis konfigurasi rilis. Sudah diperiksa lewat cross-compile MinGW di Linux (tautan benar, hanya DLL milik Windows yang diimpor), belum dijalankan di Windows asli. Tanpa opsi itu game tetap dibangun, tanpa tab Online.
 
 ### Linux (Debian/Ubuntu)
 
@@ -46,13 +46,13 @@ sudo apt install build-essential cmake ninja-build git \
   libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libxext-dev
 ```
 
-Opsional, untuk leaderboard online: `sudo apt install libcurl4-openssl-dev` (Fedora: `libcurl-devel`). Tanpa libcurl game tetap dibangun, hanya tanpa tab Online.
+Opsional, untuk leaderboard online: `sudo apt install libcurl4-openssl-dev` (Fedora: `libcurl-devel`). Tanpa libcurl game tetap dibangun, hanya tanpa tab Online. Untuk membangun seperti rilis (libcurl ditautkan statis, tanpa memakai libcurl sistem) pasang `libssl-dev` (Fedora: `openssl-devel openssl-static`) dan konfigurasikan dengan `-DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON`.
 
 CMake harus **versi 3.25 atau lebih baru** (untuk preset). cmake dari apt di Ubuntu 22.04 lebih lama: pakai `pip install --user cmake` atau repo apt Kitware.
 
 ### Leaderboard online (opsional)
 
-Opsi CMake `ARCADE_ONLINE`: `AUTO` (bawaan: dipakai kalau libcurl ditemukan), `ON` (wajib ada), atau `OFF`. Alamat server bawaan ada di `ARCADE_ONLINE_URL` (`-DARCADE_ONLINE_URL=https://...`) dan bisa diganti saat dijalankan dengan variabel lingkungan `ARCADE_ONLINE_URL`. Hanya `https://` yang diterima, kecuali `http://localhost` atau `http://127.0.0.1` untuk server di komputer yang sama.
+Opsi CMake `ARCADE_ONLINE`: `AUTO` (bawaan: dipakai kalau libcurl ditemukan), `ON` (wajib ada), atau `OFF`. `ARCADE_ONLINE_BUNDLE_CURL=ON` (dipakai rilis; `OFF` bawaannya, dan `ARCADE_ONLINE=OFF` selalu menang) membangun libcurl dari source (`cmake/ArcadeCurl.cmake`, versi dan hash terpasang di sana) dan menautkannya statis, sehingga program tidak butuh libcurl saat berjalan; bila tidak bisa, configure berhenti dengan galat, tidak diam-diam tanpa tab Online. Di Linux program mencari file sertifikat CA saat berjalan (`$SSL_CERT_FILE`, lalu lokasi umum distro; `app/net_curl.c`), jadi `SSL_CERT_FILE=/path/ca.pem` berguna untuk menguji server HTTPS lokal dengan CA buatan sendiri. Alamat server bawaan ada di `ARCADE_ONLINE_URL` (`-DARCADE_ONLINE_URL=https://...`) dan bisa diganti saat dijalankan dengan variabel lingkungan `ARCADE_ONLINE_URL`. Hanya `https://` yang diterima, kecuali `http://localhost` atau `http://127.0.0.1` untuk server di komputer yang sama.
 
 Alat bantu `arcade_online_probe` menjalankan kode klien yang asli terhadap server yang asli dan melaporkan tiap langkah (butuh jaringan, jadi bukan bagian dari `ctest`):
 
