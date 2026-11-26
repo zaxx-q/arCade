@@ -77,6 +77,22 @@ static void test_monkey_is_reproducible(void) {
     }
 }
 
+static void test_input_has_a_vertical_axis_and_a_shift_flag(void) {
+    ArcadeInput in;
+    memset(&in, 0xFF, sizeof(in));
+    arcade_input_clear(&in);
+    CHECK_NEAR(in.move_z, 0.0, 0.0001); /* Q / E: up is positive */
+    CHECK(!in.shift);
+    /* The monkey never holds them: existing games' random streams and smoke runs stay what they were. */
+    ArcadeMonkey m;
+    arcade_monkey_init(&m, 11);
+    for (int i = 0; i < 300; i++) {
+        arcade_monkey_next(&m, &in);
+        CHECK_NEAR(in.move_z, 0.0, 0.0001);
+        CHECK(!in.shift);
+    }
+}
+
 static void test_particles_and_shake(void) {
     ParticleSystem ps;
     fx_init(&ps, 1);
@@ -157,6 +173,7 @@ int main(void) {
     RUN(test_strings);
     RUN(test_vec2_and_collision);
     RUN(test_monkey_is_reproducible);
+    RUN(test_input_has_a_vertical_axis_and_a_shift_flag);
     RUN(test_particles_and_shake);
     RUN(test_cli);
     RUN(test_playfield_helpers);

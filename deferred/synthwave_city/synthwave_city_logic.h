@@ -42,7 +42,11 @@ typedef struct synthwave_city_State {
     /* The pointer, for drag looks and double clicks. */
     float prev_aim_x, prev_aim_y;
     bool prev_look;
-    double time_ms; /* milliseconds since the start, for the double click */
+    bool prev_aim_valid; /* prev_aim_* come from the previous frame (not from before a grab or a release) */
+    bool pointer_locked; /* set by the front-end: it hides and captures the cursor, so the mouse looks */
+    bool grab_wanted;    /* out: the viewer asked for the mouse (a click in flight, or the double click); the
+                          * front-end grabs it and calls swc_set_pointer_lock(), which clears this */
+    double time_ms;      /* milliseconds since the start, for the double click */
     bool tap_valid;
     double tap_start, last_tap_end;
     float tap_x, tap_y, last_tap_x, last_tap_y;
@@ -54,6 +58,10 @@ void synthwave_city_init(synthwave_city_State *s, unsigned seed);
 unsigned swc_roll_seed(unsigned current, uint32_t entropy);
 /* Builds another city and starts the tour over: the opening shot of the new city. Keeps the mood. */
 void swc_new_city(synthwave_city_State *s, unsigned seed);
+
+/* The front-end tells the logic that it grabbed (true) or freed (false) the mouse. While grabbed, moving the
+ * mouse in free flight looks around without a button, as pointer lock does in the web version. */
+void swc_set_pointer_lock(synthwave_city_State *s, bool locked);
 void synthwave_city_step(synthwave_city_State *s, const ArcadeInput *in, float dt);
 bool synthwave_city_is_over(const synthwave_city_State *s);
 int synthwave_city_score(const synthwave_city_State *s); /* whole kilometres flown */

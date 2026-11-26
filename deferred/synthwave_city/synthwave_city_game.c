@@ -178,7 +178,7 @@ static void scripted_input(int frame, ArcadeInput *in) {
     case 790:
     case 800:
     case 810:
-        in->typed = 'q'; /* medium, low, high again (the GPU renderer only; the CPU one has no tiers) */
+        in->typed = 'v'; /* medium, low, high again (the GPU renderer only; the CPU one has no tiers) */
         break;
     case 840:
     case 850:
@@ -225,7 +225,7 @@ enum { RENDERER_CPU_ONLY, RENDERER_CPU, RENDERER_GPU };
  *   SWC_POSE=x,y,z,yaw,pitch[,roll[,fov]] (stay at this pose instead of a viewpoint; roll in radians, fov in
  *   degrees, 62 by default)
  *   SWC_KEYS=frame:char,... (press these keys at these frames, e.g. "20:n,40:h"; at most 16)
- *   SWC_TIER=low|medium|high (the Q key's state, "high" by default)   SWC_MSAA=0 (no multisampling)
+ *   SWC_TIER=low|medium|high (the V key's state, "high" by default)   SWC_MSAA=0 (no multisampling)
  *   SWC_INTERACTIVE=1 (behave like a real window: the adaptive render scale and the start-up work spread over
  *   frames; off in harness runs, whose frame times mean nothing and whose first frame must be complete) */
 typedef struct DebugSwitches {
@@ -301,10 +301,11 @@ static DebugSwitches debug_read(bool headless) {
 typedef struct HudInfo {
     int renderer;
     unsigned live;    /* the layer switch (the L key) */
-    SwcTier tier;     /* the quality tier (the Q key) */
+    SwcTier tier;     /* the quality tier (the V key) */
     double scale;     /* the scene's share of the window's pixels per side */
     int msaa;         /* samples in use */
-    char toast[48];   /* the last L or Q press's new state, for a moment */
+    char toast[48];   /* the last L or V press's new state, for a moment */
+    bool grabbed;     /* the mouse is grabbed: the cursor is hidden and the mouse looks */
     float toast_left; /* seconds the toast stays */
 } HudInfo;
 
@@ -333,20 +334,30 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
         if (h->scale < 0.995 && n > 0 && n < (int)sizeof(gpu))
             snprintf(gpu + n, sizeof(gpu) - (size_t)n, "   RES %.0f%%", h->scale * 100.0);
     }
-    gfx_text(TextFormat("%s   ALT %.0f m   SPEED %.0f km/h   %.1f km   CITY %u%s%s%s", mode, s->cam.y,
+    gfx_text(TextFormat("%s   ALT %.0f m   SPEED %.0f km/h   %.1f km   CITY %u%s%s%s%s", mode, s->cam.y,
                         speed * 3.6, s->distance / 1000.0, (unsigned)s->city.seed, gpu,
                         h->live != SWC_LIVE_ALL ? "   " : "",
-                        h->live != SWC_LIVE_ALL ? swc_layers_label(h->live) : ""),
+                        h->live != SWC_LIVE_ALL ? swc_layers_label(h->live) : "",
+                        h->grabbed ? "   MOUSE GRABBED (ESC frees it)" : ""),
              hud_px(k, 24), hud_px(k, 650), hud_px(k, 18), ARC_COL_CYAN);
     if (h->toast_left > 0.0f) /* the new state, for a moment, also when it is back to the start */
         gfx_text(h->toast, hud_px(k, 24), hud_px(k, 600), hud_px(k, 20),
                  Fade(ARC_COL_YELLOW, h->toast_left > 0.5f ? 0.95f : h->toast_left * 1.9f));
     if (t < 14.0f) {
         Color hint = Fade(ARC_COL_TEXT, 0.8f * (1.0f - t / 14.0f) + 0.15f);
-        gfx_text(s->touring ? "DRAG: look   WHEEL: zoom   DOUBLE CLICK or WASD: fly   SPACE: stop the tour"
-                            : "WASD / arrows: fly   DRAG: look   RIGHT MOUSE: boost   WHEEL: speed   SPACE: "
-                              "back to the tour",
-                 hud_px(k, 24), hud_px(k, 676), hud_px(k, 16), hint);
+        const char *line1;
+        if (s->touring)
+            line1 = h->grabbed
+                        ? "DRAG: look   WHEEL: zoom   DOUBLE CLICK or WASD: fly   ESC: free the mouse   "
+                          "SPACE: stop the tour"
+                        : "DRAG: look   WHEEL: zoom   DOUBLE CLICK or WASD: fly   SPACE: stop the tour";
+        else
+            line1 = h->grabbed
+                        ? "MOUSE: look   WASD: fly   Q / E: down / up   SHIFT: boost   WHEEL: speed   "
+                          "ESC: free the mouse"
+                        : "WASD: fly   Q / E: down / up   SHIFT: boost   CLICK: grab the mouse to look   "
+                          "WHEEL: speed   SPACE: tour";
+        gfx_text(line1, hud_px(k, 24), hud_px(k, 676), hud_px(k, 16), hint);
         gfx_text(
             h->renderer == RENDERER_CPU_ONLY
                 ? TextFormat(
@@ -354,7 +365,7 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
                       esc_does)
                 : TextFormat(
                       "1-6: viewpoints   T: mood   N: new city   H: hide UI   L: layers   G: renderer   "
-                      "Q: quality   M: mute   ESC: %s",
+                      "V: quality   M: mute   ESC: %s",
                       esc_does),
             hud_px(k, 24), hud_px(k, 696), hud_px(k, 16), hint);
     }
@@ -389,6 +400,44 @@ static void game_draw(const synthwave_city_State *s, float scene_time, bool hud,
         gfx_hud("Synthwave City", synthwave_city_score(s), swc_mood_name(s->mood));
         draw_overlay(s, hud_time, h, esc_does);
     }
+}
+
+/* ------------------------------------------------------------------ the mouse grab */
+
+/* Grabbing the mouse hides the cursor and keeps it in the window, so that moving the mouse looks around
+ * without a button held (what pointer lock does in the web version). It is asked for by a click in free
+ * flight or by the double click that takes over from the tour (the logic's grab_wanted), never at the start.
+ */
+static void mouse_grab(synthwave_city_State *s, bool *grabbed, HudInfo *hud) {
+    if (*grabbed || !IsWindowFocused())
+        return;
+    DisableCursor();
+    *grabbed = true;
+    hud->grabbed = true;
+    swc_set_pointer_lock(s, true);
+    snprintf(hud->toast, sizeof(hud->toast), "MOUSE GRABBED   ESC frees it");
+    hud->toast_left = 2.5f;
+}
+
+static void mouse_free(synthwave_city_State *s, bool *grabbed, HudInfo *hud) {
+    if (!*grabbed)
+        return;
+    EnableCursor();
+    *grabbed = false;
+    hud->grabbed = false;
+    swc_set_pointer_lock(s, false);
+    snprintf(hud->toast, sizeof(hud->toast), "MOUSE FREE   click to grab it again");
+    hud->toast_left = 2.5f;
+}
+
+/* The loop condition. ESC frees a grabbed mouse first, as it leaves pointer lock in the browser; the next ESC
+ * leaves the game. (Smoke runs never grab, so they use the core's condition unchanged.) */
+static bool loop_running(synthwave_city_State *s, bool *grabbed, HudInfo *hud) {
+    if (*grabbed && IsKeyPressed(KEY_ESCAPE)) {
+        mouse_free(s, grabbed, hud);
+        return !WindowShouldClose();
+    }
+    return arcade_loop_running();
 }
 
 /* ------------------------------------------------------------------ the game */
@@ -435,7 +484,10 @@ static GameResult play(const GameContext *ctx) {
     float t = 0.0f;
     bool ui_hidden = false; /* H or P: the picture alone, for screenshots */
     unsigned rolls = 0;     /* cities rolled so far with N */
-    while (arcade_loop_running()) {
+    bool grabbed = false;   /* the mouse is grabbed (the cursor is hidden) */
+    while (loop_running(&s, &grabbed, &hud)) {
+        if (grabbed && !IsWindowFocused())
+            mouse_free(&s, &grabbed, &hud); /* the cursor goes back to the desktop with the focus */
         ArcadeInput in;
         if (ctx->headless && (dbg.view >= 0 || dbg.has_pose))
             arcade_input_clear(&in); /* hold still at the chosen viewpoint */
@@ -472,13 +524,18 @@ static GameResult play(const GameContext *ctx) {
             snprintf(hud.toast, sizeof(hud.toast), "LAYERS   %s", swc_layers_label(live));
             hud.toast_left = 2.5f;
         }
-        if ((in.typed == 'q' || in.typed == 'Q') && gpu_ready && renderer == RENDERER_GPU) {
+        if ((in.typed == 'v' || in.typed == 'V') && gpu_ready && renderer == RENDERER_GPU) {
             tier = swc_tier_next(tier);
             swc_gpu_set_tier(tier);
             snprintf(hud.toast, sizeof(hud.toast), "QUALITY   %s", swc_tier_label(tier));
             hud.toast_left = 2.5f;
         }
         game_step(&s, &music, &in, ARC_DT);
+        if (s.grab_wanted) {
+            s.grab_wanted = false;
+            if (!ctx->headless) /* a smoke run has no cursor to grab */
+                mouse_grab(&s, &grabbed, &hud);
+        }
         if (dbg.has_pose) { /* a harness holds the lean and the lens too */
             s.roll = dbg.pose_roll;
             s.fov = dbg.pose_fov;
@@ -500,6 +557,8 @@ static GameResult play(const GameContext *ctx) {
         game_draw(&s, t, !ui_hidden, t, &hud, "leave");
         arcade_frame_end(); /* REQUIRED instead of EndDrawing() */
     }
+    if (grabbed)
+        EnableCursor(); /* the hub gets its cursor back */
     music_stop(&music);
     swc_live_layers_set(SWC_LIVE_ALL); /* the switch is the player's, not the next run's */
     swc_gpu_shutdown();
@@ -648,7 +707,7 @@ bool swc_session_touring(void) {
 const GameDef game_synthwave_city_def = {"synthwave_city",
                                          "Synthwave City",
                                          "Fly through an endless neon megacity at sunset",
-                                         "WASD fly - drag look - Space tour - 1-6 views - H hide UI",
+                                         "WASD QE fly - click grabs mouse - Space tour - 1-6 views",
                                          90,
                                          false, /* a sightseeing flight: nothing to rank */
                                          play};

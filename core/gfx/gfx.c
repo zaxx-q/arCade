@@ -83,6 +83,8 @@ void arcade_poll(ArcadeInput *in) {
     arcade_input_clear(in);
     in->move_x = axis(IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT), IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT));
     in->move_y = axis(IsKeyDown(KEY_W) || IsKeyDown(KEY_UP), IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN));
+    in->move_z = axis(IsKeyDown(KEY_Q), IsKeyDown(KEY_E));
+    in->shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
     Vector2 m = GetMousePosition();
     in->aim_x = m.x;
     in->aim_y = m.y;

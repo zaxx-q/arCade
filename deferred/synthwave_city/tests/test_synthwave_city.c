@@ -292,6 +292,154 @@ static void test_the_wheel_zooms_the_lens_on_the_tour(void) {
     CHECK_NEAR(s.speed_scale, 1.0, 1e-12); /* and it did not touch the flight speed */
 }
 
+static void test_e_flies_up_and_q_down(void) {
+    synthwave_city_init(&s, 1u);
+    swc_place_camera(&s, s.views[3].x, 600.0, s.views[3].z, 0.0, 0.0); /* above the skyline, level */
+    ArcadeInput in = idle();
+    in.move_z = 1.0f; /* E */
+    double y0 = s.cam.y;
+    run(60 * 2, &in);
+    CHECK(!s.touring); /* the key took over, and flew from the spot it was pressed at */
+    CHECK(s.cam.y > y0 + 40.0);
+    CHECK(fabs(swc_wrap_delta(s.cam.x, s.views[3].x, SWC_TILE)) < 1e-6);
+    CHECK(fabs(swc_wrap_delta(s.cam.z, s.views[3].z, SWC_TILE)) < 1e-6);
+    double y1 = s.cam.y;
+    in.move_z = -1.0f; /* Q */
+    run(60 * 3, &in);
+    CHECK(s.cam.y < y1 - 40.0);
+    /* the vertical climb has a top speed of its own, which Shift multiplies */
+    in.move_z = 1.0f;
+    run(60 * 2, &in);
+    double slow = s.cam.vy;
+    in.shift = true;
+    run(60 * 2, &in);
+    CHECK(s.cam.vy > slow * 2.0);
+}
+
+static void test_shift_boosts_like_the_right_mouse_button(void) {
+    double speed[3];
+    for (int mode = 0; mode < 3; mode++) {
+        synthwave_city_init(&s, 1u);
+        swc_place_camera(&s, s.views[3].x, s.views[3].y, s.views[3].z, 0.0, 0.0);
+        ArcadeInput in = idle();
+        in.move_y = -1.0f;
+        in.shift = mode == 1;
+        in.alt = mode == 2;
+        run(60 * 8, &in);
+        speed[mode] = hypot(s.cam.vx, s.cam.vz);
+    }
+    CHECK_NEAR(speed[1], swc_top_speed(s.cam.y, SWC_BOOST), 2.0);
+    CHECK(speed[1] > speed[0] * 2.5);
+    CHECK_NEAR(speed[1], speed[2], 1e-9);
+}
+
+static void test_a_click_in_flight_asks_for_the_mouse_and_a_grabbed_mouse_looks(void) {
+    synthwave_city_init(&s, 1u);
+    ArcadeInput in = idle();
+    in.aim_x = 640.0f;
+    in.aim_y = 360.0f;
+    run(2, &in);
+    /* a single click on the tour is a half double click, or a drag to look: it does not ask for the mouse */
+    in.fire = true;
+    run(3, &in);
+    in.fire = false;
+    run(3, &in);
+    CHECK(s.touring && !s.grab_wanted);
+    /* W takes over; a click in flight asks for the mouse, once the button goes down */
+    in = idle();
+    in.aim_x = 640.0f;
+    in.aim_y = 360.0f;
+    in.move_y = -1.0f;
+    run(5, &in);
+    CHECK(!s.touring && !s.grab_wanted);
+    in.move_y = 0.0f;
+    in.fire = true;
+    run(1, &in);
+    CHECK(s.grab_wanted);
+    swc_set_pointer_lock(&s, true); /* the front-end grabs it */
+    CHECK(s.pointer_locked && !s.grab_wanted);
+    in.fire = false;
+    /* grabbed: the mouse looks without a button; the first frame after the grab is only a settling */
+    double yaw0 = s.cam.yaw, pitch0 = s.cam.pitch;
+    in.aim_x = 100.0f; /* the grab put the cursor somewhere else: no jump from where it was */
+    in.aim_y = 100.0f;
+    run(1, &in);
+    CHECK_NEAR(swc_wrap_delta(s.cam.yaw, yaw0, SWC_TAU), 0.0, 1e-9);
+    in.aim_x += 100.0f; /* 100 px right turns right, 50 px up looks up */
+    in.aim_y -= 50.0f;
+    run(1, &in);
+    CHECK_NEAR(swc_wrap_delta(s.cam.yaw, yaw0, SWC_TAU), -100.0 * 0.0022, 1e-6);
+    CHECK_NEAR(s.cam.pitch - pitch0, 50.0 * 0.0022, 1e-6);
+    in.fire = true; /* a click while it has the mouse does not ask again */
+    run(3, &in);
+    CHECK(!s.grab_wanted);
+    in.fire = false;
+    run(1, &in);
+    /* freed again: moving the mouse without the button does nothing */
+    swc_set_pointer_lock(&s, false);
+    yaw0 = s.cam.yaw;
+    in.aim_x = 200.0f;
+    run(2, &in);
+    in.aim_x = 900.0f;
+    run(1, &in);
+    CHECK_NEAR(swc_wrap_delta(s.cam.yaw, yaw0, SWC_TAU), 0.0, 1e-9);
+    /* and the click that grabs is not asked for twice while held */
+    in.fire = true;
+    run(1, &in);
+    CHECK(s.grab_wanted);
+    s.grab_wanted = false;
+    run(5, &in);
+    CHECK(!s.grab_wanted);
+}
+
+static void test_the_double_click_asks_for_the_mouse_and_a_grabbed_tour_pans_only_with_a_button(void) {
+    synthwave_city_init(&s, 1u);
+    ArcadeInput in = idle();
+    in.aim_x = 300.0f;
+    in.aim_y = 200.0f;
+    for (int click = 0; click < 2; click++) {
+        CHECK(!s.grab_wanted);
+        in.fire = true;
+        run(4, &in);
+        in.fire = false;
+        run(4, &in);
+    }
+    CHECK(!s.touring && s.grab_wanted);
+
+    /* a grabbed mouse on the tour: moving it alone does not pan; dragging with the button does */
+    static synthwave_city_State b;
+    synthwave_city_init(&s, 1u);
+    swc_set_pointer_lock(&s, true);
+    memcpy(&b, &s, sizeof(b));
+    in = idle();
+    in.aim_x = 400.0f;
+    in.aim_y = 300.0f;
+    ArcadeInput still = in;
+    for (int i = 0; i < 30; i++) {
+        in.aim_x += 20.0f;
+        synthwave_city_step(&s, &in, ARC_DT);
+        synthwave_city_step(&b, &still, ARC_DT);
+    }
+    CHECK(s.touring);
+    CHECK_NEAR(s.cam.yaw, b.cam.yaw, 1e-9);
+    in.fire = true;
+    still.fire = true;
+    for (int i = 0; i < 10; i++) {
+        in.aim_x += 20.0f;
+        synthwave_city_step(&s, &in, ARC_DT);
+        synthwave_city_step(&b, &still, ARC_DT);
+    }
+    CHECK(fabs(swc_wrap_delta(s.cam.yaw, b.cam.yaw, SWC_TAU)) > 0.1);
+}
+
+static void test_a_new_city_keeps_the_grab(void) {
+    synthwave_city_init(&s, 1u);
+    swc_set_pointer_lock(&s, true);
+    swc_new_city(&s, 77u);
+    CHECK_EQ_INT((int)s.city.seed, 77);
+    CHECK(s.pointer_locked);
+}
+
 static void test_dragging_looks_around_without_a_jump(void) {
     synthwave_city_init(&s, 1u);
     swc_goto_view(&s, 3);
@@ -428,7 +576,13 @@ static void test_monkey_never_breaks_it(void) {
         for (int i = 0; i < 6000; i++) {
             ArcadeInput in;
             arcade_monkey_next(&m, &in);
+            in.move_z = (float)((i / 97) % 3) - 1.0f; /* Q and E, and Shift: the monkey leaves them alone */
+            in.shift = ((i / 53) & 1) != 0;
+            if (i % 900 == 450)
+                swc_set_pointer_lock(&s, !s.pointer_locked); /* the front-end grabs and frees the mouse */
             synthwave_city_step(&s, &in, ARC_DT);
+            if (s.grab_wanted)
+                swc_set_pointer_lock(&s, true);
             CHECK(isfinite(s.cam.x) && isfinite(s.cam.y) && isfinite(s.cam.z));
             CHECK(isfinite(s.cam.yaw) && isfinite(s.cam.pitch) && isfinite(s.distance));
             CHECK(s.cam.x >= 0.0 && s.cam.x < SWC_TILE && s.cam.z >= 0.0 && s.cam.z < SWC_TILE);
@@ -470,6 +624,11 @@ int main(void) {
     RUN(test_two_quick_clicks_take_over_and_a_drag_only_looks);
     RUN(test_the_wheel_zooms_the_lens_on_the_tour);
     RUN(test_new_cities_roll_short_seeds_and_start_the_tour_over);
+    RUN(test_e_flies_up_and_q_down);
+    RUN(test_shift_boosts_like_the_right_mouse_button);
+    RUN(test_a_click_in_flight_asks_for_the_mouse_and_a_grabbed_mouse_looks);
+    RUN(test_the_double_click_asks_for_the_mouse_and_a_grabbed_tour_pans_only_with_a_button);
+    RUN(test_a_new_city_keeps_the_grab);
     RUN(test_dragging_looks_around_without_a_jump);
     RUN(test_an_idle_host_leaves_the_drone_flying);
     RUN(test_a_lone_space_press_hands_the_camera_back_to_the_drone);

@@ -29,7 +29,7 @@ typedef struct SwcQuality {
 /* The tier's settings (an out-of-range tier gives "high"). The pointer stays valid for the whole run. */
 const SwcQuality *swc_quality(SwcTier tier);
 
-/* What the Q key does: high -> medium -> low -> high, the way a player who sees a slow frame rate wants it.
+/* What the V key does: high -> medium -> low -> high, the way a player who sees a slow frame rate wants it.
  */
 SwcTier swc_tier_next(SwcTier tier);
 /* "LOW", "MEDIUM", "HIGH" for the HUD. */

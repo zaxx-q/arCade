@@ -225,12 +225,23 @@ unsigned swc_roll_seed(unsigned current, uint32_t entropy) {
 
 void swc_new_city(synthwave_city_State *s, unsigned seed) {
     int mood = s->mood;
+    bool locked =
+        s->pointer_locked; /* the front-end still holds the mouse: that is not the city's to forget */
     synthwave_city_init(s, seed);
     s->mood = mood;
+    s->pointer_locked = locked;
+}
+
+void swc_set_pointer_lock(synthwave_city_State *s, bool locked) {
+    s->pointer_locked = locked;
+    s->grab_wanted = false;
+    s->prev_aim_valid = false; /* the pointer was just put somewhere else: the next move is not a look */
 }
 
 /* The controls for this frame, in the rig's terms. The mouse maps as in src/camera/input.ts: on the tour a
- * drag pans the view and the wheel zooms the lens, and two quick clicks take over; in flight a drag looks. */
+ * drag pans the view and the wheel zooms the lens, and two quick clicks take over; in flight a drag looks,
+ * and a grabbed mouse looks without any button (the front-end hides and captures the cursor, as pointer lock
+ * does in the browser). A click in flight, or the double click that takes over, asks for the grab. */
 static void map_controls(synthwave_city_State *s, const ArcadeInput *in, double dt, SwcRigInput *ri,
                          bool *takeover) {
     swc_rig_input_clear(ri);
@@ -248,7 +259,10 @@ static void map_controls(synthwave_city_State *s, const ArcadeInput *in, double 
     bool held = in->fire && s->prev_look;
     bool up = !in->fire && s->prev_look;
     double dx = 0.0, dy = 0.0;
-    if (held) {
+    /* On the tour the mouse pans only with the button held, grabbed or not; in flight a grabbed mouse looks.
+     */
+    bool look = held || (s->pointer_locked && !touring);
+    if (look && s->prev_aim_valid) {
         dx = swc_clamp((double)(in->aim_x - s->prev_aim_x), -MAX_DRAG_PIXELS, MAX_DRAG_PIXELS);
         dy = swc_clamp((double)(in->aim_y - s->prev_aim_y), -MAX_DRAG_PIXELS, MAX_DRAG_PIXELS);
     }
@@ -296,16 +310,22 @@ static void map_controls(synthwave_city_State *s, const ArcadeInput *in, double 
         if (in->wheel != 0)
             s->speed_scale = swc_clamp(s->speed_scale * (in->wheel > 0 ? 1.25 : 0.8), 0.25, 4.0);
     }
+    if (!touring && down && !s->pointer_locked)
+        s->grab_wanted = true; /* a click in flight */
+    if (*takeover && !s->pointer_locked)
+        s->grab_wanted = true; /* flying a mouse is done with the mouse grabbed */
     s->prev_look = in->fire;
     s->prev_aim_x = in->aim_x;
     s->prev_aim_y = in->aim_y;
+    s->prev_aim_valid = true;
 
     ri->forward = swc_clamp(-(double)in->move_y, -1.0, 1.0);
     ri->right = swc_clamp((double)in->move_x, -1.0, 1.0);
-    ri->boost = in->alt;
+    ri->up = swc_clamp((double)in->move_z, -1.0, 1.0); /* E up, Q down */
+    ri->boost = in->alt || in->shift;                  /* Shift, or the right mouse button */
     ri->speed_scale = s->speed_scale;
-    ri->active =
-        fabs(ri->forward) > 0.01 || fabs(ri->right) > 0.01 || ri->look_yaw != 0.0 || ri->look_pitch != 0.0;
+    ri->active = fabs(ri->forward) > 0.01 || fabs(ri->right) > 0.01 || fabs(ri->up) > 0.01 ||
+                 ri->look_yaw != 0.0 || ri->look_pitch != 0.0;
 }
 
 void synthwave_city_step(synthwave_city_State *s, const ArcadeInput *in, float dt_f) {
