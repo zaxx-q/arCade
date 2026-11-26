@@ -579,6 +579,7 @@ typedef struct Guest {
     bool player_flies; /* the player holds the camera */
     bool hand_back;    /* the camera was just given back: the next step lets the drone take it again */
     bool ui_hidden;
+    bool grabbed;   /* the mouse is grabbed (cursor hidden, pointer lock) */
     float time;     /* seconds since the session began: drives things that move on their own */
     float hud_time; /* seconds since the player took the camera: fades the controls help */
     int renderer;
@@ -615,6 +616,8 @@ void swc_session_begin(unsigned seed) {
 void swc_session_end(void) {
     if (!g_guest.active)
         return;
+    if (g_guest.grabbed)
+        mouse_free(&g_guest_state, &g_guest.grabbed, &g_guest.hud);
     music_stop(&g_guest.music);
     swc_gpu_shutdown();
     swc_render_shutdown();
@@ -634,6 +637,8 @@ void swc_session_set_control(bool player) {
         g->hud_time = 0.0f; /* the controls help shows again each time the player takes the camera */
         g->hand_back = false;
     } else {
+        if (g->grabbed)
+            mouse_free(&g_guest_state, &g->grabbed, &g->hud);
         g->hand_back = true;
     }
     music_set_level(&g->music, player ? MUSIC_LEVEL_PLAYING : MUSIC_LEVEL_BEHIND_MENU);
@@ -661,13 +666,20 @@ void swc_session_update(const ArcadeInput *in, float dt) {
         snprintf(g->hud.toast, sizeof(g->hud.toast), "LAYERS   %s", swc_layers_label(live));
         g->hud.toast_left = 2.5f;
     }
-    if ((in->typed == 'q' || in->typed == 'Q') && g->gpu_ready && g->renderer == RENDERER_GPU) {
+    if ((in->typed == 'v' || in->typed == 'V') && g->gpu_ready && g->renderer == RENDERER_GPU) {
         g->tier = swc_tier_next(g->tier);
         swc_gpu_set_tier(g->tier);
         snprintf(g->hud.toast, sizeof(g->hud.toast), "QUALITY   %s", swc_tier_label(g->tier));
         g->hud.toast_left = 2.5f;
     }
     game_step(&g_guest_state, &g->music, in, dt);
+    if (g_guest_state.grab_wanted) {
+        g_guest_state.grab_wanted = false;
+        if (IsWindowFocused())
+            mouse_grab(&g_guest_state, &g->grabbed, &g->hud);
+    }
+    if (g->grabbed && !IsWindowFocused())
+        mouse_free(&g_guest_state, &g->grabbed, &g->hud);
     g->time += dt;
     g->hud_time += dt;
     g->hud.toast_left = g->hud.toast_left > dt ? g->hud.toast_left - dt : 0.0f;
@@ -701,6 +713,15 @@ bool swc_session_muted(void) {
 
 bool swc_session_touring(void) {
     return g_guest.active && g_guest_state.touring;
+}
+
+bool swc_session_grabbed(void) {
+    return g_guest.active && g_guest.grabbed;
+}
+
+void swc_session_mouse_free(void) {
+    if (g_guest.active && g_guest.grabbed)
+        mouse_free(&g_guest_state, &g_guest.grabbed, &g_guest.hud);
 }
 
 /* The hub finds this symbol through the generated registry. The name MUST be game_<id>_def. */

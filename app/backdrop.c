@@ -112,6 +112,14 @@ bool backdrop_city_touring(void) {
     return swc_session_touring();
 }
 
+bool backdrop_city_grabbed(void) {
+    return swc_session_grabbed();
+}
+
+void backdrop_city_mouse_free(void) {
+    swc_session_mouse_free();
+}
+
 /* ---------------------------------------------------------------- the sand */
 void backdrop_update(bool paint_sand, bool paint_water, int mouse_x, int mouse_y) {
     if (g_mode == BACKDROP_CITY) {
