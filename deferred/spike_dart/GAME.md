@@ -156,7 +156,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - **Batas 64 hampir di batas geometri.** Pemain yang melempar di saat aman pertama macet di sekitar 40 paku (aturan lama: 43) karena tidak ada waktu aman lagi. Dengan penempatan yang sengaja dirapatkan, simulasi mencapai 63 paku pada aturan lama maupun baru, dan paku ke-64 tidak muncul. Jadi "ALL 64 STUCK!" praktis hanya tercapai kalau semuanya sempurna; wajar kalau tidak pernah terlihat.
 - `rng` tidak dipakai: game ini sepenuhnya deterministik terhadap input.
 - Titik-titik dekorasi di target berputar dengan kecepatan yang sama dengan orbit, tetapi dihitung dari waktu di front-end (`t`), bukan dari logic. Tidak mempengaruhi aturan.
-- Game ini `ranked = true`, `order = 140`.
+- Game ini `order = 140`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

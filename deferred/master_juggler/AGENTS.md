@@ -2,7 +2,7 @@
 
 # AGENTS.md - Master Juggler (`master_juggler`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 Master Juggler: keep balls bouncing on a trampoline that follows the pointer; 3 lives; score = highest level completed. The level reached is saved per player, so the next run continues from it. Rules and status: `GAME.md`.

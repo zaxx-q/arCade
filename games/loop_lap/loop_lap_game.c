@@ -163,6 +163,5 @@ const GameDef game_loop_lap_def = {"loop_lap", /* id                */
                                    "Race round the loop and slip past the enemy balls", /* tagline */
                                    "hold left mouse: left half brakes, right half accelerates   keys: "
                                    "Right/D/Up/Space accelerate, Left/A/Down/S brake   P: pause",
-                                   150,  /* menu order */
-                                   true, /* ranked            */
+                                   150, /* menu order */
                                    play};

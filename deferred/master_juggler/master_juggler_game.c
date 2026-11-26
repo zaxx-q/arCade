@@ -200,6 +200,5 @@ const GameDef game_master_juggler_def = {
     "Master Juggler",                             /* title             */
     "Keep every ball bouncing on the trampoline", /* tagline           */
     "mouse: move the trampoline   click or Space: start a level   A/D or arrows: move by keyboard   3 lives",
-    110,  /* menu order        */
-    true, /* ranked            */
+    110, /* menu order        */
     play};

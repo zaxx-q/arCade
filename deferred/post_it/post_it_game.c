@@ -180,6 +180,5 @@ const GameDef game_post_it_def = {
     "Post It",                                         /* title             */
     "Tilt the world, glue on post-its, dodge viruses", /* tagline           */
     "mouse: tilt (pointer offset from centre)   arrows/WASD: tilt   click or P: pause",
-    100,  /* menu order        */
-    true, /* ranked            */
+    100, /* menu order        */
     play};

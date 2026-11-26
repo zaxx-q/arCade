@@ -565,7 +565,9 @@ static GameResult play(const GameContext *ctx) {
     swc_render_shutdown();
     GameResult r;
     r.score = synthwave_city_score(&s);
-    r.finished = false; /* an endless flight: leaving with ESC is the only way out, and it is never ranked */
+    /* an endless flight: leaving with ESC is the only way out, so it ends the run and the whole kilometres
+     * flown are the score. Less than one kilometre has nothing to record. */
+    r.finished = r.score > 0;
     return r;
 }
 
@@ -730,5 +732,4 @@ const GameDef game_synthwave_city_def = {"synthwave_city",
                                          "Fly through an endless neon megacity at sunset",
                                          "WASD QE fly - click grabs mouse - Space tour - 1-6 views",
                                          90,
-                                         false, /* a sightseeing flight: nothing to rank */
                                          play};

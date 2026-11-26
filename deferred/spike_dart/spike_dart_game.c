@@ -134,6 +134,5 @@ const GameDef game_spike_dart_def = {
     "Spike Dart",                                                   /* title                             */
     "Stick spikes into the spinning target, never into each other", /* tagline                           */
     "click, Space or any key: throw a spike   don't hit a spike passing the bottom", /* controls hint       */
-    140,  /* menu order (lower = earlier)      */
-    true, /* ranked: score goes to leaderboard */
+    140, /* menu order (lower = earlier)      */
     play};

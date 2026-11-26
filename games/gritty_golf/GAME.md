@@ -37,7 +37,7 @@ skor = 1000 * (jumlah level selesai)
 skor = 0 kalau hasilnya negatif
 ```
 
-"Terbaik" artinya rekor per level, jadi skor hanya naik kalau kamu menyelesaikan level baru atau memperbaiki rekor lama; memainkan ulang dengan hasil lebih buruk tidak menurunkannya. **Skor lebih tinggi lebih baik** (`ranked = true`).
+"Terbaik" artinya rekor per level, jadi skor hanya naik kalau kamu menyelesaikan level baru atau memperbaiki rekor lama; memainkan ulang dengan hasil lebih buruk tidak menurunkannya. **Skor lebih tinggi lebih baik**.
 
 Detail dari kode:
 - **Selesai** adalah keputusan pemain: tekan Space/Enter/klik di layar ending, atau tekan `F` (atau tombol FINISH & SUBMIT) **dua kali**. Tekan pertama "mengunci" selama `GG_FINISH_CONFIRM_FRAMES` = 180 langkah (3 detik) dan bar kecil di tombol menunjukkan sisa waktunya; tekan kedua dalam jendela itu baru menyelesaikan. Klik nyasar tidak mengakhiri permainan. Layar ending tidak butuh tekan kedua karena layarnya sendiri sudah konfirmasi.
@@ -69,7 +69,7 @@ Sebelum loop (hanya di permainan sungguhan, bukan `--smoke`): `gritty_golf_open_
 |------|--------|------------------------|
 | `gritty_golf_logic.h` | `gritty_golf_State`, konstanta layout, fungsi publik adapter | menambah field state atau fungsi publik |
 | `gritty_golf_logic.c` | terjemahan input, layout (persegi klik), profil, `step` (tanpa raylib) | mengubah tombol, area klik, atau cara profil dibuka |
-| `gritty_golf_game.c` | loop raylib dan `GameDef` (judul, kontrol di menu, urutan, ranked) | mengubah urutan frame atau teks di menu |
+| `gritty_golf_game.c` | loop raylib dan `GameDef` (judul, kontrol di menu, urutan) | mengubah urutan frame atau teks di menu |
 | `gritty_golf_render_game.c` | menggambar: aset, dunia, UI kanvas, panel samping, blit 2x | mengubah tampilan |
 | `gritty_golf_audio_game.c` | efek suara (`Audio_*` yang dipanggil engine) | mengubah suara atau volume |
 | `gritty_golf_front.h` | antarmuka tanpa raylib antara `_game.c` dan dua file di atas | menambah fungsi gambar atau suara baru |

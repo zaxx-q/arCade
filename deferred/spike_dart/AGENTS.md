@@ -2,7 +2,7 @@
 
 # AGENTS.md - Spike Dart (`spike_dart`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 Spike Dart: throw spikes into a spinning target without touching a stuck spike that is passing the launch lane; score = spikes stuck. Rules and status: `GAME.md`.

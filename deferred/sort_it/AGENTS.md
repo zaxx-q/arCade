@@ -2,7 +2,7 @@
 
 # AGENTS.md - Sort It (`sort_it`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 Be the sorting algorithm: fewest swaps wins. Rules and status: `GAME.md`.

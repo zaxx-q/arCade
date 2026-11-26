@@ -82,13 +82,12 @@ static int list_games(bool include_deferred) {
     app_sort_games(&app);
     for (int i = 0; i < app.listed_count; i++) {
         const GameDef *g = app.games[i];
-        printf("%-14s %-22s %-8s %s\n", g->id, g->title, g->ranked ? "ranked" : "unranked", g->tagline);
+        printf("%-14s %-22s %s\n", g->id, g->title, g->tagline);
     }
     if (include_deferred)
         for (int i = 0; i < app.deferred_count; i++) {
             const GameDef *g = app.deferred[i];
-            printf("%-14s %-22s %-8s %s  [deferred]\n", g->id, g->title, g->ranked ? "ranked" : "unranked",
-                   g->tagline);
+            printf("%-14s %-22s %s  [deferred]\n", g->id, g->title, g->tagline);
         }
     if (include_deferred)
         printf("%d game(s), %d of them deferred\n", app.listed_count + app.deferred_count,

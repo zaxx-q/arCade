@@ -132,7 +132,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - Perbandingan warna hanya terjadi **sekali**, saat balok mendarat. Membalik papan di tengah jalan tidak berpengaruh apa pun sampai saat itu.
 - Kecepatan melandai di sekitar 6,26 kali kecepatan awal. Kalau menambah level kesulitan, ubah `BW_MULT_DECAY` (mendekati 1 berarti terus menanjak) atau tambahkan batas bawah pada `mult`.
 - Satu-satunya pengacak adalah warna balok; seed yang sama dengan rangkaian klik yang sama selalu menghasilkan game yang sama.
-- Game ini `ranked = true`, `order = 120`.
+- Game ini `order = 120`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

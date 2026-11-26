@@ -66,5 +66,4 @@ const GameDef game_gritty_golf_def = {
     "Pixel mini-golf: 25 hand-made courses, few shots, three strikes",
     "Space / Enter / click: stop and aim, lock the angle, lock the power   R restart   L stages   F finish",
     85,
-    true,
     play};

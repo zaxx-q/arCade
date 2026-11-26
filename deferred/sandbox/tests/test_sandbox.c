@@ -124,6 +124,54 @@ static void test_click_on_palette_selects_without_painting(void) {
     CHECK(sandbox_count(&g_s.world, EL_LAVA) > 0);
 }
 
+static void test_a_run_counts_only_once_the_player_painted(void) {
+    sbx_init(&g_s, 1);
+    CHECK(!sbx_painted(&g_s)); /* the starter scene already has a score, but it is not the player's */
+    ArcadeInput in = idle();
+    for (int i = 0; i < 30; i++)
+        sbx_step(&g_s, &in, ARC_DT);
+    CHECK(!sbx_painted(&g_s)); /* time passing (seeds sprouting) is not painting */
+    in.typed = 'c';            /* neither are the keys that clear or reset the world */
+    sbx_step(&g_s, &in, ARC_DT);
+    in.typed = 'r';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(!sbx_painted(&g_s));
+    /* a click on the palette picks an element: still not painting */
+    int lava = sandbox_palette_index(EL_LAVA);
+    in = idle();
+    in.aim_x = slot_x(lava);
+    in.aim_y = slot_y(lava);
+    in.fire = in.fire_pressed = true;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(!sbx_painted(&g_s));
+    /* the same press dragged up onto the world must not paint either (see test_click_on_palette...) */
+    in = idle();
+    in.fire = true;
+    in.aim_x = 600.0f;
+    in.aim_y = 200.0f;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(!sbx_painted(&g_s));
+    /* a fresh press over the world paints, and the flag stays set afterwards */
+    in = idle();
+    sbx_step(&g_s, &in, ARC_DT);
+    in.fire = in.fire_pressed = true;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sbx_painted(&g_s));
+    in = idle();
+    in.typed = 'c';
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sbx_painted(&g_s));
+    /* the right button counts too: erasing is playing */
+    sbx_init(&g_s, 1);
+    CHECK(!sbx_painted(&g_s));
+    in = idle();
+    in.alt = in.alt_pressed = true;
+    in.aim_x = 100.0f;
+    in.aim_y = 100.0f;
+    sbx_step(&g_s, &in, ARC_DT);
+    CHECK(sbx_painted(&g_s));
+}
+
 static void test_cannot_paint_through_the_panel(void) {
     sbx_init(&g_s, 1);
     sandbox_clear(&g_s.world);
@@ -369,6 +417,7 @@ int main(void) {
     RUN(test_monkey_is_safe);
     RUN(test_palette_geometry);
     RUN(test_click_on_palette_selects_without_painting);
+    RUN(test_a_run_counts_only_once_the_player_painted);
     RUN(test_cannot_paint_through_the_panel);
     RUN(test_right_mouse_erases_by_default);
     RUN(test_right_click_on_a_slot_sets_the_second_element);

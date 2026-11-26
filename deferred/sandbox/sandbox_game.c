@@ -87,7 +87,10 @@ static GameResult play(const GameContext *ctx) {
     gfx_sandbox_view_free(&view);
     GameResult r;
     r.score = sbx_score(&s);
-    r.finished = false; /* unranked: nothing is recorded */
+    /* there is no game over: leaving ends the run, and the score is the cells filled at that moment (the
+     * starter scene already counts, and its plants grow by themselves). Only a run in which the player
+     * painted is recorded, so a quick look and Esc does not put the untouched scene on the board. */
+    r.finished = sbx_painted(&s);
     return r;
 }
 
@@ -97,5 +100,4 @@ const GameDef game_sandbox_def = {"sandbox",
                                   "left mouse: paint   right mouse: 2nd element (eraser)   0-9 / [ ] / "
                                   "wheel: element   +/-: brush   T: thermal   Space: pause",
                                   90,
-                                  false,
                                   play};

@@ -31,13 +31,17 @@ typedef struct sbx_State {
     bool paused;
     bool pal_hold;  /* the left press started on the palette: it must not paint when dragged onto the world */
     bool pal_hold2; /* the same for the right button */
+    bool painted;   /* the player has put (or erased) something in the world since the sandbox opened */
     unsigned ticks;
 } sbx_State;
 
 void sbx_init(sbx_State *s, unsigned seed);
 void sbx_step(sbx_State *s, const ArcadeInput *in, float dt);
 bool sbx_is_over(const sbx_State *s); /* a sandbox never ends: always false */
-int sbx_score(const sbx_State *s);    /* number of non-empty cells (unranked, just for display) */
+bool sbx_painted(
+    const sbx_State *s); /* did the player paint anything? A run that did not has no score worth recording */
+int sbx_score(
+    const sbx_State *s); /* number of non-empty cells (the score; recorded when the player leaves) */
 
 /* Palette helpers. Pointer positions are in window pixels. */
 bool sbx_over_panel(float px, float py);           /* is the pointer on the palette panel? */

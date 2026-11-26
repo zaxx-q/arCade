@@ -2,7 +2,7 @@
 
 # AGENTS.md - Tower Stacker (`tower_stacker`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 Tower Stacker: drop a sliding bar onto a tower; overhang is cut off, a perfect landing keeps the width; score = floors. Rules and status: `GAME.md`.

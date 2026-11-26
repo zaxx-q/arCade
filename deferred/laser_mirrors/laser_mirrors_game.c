@@ -151,5 +151,4 @@ const GameDef game_laser_mirrors_def = {
     "Bounce the beam onto every target",
     "click a yellow mirror: rotate it   R: reset mirrors   clear every level in few clicks",
     30,
-    true,
     play};

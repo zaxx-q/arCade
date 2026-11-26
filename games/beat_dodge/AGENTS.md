@@ -2,7 +2,7 @@
 
 # AGENTS.md - Beat Dodge & Catch (`beat_dodge`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 5 | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 5
 
 ## Overview
 One rhythm game with two modes chosen by the big DODGE / CATCH buttons on the song select screen (click, or the M key): **Dodge** (stay out of the notes' lane) and **Catch** (be in it). One `GameDef` (`beat_dodge`) but one high-score table per mode, song and difficulty (see the "Boards" convention below). Songs (`bd_Song`) have up to 6 charts (easy/normal/hard for dodge and for catch, 3-5 lanes) and a melody played by the built-in synth. A chart is made of beads (one note each); beads of fast runs are linked into ribbons, and a ribbon is one object: one life, one score. Songs are text files in `assets/beatmaps/`, listed in `assets/beatmaps/songs.txt`, converted from MIDI by `tools/midi2beatmap` (see `docs/SONGS.md`). The catch mode (rules in `beat_catch_logic.[ch]`, run loop `bd_ui_play_catch` in `beat_catch_game.c`) lives in this folder too and shares the song format, the clock, the select screen and the drawing with the dodge mode.

@@ -174,7 +174,7 @@ Catatan: smoke run memakai input monkey acak, jadi game cepat berakhir dan monke
 - Sisi masuk bar memakai `rng` yang sama dengan jendela, jadi urutan angka acak untuk seed tertentu berubah dibanding versi sebelum sisi acak ditambahkan (jendela lantai tidak sama persis).
 - `bases_x[]` dan `bases_w[]` dibulatkan ke atas, tetapi aturan memakai nilai `float` (`base_x`, `base_w`). Array itu hanya untuk menggambar.
 - Hampir semua fungsi `static`; yang publik hanya yang dipakai front-end dan test.
-- Game ini `ranked = true`, `order = 160`.
+- Game ini `order = 160`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

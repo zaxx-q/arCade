@@ -2,7 +2,7 @@
 
 # AGENTS.md - Gritty Golf (`gritty_golf`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: zaxx-q (upstream author) | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: zaxx-q (upstream author)
 
 ## Overview
 Pixel mini-golf: 25 hand-made courses, three strikes per attempt, freeze the ball, aim, set the power. The rules are a **vendored engine** (`gg/`, see `gg/VENDORED.md`); this folder adds an arCade adapter, front-end and sound. Rules and status: `GAME.md`.

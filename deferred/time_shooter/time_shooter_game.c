@@ -74,5 +74,4 @@ const GameDef game_time_shooter_def = {
     "Time only moves when you move",
     "WASD: move (time runs)   mouse: aim   left click: shoot   stand still = frozen world",
     10,
-    true,
     play};

@@ -163,7 +163,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - Bintang terbaru terus berputar sesudah game berakhir, supaya bintang yang salah diketuk tetap terlihat hidup.
 - Klik pada bintang yang sudah dikonfirmasi saat lapisan gelap masih mengunci (di bawah 1,4 detik) diabaikan, tetapi sesudahnya (sampai 2,2 detik) dihitung sebagai kalah.
 - Skor 512 secara teori bisa dicapai tetapi sangat panjang: tiap ronde butuh minimal 1,4 detik (ketukan dikunci selama itu), jadi 512 ronde memakan paling sedikit sekitar 12 menit tanpa jeda berpikir sama sekali.
-- Game ini `ranked = true`, `order = 170`.
+- Game ini `order = 170`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

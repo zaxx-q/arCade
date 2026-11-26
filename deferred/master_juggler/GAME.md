@@ -193,7 +193,6 @@ Test file progress menulis `master_juggler_progress_test.tmp` di folder kerja (`
 - Puncak lintasan bebas 118,7 px di 480 x 800, bukan 109 seperti rumus kontinu, karena integrasi per tick mendarat sedikit lebih rendah. Perilaku asli dipertahankan.
 - Setelah level lulus, bola terakhir (sudah memudar penuh) masih berstatus `visible` dan warnanya dihitung terhadap `level` yang sudah naik, jadi di layar tunggu ia tampak sebagai halo kuning redup di tengah. Penyebabnya dua: `level_complete` tidak menghapus `visible[]`, dan `gfx_glow_circle` memakai `Fade` yang **mengganti** alpha (tidak mengalikan), sehingga halo tidak ikut memudar. Hanya kosmetik; hilang begitu `start_try` berjalan.
 - `master_juggler_is_over` memakai jeda 1,2 detik; `over` sendiri sudah `true` lebih awal. Jangan memakai `over` untuk menutup loop.
-- Game ini `ranked = true`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

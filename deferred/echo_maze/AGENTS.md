@@ -2,7 +2,7 @@
 
 # AGENTS.md - Echo Maze (`echo_maze`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 2 | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 2
 
 ## Overview
 Pitch-black maze navigated by sonar pings. Rules and status: `GAME.md`.

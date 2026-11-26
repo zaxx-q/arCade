@@ -2,7 +2,7 @@
 
 # AGENTS.md - A Different Color (`different_color`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 A Different Color: find the one cell whose colour differs slightly on the bottom board; score = boards solved. Rules and status: `GAME.md`.

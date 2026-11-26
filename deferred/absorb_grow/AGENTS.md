@@ -2,7 +2,7 @@
 
 # AGENTS.md - Absorb and Grow (`absorb_grow`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 6 | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 6
 
 ## Overview
 Swallow the small, avoid the big, keep growing. Rules and status: `GAME.md`.

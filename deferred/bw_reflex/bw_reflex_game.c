@@ -127,6 +127,5 @@ const GameDef game_bw_reflex_def = {
     "BW Reflex",                                  /* title                             */
     "Match the base colour to the falling block", /* tagline                           */
     "click or any key: flip the base colour   match the block when it lands", /* controls hint        */
-    120,  /* menu order (lower = earlier)      */
-    true, /* ranked: score goes to leaderboard */
+    120, /* menu order (lower = earlier)      */
     play};

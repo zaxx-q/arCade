@@ -283,13 +283,9 @@ static void draw_row(const GameDef *g, int y, bool selected, bool archived) {
     gfx_text(g->title, LIST_X + TITLE_OFF, y + 4, 20, title_c);
 
     char tag[128];
-    int room =
-        LIST_W - TAG_OFF - 30 - (g->ranked ? 0 : 70); /* unranked games reserve space for their label */
-    fit_text(g->tagline, 15, room, tag, sizeof(tag));
+    fit_text(g->tagline, 15, LIST_W - TAG_OFF - 30, tag, sizeof(tag));
     gfx_text(tag, LIST_X + TAG_OFF, y + 8, 15,
              selected ? ARC_COL_TEXT : ColorLerp(ARC_COL_DIM, ARC_COL_TEXT, 0.22f));
-    if (!g->ranked)
-        gfx_text_right("unranked", LIST_X + LIST_W - 24, y + 10, 13, ARC_COL_DIM);
 }
 
 static void draw_divider(int y, int count) {
@@ -520,7 +516,7 @@ Screen screen_launch(AppState *app) {
     if (arcade_quit_requested())
         return SCR_QUIT;
     if (!r.finished)
-        return SCR_MENU; /* player pressed ESC: nothing is recorded */
+        return SCR_MENU; /* the player abandoned the run with ESC: nothing is recorded */
 
     app->last_game = g;
     app->last_result = r;
@@ -528,23 +524,20 @@ Screen screen_launch(AppState *app) {
     app->last_best = 0;
     app->last_improved = false;
     arc_strlcpy(app->last_board, board, sizeof(app->last_board));
-    if (g->ranked) {
-        /* the score goes into the table of this mode/level ("beat_dodge:Dodge / Bopeebo / normal"), or into
-         * the game's one table ("echo_maze") when the game did not name a board */
-        char key[LB_GAME_LEN];
-        lb_board_key(key, sizeof(key), g->id, board);
-        int before =
-            lb_best_of(&app->lb, key, app->player); /* -1: the first run of this player in the table */
-        lb_add(&app->lb, key, app->player, r.score, (long long)time(NULL));
-        if (!lb_save(&app->lb, app->scores_path))
-            fprintf(stderr, "warning: could not write %s\n", app->scores_path);
-        online_submit(app, key, r.score); /* queued for the server, when the player turned online scores on */
-        /* the place of this player's BEST run among the players of THIS table only; 0 when the run did not
-         * make the table (it was full and this was the lowest score) */
-        app->last_rank = lb_rank_of(&app->lb, key, app->player);
-        app->last_best = lb_best_of(&app->lb, key, app->player);
-        app->last_improved = app->last_rank > 0 && r.score > before;
-    }
+    /* the score goes into the table of this mode/level ("beat_dodge:Dodge / Bopeebo / normal"), or into the
+     * game's one table ("echo_maze") when the game did not name a board */
+    char key[LB_GAME_LEN];
+    lb_board_key(key, sizeof(key), g->id, board);
+    int before = lb_best_of(&app->lb, key, app->player); /* -1: the first run of this player in the table */
+    lb_add(&app->lb, key, app->player, r.score, (long long)time(NULL));
+    if (!lb_save(&app->lb, app->scores_path))
+        fprintf(stderr, "warning: could not write %s\n", app->scores_path);
+    online_submit(app, key, r.score); /* queued for the server, when the player turned online scores on */
+    /* the place of this player's BEST run among the players of THIS table only; 0 when the run did not make
+     * the table (it was full and this was the lowest score) */
+    app->last_rank = lb_rank_of(&app->lb, key, app->player);
+    app->last_best = lb_best_of(&app->lb, key, app->player);
+    app->last_improved = app->last_rank > 0 && r.score > before;
     return SCR_RESULT;
 }
 
@@ -557,7 +550,7 @@ static void draw_result_view(const AppState *app, float t) {
     gfx_text_center("Game over", ARC_SCREEN_W / 2, 262, 22, ARC_COL_DIM);
     gfx_text_center(TextFormat("%d", app->last_result.score), ARC_SCREEN_W / 2, 306, 80, ARC_COL_YELLOW);
     bool boarded = app->last_board[0] != '\0'; /* the rank is within one mode/level, not the whole game */
-    if (app->last_game->ranked && app->last_rank > 0) {
+    if (app->last_rank > 0) {
         const char *where = boarded ? "on this board" : "for this game";
         const char *line;
         if (app->last_improved && app->last_rank == 1)
@@ -573,7 +566,7 @@ static void draw_result_view(const AppState *app, float t) {
         fit_text(app->last_board, 18, 500, label, sizeof(label));
         gfx_text_center(label, ARC_SCREEN_W / 2, 442, 18, ARC_COL_DIM);
     }
-    if (app->last_game->ranked && online_enabled(app)) { /* what became of this score online */
+    if (online_enabled(app)) { /* what became of this score online */
         char key[LB_GAME_LEN];
         lb_board_key(key, sizeof(key), app->last_game->id, app->last_board);
         const LbnAck *ack = &app->lbn.ack;

@@ -28,7 +28,7 @@ TODO(@OWNER@): urutan langkah dalam satu frame.
 |------|--------|------------------------|
 | `@ID@_logic.h` | struct `@ID@_State` dan fungsi publik (`init`, `step`, `is_over`, `score`) | menambah field state atau fungsi publik |
 | `@ID@_logic.c` | semua aturan game (tanpa raylib) | mengubah aturan atau angka keseimbangan |
-| `@ID@_game.c` | loop raylib, menggambar, `GameDef` (judul, kontrol di menu, urutan, ranked) | mengubah tampilan atau teks di menu |
+| `@ID@_game.c` | loop raylib, menggambar, `GameDef` (judul, kontrol di menu, urutan) | mengubah tampilan atau teks di menu |
 | `tests/test_@ID@.c` | unit test (hanya logic) | menambah atau mengubah aturan |
 | `CMakeLists.txt` | mendaftarkan game ke build lewat `arcade_add_game(...)` | menambah file `.c` atau test baru |
 | `GAME.md` | dokumen ini | aturan atau kode berubah |

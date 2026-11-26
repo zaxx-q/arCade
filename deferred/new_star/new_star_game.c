@@ -222,6 +222,5 @@ const GameDef game_new_star_def = {"new_star",                         /* id    
                                    "Spot the star that just appeared", /* tagline           */
                                    "click the newest star each round   tapping an old star ends the run   "
                                    "from star 10 you have 15 s per round",
-                                   170,  /* menu order        */
-                                   true, /* ranked            */
+                                   170, /* menu order        */
                                    play};

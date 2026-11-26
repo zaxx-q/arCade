@@ -2,7 +2,7 @@
 
 # AGENTS.md - Laser Mirrors (`laser_mirrors`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 3 | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 3
 
 ## Overview
 Rotate mirrors so the beam hits every target. Rules and status: `GAME.md`.
