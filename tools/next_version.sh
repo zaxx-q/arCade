@@ -13,8 +13,8 @@
 #   commits=N              number of commits since the previous tag
 #
 # Rules (highest wins across all commits since the last v*.*.* tag):
-#   "type!:" in the subject, or a "BREAKING CHANGE:" line  -> major
-#   "feat:" / "feat(scope):"                              -> minor
+#   "type!:" in the subject (or PR title in a merge commit), or "BREAKING CHANGE:" -> major
+#   "feat:" / "feat(scope):" (in subject or merge PR title) -> minor
 #   anything else (fix, docs, chore, free text...)        -> patch
 #   "[skip release]" in the newest commit                 -> no release (ignored for a manual --bump)
 # The very first release is v0.1.0 (v1.0.0 if you ask for --bump major).
@@ -59,9 +59,19 @@ re_breaking_footer='^BREAKING[ -]CHANGE:'
 for c in $(git_ rev-list "$range"); do
   subject="$(git_ log -1 --format=%s "$c")"
   body="$(git_ log -1 --format=%b "$c")"
-  if [[ "$subject" =~ $re_breaking_subject ]] || printf '%s\n' "$body" | grep -Eq "$re_breaking_footer"; then
+  parents="$(git_ log -1 --format=%P "$c")"
+  first_body="$(printf '%s\n' "$body" | sed '/^[[:space:]]*$/d' | head -n 1)"
+  is_merge=false
+  if [[ "$parents" =~ \  ]] || [[ "$subject" =~ ^Merge\  ]]; then
+    is_merge=true
+  fi
+
+  if [[ "$subject" =~ $re_breaking_subject ]] || \
+     ( [ "$is_merge" = true ] && [[ "$first_body" =~ $re_breaking_subject ]] ) || \
+     printf '%s\n' "$body" | grep -Eq "$re_breaking_footer"; then
     level="major"; break
-  elif [[ "$subject" =~ $re_feat ]]; then
+  elif [[ "$subject" =~ $re_feat ]] || \
+       ( [ "$is_merge" = true ] && [[ "$first_body" =~ $re_feat ]] ); then
     level="minor"
   fi
 done
