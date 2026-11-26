@@ -1,4 +1,5 @@
-/* Text rendering with the project font (Poiret One, SIL OFL 1.1: assets/fonts/OFL.txt).
+/* Text rendering with the project font (Poiret One, SIL OFL 1.1: assets/fonts/OFL.txt). The font file is
+ * built into the executable (arcade/assets.h); every pixel size is rendered from those bytes in memory.
  *
  * Poiret One is a thin display font, so it needs help to stay readable on a busy, dark game screen:
  *  - one font atlas per pixel size (crisp 1:1 glyphs instead of scaling a big atlas down),
@@ -8,6 +9,7 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "arcade/assets.h"
 #include "arcade/gfx.h"
 
 #define FONT_FILE "fonts/PoiretOne-Regular.ttf"
@@ -18,22 +20,24 @@ static struct {
     Font font;
 } g_cache[FONT_CACHE];
 static int g_cache_n;
-static char g_path[640];
+static ArcAsset g_file; /* the TTF bytes: kept, because a new atlas is made the first time a size is used */
 static bool g_have_file;
 
 void gfx_text_init(const char *assets_dir) {
     g_cache_n = 0;
-    snprintf(g_path, sizeof(g_path), "%s/%s", (assets_dir && assets_dir[0]) ? assets_dir : "assets",
-             FONT_FILE);
-    g_have_file = FileExists(g_path);
+    arc_asset_release(&g_file); /* a second init must not leak the first copy */
+    g_file = arc_asset_load(assets_dir, FONT_FILE);
+    g_have_file = g_file.data != NULL;
     if (!g_have_file)
-        TraceLog(LOG_WARNING, "ARCADE: font '%s' not found, using the built-in font", g_path);
+        TraceLog(LOG_WARNING, "ARCADE: font '%s' not found, using the built-in font", FONT_FILE);
 }
 
 void gfx_text_shutdown(void) {
     for (int i = 0; i < g_cache_n; i++)
         UnloadFont(g_cache[i].font);
     g_cache_n = 0;
+    arc_asset_release(&g_file);
+    g_have_file = false;
 }
 
 static int px_for(int size) {
@@ -51,7 +55,8 @@ static Font font_for(int px) {
             return g_cache[i].font;
     if (!g_have_file || g_cache_n >= FONT_CACHE)
         return GetFontDefault();
-    Font f = LoadFontEx(g_path, px, NULL, 0); /* NULL codepoints = printable ASCII */
+    /* NULL codepoints = printable ASCII */
+    Font f = LoadFontFromMemory(".ttf", g_file.data, (int)g_file.size, px, NULL, 0);
     if (!IsFontValid(f)) {
         g_have_file = false;
         return GetFontDefault();

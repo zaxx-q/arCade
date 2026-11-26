@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arcade/assets.h"
 #include "arcade/str.h"
 
 /* ------------------------------------------------------------------ songs */
@@ -207,10 +208,7 @@ static bool parse_chart_header(const char *args, char *name, size_t name_size, i
     return *lanes >= 2 && *lanes <= BD_MAX_LANES;
 }
 
-bool bd_song_load(const char *path, bd_Song *out) {
-    FILE *fp = fopen(path, "r");
-    if (!fp)
-        return false;
+bool bd_song_parse(const char *text, size_t text_len, bd_Song *out) {
     static bd_Song song; /* ~34 KB: not on the stack */
     memset(&song, 0, sizeof(song));
     arc_strlcpy(song.title, "Untitled", sizeof(song.title));
@@ -219,8 +217,9 @@ bool bd_song_load(const char *path, bd_Song *out) {
     bd_Chart *chart = NULL;
     bool ok = true;
     char raw[BD_MAX_STEPS + 256];
+    size_t pos = 0;
 
-    while (ok && fgets(raw, sizeof(raw), fp)) {
+    while (ok && arc_next_line(text, text_len, &pos, raw, sizeof(raw))) {
         char *line = trim(raw);
         if (*line == '\0' || *line == '#')
             continue;
@@ -272,7 +271,6 @@ bool bd_song_load(const char *path, bd_Song *out) {
             ok = false; /* unknown directive: reject the file so typos are noticed */
         }
     }
-    fclose(fp);
     if (ok) {
         ok = song.bpm >= 60 && song.bpm <= 220 && song.chart_count >= 1;
         for (int i = 0; ok && i < song.chart_count; i++)
@@ -282,6 +280,15 @@ bool bd_song_load(const char *path, bd_Song *out) {
         return false;
     *out = song;
     return true;
+}
+
+bool bd_song_load(const char *path, bd_Song *out) {
+    ArcAsset file = arc_asset_read_file(path);
+    if (file.data == NULL)
+        return false;
+    bool ok = bd_song_parse((const char *)file.data, file.size, out);
+    arc_asset_release(&file);
+    return ok;
 }
 
 bool bd_song_save(const char *path, const bd_Song *song) {
@@ -311,29 +318,30 @@ bool bd_song_save(const char *path, const bd_Song *song) {
     return fclose(fp) == 0;
 }
 
-int bd_songlist_load(const char *dir, bd_SongList *out) {
+int bd_songlist_load_assets(const char *assets_dir, bd_SongList *out) {
     out->count = 0;
     out->skipped = 0;
-    char index[600];
-    snprintf(index, sizeof(index), "%s/songs.txt", dir);
-    FILE *fp = fopen(index, "r");
-    if (!fp)
+    ArcAsset index = arc_asset_load(assets_dir, "beatmaps/songs.txt");
+    if (index.data == NULL)
         return 0;
+    size_t pos = 0;
     char raw[300];
-    while (fgets(raw, sizeof(raw), fp)) {
+    while (arc_next_line((const char *)index.data, index.size, &pos, raw, sizeof(raw))) {
         char *name = trim(raw);
         if (*name == '\0' || *name == '#')
             continue;
         if (out->count >= BD_MAX_SONGS)
             break;
-        char path[960];
-        snprintf(path, sizeof(path), "%s/%s", dir, name);
-        if (bd_song_load(path, &out->songs[out->count]))
+        char rel[400];
+        snprintf(rel, sizeof(rel), "beatmaps/%s", name);
+        ArcAsset file = arc_asset_load(assets_dir, rel);
+        if (file.data != NULL && bd_song_parse((const char *)file.data, file.size, &out->songs[out->count]))
             out->count++;
         else
             out->skipped++;
+        arc_asset_release(&file);
     }
-    fclose(fp);
+    arc_asset_release(&index);
     return out->count;
 }
 

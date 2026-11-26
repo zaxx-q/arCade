@@ -38,3 +38,17 @@ bool arc_contains_nocase(const char *haystack, const char *needle) {
     }
     return false;
 }
+
+bool arc_next_line(const char *text, size_t len, size_t *pos, char *out, size_t size) {
+    if (size == 0 || *pos >= len)
+        return false;
+    size_t n = 0;
+    while (*pos < len && n < size - 1) {
+        char c = text[(*pos)++];
+        out[n++] = c;
+        if (c == '\n')
+            break;
+    }
+    out[n] = '\0';
+    return true;
+}

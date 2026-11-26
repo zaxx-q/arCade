@@ -11,7 +11,6 @@ target_link_libraries(arCade PRIVATE arcade_gfx)
 foreach(_id IN LISTS ARCADE_REGISTERED_IDS)
   target_link_libraries(arCade PRIVATE game_${_id})
 endforeach()
-target_compile_definitions(arCade PRIVATE ARCADE_SOURCE_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 arcade_apply_warnings(arCade)
 
 # ---- Online leaderboard ----
@@ -72,7 +71,5 @@ else()
 endif()
 target_compile_definitions(arCade PRIVATE ARCADE_ONLINE_DEFAULT_URL="${ARCADE_ONLINE_URL}")
 
-# Put assets/ next to the executable so the build tree has the same layout as a release zip.
-add_custom_command(TARGET arCade POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:arCade>/assets"
-  COMMENT "Copying assets next to arCade")
+# Nothing else to ship: assets/ is compiled into the executable (cmake/ArcadeAssets.cmake), so build/<preset>/bin/arCade
+# is the same single file that a release contains.

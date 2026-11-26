@@ -1,8 +1,9 @@
 arCade - cara bermain
 ========================
 
-Windows: ekstrak (unzip) foldernya di mana saja (jangan di dalam folder yang dilindungi), lalu klik dua kali arCade.exe.
-Linux:   tar xzf arCade-*.tar.gz && cd arCade-* && ./arCade
+arCade hanya satu file (font, suara, tekstur, dan lagu sudah ada di dalamnya).
+Windows: taruh arCade-*.exe di folder mana saja (jangan di dalam folder yang dilindungi), lalu klik dua kali.
+Linux:   chmod +x arCade-*-linux-x86_64 && ./arCade-*-linux-x86_64
          (butuh library desktop yang umum: OpenGL dan X11, yang ada di instalasi desktop biasa)
 
 Kontrol ditampilkan di menu untuk game yang sedang dipilih.
@@ -23,6 +24,7 @@ Progres Gritty Golf disimpan di gritty_save_<nama>.dat di folder yang sama (satu
 Command line (opsional):
   arCade --version        tampilkan versi
   arCade --list           tampilkan daftar game
+  arCade --licenses       tampilkan teks lisensi dan atribusi pihak ketiga
   arCade --help           semua opsi
 
 Windows mungkin menampilkan peringatan SmartScreen untuk program yang tidak ditandatangani: pilih "More info" -> "Run anyway".

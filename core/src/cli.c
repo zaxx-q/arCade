@@ -37,6 +37,8 @@ bool cli_parse(int argc, char **argv, CliOptions *o) {
             o->list_games = true;
         } else if (strcmp(a, "--all") == 0) {
             o->show_all = true;
+        } else if (strcmp(a, "--licenses") == 0) {
+            o->show_licenses = true;
         } else if (strcmp(a, "--smoke") == 0) {
             if (!has_value)
                 return fail(o, "missing value for", a);
@@ -81,6 +83,7 @@ const char *cli_usage(void) {
            "  --seed N               RNG seed for a smoke run (default 1234)\n"
            "  --out DIR              folder for smoke screenshots (default smoke-out)\n"
            "  --data-dir DIR         folder for scores.txt (default: next to the executable)\n"
-           "  --assets-dir DIR       folder containing assets/ (default: auto-detect)\n"
+           "  --assets-dir DIR       read assets from DIR instead of the built-in ones (development)\n"
+           "  --licenses             print the license and third-party notices and exit\n"
            "  --help, -h             show this help\n";
 }

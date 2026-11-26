@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "app.h"
+#include "arcade/assets.h"
 #include "arcade/gfx.h"
 #include "online.h"
 #include "arcade/str.h"
@@ -56,24 +57,30 @@ int app_all_games(const AppState *app, const GameDef **out, int cap) {
     return n;
 }
 
+/* Scores are saved next to the executable unless --data-dir says otherwise. The assets are compiled into the
+ * executable, so assets_dir stays "" (= use the built-in copy) unless --assets-dir names a folder to read
+ * from. */
 static void resolve_dirs(const CliOptions *opt, char *data_dir, size_t dn, char *assets_dir, size_t an) {
-    const char *exe_dir = GetApplicationDirectory();
-    arc_strlcpy(data_dir, opt->data_dir[0] ? opt->data_dir : exe_dir, dn);
-    if (opt->assets_dir[0]) {
-        arc_strlcpy(assets_dir, opt->assets_dir, an);
-        return;
+    arc_strlcpy(data_dir, opt->data_dir[0] ? opt->data_dir : GetApplicationDirectory(), dn);
+    arc_strlcpy(assets_dir, opt->assets_dir, an);
+}
+
+/* --licenses: a release is one single file, so the license texts travel inside it (the OFL asks that its text
+ * accompanies the fonts). */
+static int print_licenses(void) {
+    static const char *const files[] = {"LICENSE", "THIRD_PARTY_NOTICES.md", "fonts/OFL.txt",
+                                        "gritty_golf/font/OFL-Silkscreen.txt"};
+    for (size_t i = 0; i < ARC_ARRAY_LEN(files); i++) {
+        ArcAsset a = arc_asset_load("", files[i]);
+        if (a.data == NULL) {
+            fprintf(stderr, "error: %s is not built into this executable\n", files[i]);
+            return 1;
+        }
+        printf("%s===== %s =====\n\n", i == 0 ? "" : "\n\n", files[i]);
+        fwrite(a.data, 1, a.size, stdout);
+        arc_asset_release(&a);
     }
-    char candidate[600];
-    snprintf(candidate, sizeof(candidate), "%sassets", exe_dir);
-    if (DirectoryExists(candidate)) {
-        arc_strlcpy(assets_dir, candidate, an);
-    } else {
-#ifdef ARCADE_SOURCE_ASSETS_DIR
-        arc_strlcpy(assets_dir, ARCADE_SOURCE_ASSETS_DIR, an); /* running from the build tree */
-#else
-        arc_strlcpy(assets_dir, "assets", an);
-#endif
-    }
+    return 0;
 }
 
 /* --list shows the games on the hub menu; --all adds the deferred ones, marked as such. */
@@ -111,6 +118,8 @@ int main(int argc, char **argv) {
         printf("arCade %s (raylib %s)\n", ARCADE_VERSION_STRING, ARCADE_RAYLIB_TAG_STRING);
         return 0;
     }
+    if (opt.show_licenses)
+        return print_licenses();
     if (opt.list_games)
         return list_games(opt.show_all);
 

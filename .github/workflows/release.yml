@@ -1,4 +1,5 @@
 # Every push to main that passes the FULL checks becomes a GitHub Release (Linux + Windows downloads).
+# Each download is ONE executable (no zip, no tar): assets/ and the license texts are compiled into it.
 # Manual run: Actions -> Release -> Run workflow (choose bump, prerelease, dry run).
 # Versions come from git tags + Conventional Commits (tools/next_version.sh). This workflow NEVER commits.
 name: Release
@@ -90,19 +91,18 @@ jobs:
             echo "::error::arCade needs libcurl or OpenSSL at run time: libcurl was not linked statically"
             exit 1
           fi
-      - name: Package
+      - name: Package (one executable, nothing else)
         run: |
-          name="arCade-v${VERSION}-linux-x86_64"
-          mkdir -p "dist/$name"
-          cp build/release/bin/arCade "dist/$name/"
-          cp -r assets "dist/$name/assets"
-          cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
-          cp packaging/PLAY.txt "dist/$name/README.txt"
-          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          mkdir -p dist
+          cp build/release/bin/arCade "dist/arCade-v${VERSION}-linux-x86_64"
+          # on its own in an empty folder: the license texts come out of the executable itself
+          mkdir standalone
+          cp build/release/bin/arCade standalone/
+          (cd standalone && ./arCade --licenses > licenses.txt && grep -q "MIT License" licenses.txt)
       - uses: actions/upload-artifact@v6
         with:
           name: release-linux
-          path: dist/*.tar.gz
+          path: dist/arCade-v*-linux-x86_64
           if-no-files-found: error
 
   build-windows:
@@ -122,7 +122,6 @@ jobs:
           update: false
           install: >-
             git
-            zip
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
@@ -148,19 +147,18 @@ jobs:
             echo "::error::arCade.exe imports a DLL that is not part of Windows: libcurl was not linked statically"
             exit 1
           fi
-      - name: Package
+      - name: Package (one executable, nothing else)
         run: |
-          name="arCade-v${VERSION}-windows-x86_64"
-          mkdir -p "dist/$name"
-          cp build/release/bin/arCade.exe "dist/$name/"
-          cp -r assets "dist/$name/assets"
-          cp LICENSE THIRD_PARTY_NOTICES.md "dist/$name/"
-          cp packaging/PLAY.txt "dist/$name/README.txt"
-          (cd dist && zip -qr "$name.zip" "$name")
+          mkdir -p dist
+          cp build/release/bin/arCade.exe "dist/arCade-v${VERSION}-windows-x86_64.exe"
+          # on its own in an empty folder: the license texts come out of the executable itself
+          mkdir standalone
+          cp build/release/bin/arCade.exe standalone/
+          (cd standalone && ./arCade.exe --licenses > licenses.txt && grep -q "MIT License" licenses.txt)
       - uses: actions/upload-artifact@v6
         with:
           name: release-windows
-          path: dist/*.zip
+          path: dist/arCade-v*-windows-x86_64.exe
           if-no-files-found: error
 
   publish:

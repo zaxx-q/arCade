@@ -12,7 +12,7 @@ typedef struct GameContext {
     bool headless;               /* CI smoke run: scripted input, bounded frames, no audio      */
     int max_frames;              /* >0 only when headless: stop after this many frames          */
     const char *data_dir;        /* writable folder (scores, replays)                           */
-    const char *assets_dir;      /* read-only assets folder                                     */
+    const char *assets_dir;      /* optional override folder for arc_asset_load(); NULL or "" = built in */
     const char *screenshot_path; /* NULL unless a smoke run wants periodic PNG snapshots        */
     /* OPTIONAL OUTPUT, NULL when nobody listens (smoke runs, tests): a buffer of GAME_BOARD_LEN bytes, empty
      * on entry. A game with several modes or levels writes the name of this run's high-score table into it

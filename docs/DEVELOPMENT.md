@@ -6,12 +6,12 @@ Semuanya di-build dengan **CMake + compiler C**. raylib diunduh dan dibangun oto
 
 ```
 app/         Executable hub: main loop, menu, layar leaderboard, smoke runner
-assets/      Beatmap (lagu) dan data game
+assets/      Font, suara, tekstur, dan beatmap (lagu); dikompilasi ke dalam executable (cmake/ArcadeAssets.cmake)
 cmake/       Konfigurasi build, raylib FetchContent, warning, toolchain
 core/        Library C murni (rng, input, leaderboard, sandbox, sortlib, fx, cli) dan core/gfx (helper raylib)
 docs/        Dokumentasi, panduan, catatan arsitektur, dan screenshot
 games/       Paket game: <id>_logic.[ch], <id>_game.c, test, GAME.md
-packaging/   Catatan packaging rilis dan petunjuk saat dijalankan
+packaging/   Petunjuk cara bermain (PLAY.txt; tidak ikut dirilis, rilis hanya berisi satu executable)
 tests/       Harness (arcade_test.h) dan unit test untuk library core
 tools/       Script untuk format, pengecekan aturan, scaffolding game, dan versioning
 ```
@@ -87,6 +87,7 @@ Pasang extension yang direkomendasikan (editor akan menawarkannya; daftarnya di 
 | Sanitizer (Linux/macOS)  | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan`                                                        |
 | Build Windows dari Linux | lihat `cmake/toolchains/mingw-w64-x86_64.cmake`                                                                                    |
 | Offline / raylib lokal   | tambahkan `-DFETCHCONTENT_SOURCE_DIR_RAYLIB=/path/to/raylib` ke perintah configure                                                 |
+| Menambah / mengubah asset | taruh file di `assets/` lalu build ulang (CMake mendeteksi file baru sendiri). Untuk mencoba tanpa build ulang: `arCade --assets-dir assets` |
 
 ## 4. Alur kerja Git
 

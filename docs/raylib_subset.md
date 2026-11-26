@@ -5,8 +5,10 @@ Use these exact signatures. raylib 6.x changed some APIs compared with 5.x: if a
 
 ## Functions
 ```c
+void BeginBlendMode(int mode);  // Begin blending mode (alpha, additive, multiplied, subtract, custom)
 void BeginDrawing(void);  // Begin canvas (framebuffer) drawing
 void BeginMode2D(Camera2D camera);  // Begin 2D mode with custom camera (2D)
+void BeginMode3D(Camera3D camera);  // Begin 3D mode with custom camera (3D)
 void BeginScissorMode(int x, int y, int width, int height); // Begin scissor mode (define screen area for following drawing)
 void BeginTextureMode(RenderTexture2D target);  // Begin drawing to render texture
 bool CheckCollisionCircleRec(Vector2 center, float radius, Rectangle rec);  // Check collision between circle and rectangle
@@ -21,6 +23,7 @@ Color ColorAlpha(Color color, float alpha);  // Get color with alpha applied, al
 Color ColorBrightness(Color color, float factor);  // Get color with brightness correction, brightness factor goes from -1.0f to 1.0f
 Color ColorLerp(Color color1, Color color2, float factor);  // Get color lerp interpolation between two colors, factor [0.0f..1.0f]
 bool DirectoryExists(const char *dirPath);  // Check if directory path exists
+void DisableCursor(void);  // Disable cursor (lock cursor)
 void DrawCircle(int centerX, int centerY, float radius, Color color);  // Draw a color-filled circle
 void DrawCircleLines(int centerX, int centerY, float radius, Color color);  // Draw circle outline
 void DrawCircleSector(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color); // Draw a piece of a circle
@@ -33,6 +36,7 @@ void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);  // Draw a line (
 void DrawPoly(Vector2 center, int sides, float radius, float rotation, Color color);  // Draw a polygon of n sides
 void DrawPolyLines(Vector2 center, int sides, float radius, float rotation, Color color);  // Draw a polygon outline of n sides
 void DrawRectangle(int posX, int posY, int width, int height, Color color);  // Draw a color-filled rectangle
+void DrawRectangleGradientEx(Rectangle rec, Color col1, Color col2, Color col3, Color col4);  // Draw a gradient-filled rectangle with custom vertex colors, counter-clock
 void DrawRectangleGradientV(int posX, int posY, int width, int height, Color top, Color bottom);  // Draw a vertical-gradient-filled rectangle
 void DrawRectangleLines(int posX, int posY, int width, int height, Color color);  // Draw rectangle outline
 void DrawRectangleLinesEx(Rectangle rec, float thick, Color color);  // Draw rectangle outline with line thickness
@@ -51,8 +55,11 @@ void DrawTexturePro(Texture2D texture, Rectangle srcrec, Rectangle dstrec, Vecto
 void DrawTextureRec(Texture2D texture, Rectangle rec, Vector2 position, Color tint);  // Draw a part of a texture defined by a rectangle
 void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);  // Draw a color-filled triangle, counter-clockwise vertex order
 void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);  // Draw triangle outline, counter-clockwise vertex order
+void EnableCursor(void);  // Enable cursor (unlock cursor)
+void EndBlendMode(void);  // End blending mode (reset to default: alpha blending)
 void EnableEventWaiting(void);  // Enable waiting for events on EndDrawing(), no automatic event polling
 void EndMode2D(void);  // End 2D mode with custom camera
+void EndMode3D(void);  // End 3D mode and returns to default 2D orthographic mode
 void EndScissorMode(void);  // End scissor mode
 void EndTextureMode(void);  // End drawing to render texture
 bool ExportImage(Image image, const char *fileName);  // Export image data to file, returns true on success
@@ -63,12 +70,18 @@ const char *GetApplicationDirectory(void);  // Get the directory of the running 
 int GetCharPressed(void);  // Get char pressed (unicode), call it multiple times for chars queued, returns 0 when the queue is empty
 Color GetColor(unsigned int hexValue);  // Get Color structure from hexadecimal value
 Font GetFontDefault(void);  // Get the default Font
+float GetFrameTime(void);  // Get time in seconds for last frame drawn (delta time)
 int GetKeyPressed(void);  // Get key pressed (keycode), call it multiple times for keys queued, returns 0 when the queue is empty
 Vector2 GetMouseDelta(void);  // Get mouse delta between frames
 Vector2 GetMousePosition(void);  // Get mouse position XY
 float GetMouseWheelMove(void);  // Get mouse wheel movement for X or Y, whichever is larger
 float GetMusicTimePlayed(Music music);  // Get current music time played (in seconds)
 int GetRandomValue(int min, int max);  // Get a random value between min and max (both included)
+int GetRenderHeight(void);  // Get current render height (it considers HiDPI)
+int GetRenderWidth(void);  // Get current render width (it considers HiDPI)
+int GetScreenHeight(void);  // Get current screen height
+int GetScreenWidth(void);  // Get current screen width
+double GetTime(void);  // Get elapsed time in seconds since InitWindow()
 void ImageDrawPixel(Image *dst, int posX, int posY, Color color);  // Draw pixel within an image
 void ImageFlipVertical(Image *image);  // Flip image vertically
 void ImageFormat(Image *image, int newFormat);  // Convert image data to desired format
@@ -82,11 +95,13 @@ bool IsKeyReleased(int key);  // Check if key has been released once
 bool IsMouseButtonDown(int button);  // Check if mouse button is being pressed
 bool IsMouseButtonPressed(int button);  // Check if mouse button has been pressed once
 bool IsMusicValid(Music music);  // Check if music stream is valid (context and buffers initialized)
+bool IsWaveValid(Wave wave);  // Check if wave data is valid (data loaded and parameters)
+bool IsWindowFocused(void);  // Check if window is currently focused
 bool IsWindowReady(void);  // Check if window has been initialized successfully
 char *LoadFileText(const char *fileName);  // Load text data from file (read), returns a '\0' terminated string
-Font LoadFontEx(const char *fileName, int fontSize, const int *codepoints, int codepointCount); // Load font from file with defined codepoints and generation size, use NU
-Image LoadImage(const char *fileName);  // Load image from file into CPU memory (RAM)
+Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, const int *codepoints, int codepointCount); // Load font from mem
 Color *LoadImageColors(Image image);  // Load color data from image as a Color array (RGBA - 32bit)
+Image LoadImageFromMemory(const char *fileType, const unsigned char *fileData, int dataSize);  // Load image from memory buffer, fileType refers to extension: i.e. '.png'
 Image LoadImageFromScreen(void);  // Load image from screen buffer (screenshot)
 Music LoadMusicStream(const char *fileName);  // Load music stream from file
 Music LoadMusicStreamFromMemory(const char *fileType, const unsigned char *data, int dataSize); // Load music stream from data
@@ -96,13 +111,16 @@ Sound LoadSoundAlias(Sound source);  // Load sound alias, new sound that shares 
 Sound LoadSoundFromWave(Wave wave);  // Load sound from wave data
 Texture2D LoadTexture(const char *fileName);  // Load texture from file into GPU memory (VRAM)
 Texture2D LoadTextureFromImage(Image image);  // Load texture from image data
+Wave LoadWaveFromMemory(const char *fileType, const unsigned char *fileData, int dataSize); // Load wave from memory buffer, fileType refers to extension: i.e. '.wav'
 int MakeDirectory(const char *dirPath);  // Create directories (including full path requested), returns 0 on success
 int MeasureText(const char *text, int fontSize);  // Measure string width for default font
 Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing);  // Measure string size for Font
 void *MemAlloc(unsigned int size);  // Internal memory allocator
 void MemFree(void *ptr);  // Internal memory free
+void PauseMusicStream(Music music);  // Pause music playing
 void PlayMusicStream(Music music);  // Start music playing
 void PlaySound(Sound sound);  // Play a sound
+void ResumeMusicStream(Music music);  // Resume playing paused music
 bool SaveFileText(const char *fileName, const char *text);  // Save text data to file (write), string must be '\0' terminated, returns true on success
 void SetConfigFlags(unsigned int flags);  // Set init configuration flags (view FLAGS)
 void SetExitKey(int key);  // Set a custom key to exit program (default is ESC)
@@ -188,24 +206,32 @@ typedef struct Sound {
 FLAG_MSAA_4X_HINT  = 0x00000020,  // Set to try enabling MSAA 4X
 FLAG_VSYNC_HINT  = 0x00000040,  // Set to try enabling V-Sync on GPU
 KEY_A  = 65,  // Key: A | a
+KEY_B  = 66,  // Key: B | b
 KEY_BACKSPACE  = 259,  // Key: Backspace
 KEY_D  = 68,  // Key: D | d
 KEY_DOWN  = 264,  // Key: Cursor down
+KEY_E  = 69,  // Key: E | e
 KEY_ENTER  = 257,  // Key: Enter
 KEY_ESCAPE  = 256,  // Key: Esc
 KEY_F  = 70,  // Key: F | f
 KEY_KP_ENTER  = 335,  // Key: Keypad Enter
 KEY_L  = 76,  // Key: L | l
 KEY_LEFT  = 263,  // Key: Cursor left
+KEY_LEFT_SHIFT  = 340,  // Key: Shift left
+KEY_M  = 77,  // Key: M | m
 KEY_N  = 78,  // Key: N | n
 KEY_NULL  = 0,  // Key: NULL, used for no key pressed
+KEY_O  = 79,  // Key: O | o
 KEY_PAGE_DOWN  = 267,  // Key: Page down
 KEY_PAGE_UP  = 266,  // Key: Page up
+KEY_Q  = 81,  // Key: Q | q
 KEY_R  = 82,  // Key: R | r
 KEY_RIGHT  = 262,  // Key: Cursor right
+KEY_RIGHT_SHIFT  = 344,  // Key: Shift right
 KEY_S  = 83,  // Key: S | s
 KEY_SLASH  = 47,  // Key: /
 KEY_SPACE  = 32,  // Key: Space
+KEY_TAB  = 258,  // Key: Tab
 KEY_UP  = 265,  // Key: Cursor up
 KEY_W  = 87,  // Key: W | w
 MOUSE_BUTTON_LEFT  = 0,  // Mouse button left

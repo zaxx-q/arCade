@@ -25,7 +25,7 @@ TODO(@OWNER@): one-sentence hook. Rules and status: `GAME.md`.
 - Follow the game contract in `../AGENTS.md` (loop pattern, determinism, fixed arrays, `finished` semantics).
 
 ## Security & safety
-- Only write under `ctx->data_dir`; read assets from `ctx->assets_dir`; validate any file you parse.
+- Only write under `ctx->data_dir`; get assets with `arc_asset_load(ctx->assets_dir, "<path inside assets/>")` (compiled into the executable, `arcade/assets.h`); validate any file you parse.
 
 ## PR/commit checklist
 - [ ] New rule has a unit test; `GAME.md` pseudocode, flowchart and concept table still match the code

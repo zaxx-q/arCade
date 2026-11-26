@@ -68,7 +68,7 @@ multiplier : easy 1.0, normal 1.5, hard 2.0
 ## Cara kerja per frame
 **Sebelum loop utama** (`play()` di `beat_dodge_game.c`):
 
-1. `bd_songlist_load()` membaca `assets/beatmaps/songs.txt` dan memuat setiap lagu yang tercantum. Kalau tidak ada lagu yang berhasil dimuat, game memakai lagu bawaan kecil (`beat_dodge_init()`, dibuat dari `ctx->seed`) dan hanya mode Dodge.
+1. `bd_songlist_load_assets()` membaca `assets/beatmaps/songs.txt` (salinan yang dikompilasi ke dalam executable, atau dari folder `--assets-dir` kalau diberikan) dan memuat setiap lagu yang tercantum. Kalau tidak ada lagu yang berhasil dimuat, game memakai lagu bawaan kecil (`beat_dodge_init()`, dibuat dari `ctx->seed`) dan hanya mode Dodge.
 2. Mode normal: `bd_ui_select_song()` menampilkan layar pilih lagu sampai pemain memilih mode, lagu, dan kesulitan, atau menekan Esc untuk batal. Kalau modenya CATCH, `play()` memanggil `bd_ui_play_catch()` dan sisa langkah di sini tidak dipakai (lihat "Mode Catch"). Mode headless (smoke run): `bd_ui_preview_select()` menggambar layar pilih lagu sebentar untuk screenshot, lalu mode Dodge dan mode Catch dimainkan bergantian pada chart tersulit lagu pertama, masing-masing separuh dari jumlah frame dan tanpa audio.
 3. `beat_dodge_use_song()` memanggil `bd_run_start()` (salinan lagu, jumlah lane, `spb`, `step_sec`, `lead`, `end_time`, lane awal di tengah) lalu `reset_rules()` (3 nyawa, `max_points`, multiplier).
 4. `bd_ui_music_start()`: kalau ada perangkat audio dan lagunya punya melodi, melodi di-render synthesizer menjadi WAV di memori lalu dimainkan lewat `LoadMusicStreamFromMemory`. Not yang punya bead di chart yang dipilih berbunyi sebagai lead (voice 0), yang lain sebagai backing pelan (voice 3). Kalau tidak ada melodi tapi ada audio, game memainkan tick metronom tiap ketukan.
@@ -209,8 +209,9 @@ Ini pemeriksa "apakah chart bisa dimainkan manusia". Manusia dimodelkan butuh `B
 | `bd_chart_objects`, `bd_chart_beads`, `bd_chart_in_ribbon`, `bd_chart_next_bead`, `bd_chart_object_span` | Menghitung dan menelusuri objek, bead, dan ribbon di chart | aturan, konverter, tampilan, test |
 | `bd_catch_tolerance(span)` | Toleransi lane untuk chart catch (0 atau 1) | mode Catch, cek lane terjangkau |
 | `bd_chart_playable`, `bd_chart_plan`, `bd_reach_*` | Cek lane yang terjangkau (lihat di atas) | konverter, test |
-| `bd_song_load(path, out)` / `bd_song_save(path, song)` | Baca dan tulis file lagu; load menolak file yang rusak | daftar lagu, test |
-| `bd_songlist_load(dir, out)` | Memuat semua lagu yang disebut di `<dir>/songs.txt` dan melewati yang rusak | `play()`, test |
+| `bd_song_parse(text, len, out)` | Membaca teks lagu yang sudah ada di memori (asset yang dikompilasi ke executable); menolak teks yang rusak | `bd_songlist_load_assets`, `bd_song_load`, test |
+| `bd_song_load(path, out)` / `bd_song_save(path, song)` | Baca file lagu dari disk (seluruh isinya dibaca, lalu diserahkan ke `bd_song_parse`) dan tulis file lagu | tool, test |
+| `bd_songlist_load_assets(assets_dir, out)` | Memuat semua lagu yang disebut di `assets/beatmaps/songs.txt` (dari executable; `assets_dir` kosong/NULL) dan melewati yang rusak | `play()`, test |
 | `bd_menu_init`, `bd_menu_step`, `bd_menu_move_song`, `bd_menu_pick_chart` | Logic layar pilih lagu untuk satu jenis chart | `bd_ui_select_song`, test |
 | `bd_board_name(out, size, song, chart)` | Nama papan skor satu chart: `<Mode> / <judul> / <kesulitan>`; judul panjang dipotong, mode dan kesulitan tidak | `bd_ui_report_board`, test |
 | `bd_song_seconds(song, chart)` | Kapan chart selesai: `(3 + max(panjang chart, panjang melodi dalam ketukan) + 1) * spb` | `bd_run_start`, layar pilih lagu |
@@ -330,8 +331,8 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 - **Nama fungsi lama.** `bd_beatmap_load`, `bd_BeatMap`, dan `bd_song_to_synth(song, delay, out)` yang ada di dokumen versi lama sudah tidak ada. Sekarang: `bd_song_load`, `bd_Chart` / `bd_Song`, dan `bd_song_to_synth(song, chart, delay, out)`.
 - Lagu berakhir saat **melodi** selesai, bukan saat bead terakhir. `bd_song_seconds` mengambil yang lebih lambat antara chart dan melodi, ditambah 1 ketukan penutup. Jadi di akhir lagu ada waktu tanpa rintangan.
 - Aturan jeda antar objek: bead tunggal menghormati jeda minimum tiap kesulitan (0,55 / 0,45 / 0,30 detik), dan bead dalam satu ribbon paling jauh 0,25 detik satu sama lain. Ribbon memang boleh rapat; itulah gunanya ribbon.
-- `bd_song_load` memakai variabel `static` besar di dalam fungsi supaya tidak membebani stack. Dua lagu tidak bisa dimuat bersamaan dari dua tempat, tapi game ini memuatnya berurutan, jadi aman.
-- `bd_song_load` menolak seluruh file kalau ada satu baris salah. File lagu yang dibuat tangan harus rapi: `steps` sebelum chart pertama, nama chart kurang dari 12 karakter, dan chart minimal 8 step.
+- `bd_song_parse` (yang dipanggil `bd_song_load`) memakai variabel `static` besar di dalam fungsi supaya tidak membebani stack. Dua lagu tidak bisa dimuat bersamaan dari dua tempat, tapi game ini memuatnya berurutan, jadi aman.
+- `bd_song_parse` menolak seluruh teks kalau ada satu baris salah. File lagu yang dibuat tangan harus rapi: `steps` sebelum chart pertama, nama chart kurang dari 12 karakter, dan chart minimal 8 step.
 - Nyawa habis tetap `finished = true`, jadi skor sampai titik itu dicatat ke leaderboard. Menekan Esc di tengah lagu tidak mencatat apa pun.
 - **Satu papan skor per mode, lagu, dan kesulitan.** `bd_board_name` menamai papan: `<Mode> / <judul lagu> / <kesulitan>` (misalnya `Catch / Bopeebo / hard`), dan hub menyimpannya di kolom `game` dengan kunci `beat_dodge:<nama papan>`. Format file tidak berubah. Konsekuensinya: (1) **mengganti judul lagu atau nama chart di file lagu memulai papan baru yang kosong**, skor lama tetap ada di papan dengan nama lama; (2) dua lagu dengan judul yang sama berbagi papan; (3) judul yang panjang dipotong (bukan mode atau kesulitan) supaya nama muat di `GAME_BOARD_LEN` (48); (4) catatan dari sebelum fitur ini tetap ada di papan polos `beat_dodge` ("older scores"), karena mode, lagu, dan kesulitannya tidak pernah dicatat dan tidak bisa ditebak.
 - **Audio belum diverifikasi** di sandbox build (tidak ada perangkat suara). Yang sudah dites: parsing, konversi, kebenaran chart, ketepatan waktu synth, pembagian lead/backing, dan tampilan lewat screenshot headless.
@@ -417,7 +418,7 @@ Catatan keputusan dan penyimpangan dari rencana: **drum bead tidak dikirim** (li
 1. Audio asli: muat file `.ogg`/`.wav` dari `assets/` (raylib `LoadMusicStream`) dan gerakkan `beat_dodge_step` dari jam musik supaya beat tetap terkunci ke audio (sisakan fallback ke step tetap untuk run headless). *(Sebagian sudah ada: musik disintesis di memori dan `beat_dodge_sync` mengikuti jam audio. Yang belum: memuat file audio sungguhan.)*
 2. Editor beat map di dalam game (rekam ketukan saat lagu berjalan, simpan ke `ctx->data_dir` dengan format teks yang sama).
 3. Rintangan yang lebih kaya: dinding panjang, diagonal yang bergerak. *(Ribbon sudah memberi objek panjang yang berkelok antar lane; yang belum: rintangan yang menutup beberapa lane sekaligus di satu waktu.)*
-4. Pilih lagu dari menu. *(Selesai: `songs.txt`, `bd_songlist_load`, `bd_menu_step`, `bd_ui_select_song`. Daftar lagu dibaca dari file indeks, bukan dengan menelusuri folder, karena C standar tidak bisa membaca isi folder.)*
+4. Pilih lagu dari menu. *(Selesai: `songs.txt`, `bd_songlist_load_assets`, `bd_menu_step`, `bd_ui_select_song`. Daftar lagu dibaca dari file indeks, bukan dengan menelusuri folder, karena C standar tidak bisa membaca isi folder.)*
 5. Kunci leaderboard per lagu. *(Selesai, dan lebih rinci: per mode, lagu, dan kesulitan. `GameContext.board` diisi `bd_ui_report_board`, hub menyimpan skor dengan kunci `beat_dodge:<papan>` lewat `lb_board_key`, dan layar leaderboard punya pemilih papan dengan tombol atas/bawah.)*
 6. Playtest manusia untuk menyetel `BD_CLOSE_WINDOW_SEC` (0,30 detik) dan hadiah close call (20 berbanding 10).
 
@@ -484,7 +485,7 @@ flowchart TD
 ## Konsep kuliah yang dipakai
 | Konsep (Pertemuan) | Di mana (file : fungsi) |
 |--------------------|-------------------------|
-| File handling (13) | `beat_dodge_logic.c` : `bd_song_load` (`fgets` + parsing), `bd_song_save`, `bd_songlist_load` |
+| File handling (13) | `beat_dodge_logic.c` : `bd_song_parse` (`arc_next_line`, mirip `fgets`, + parsing), `bd_song_load`, `bd_song_save`, `bd_songlist_load_assets` |
 | Array + string (9) | `bd_Chart.lane[]` dan `link[]`, membaca karakter pola di `add_pattern`, `sscanf` untuk not melodi |
 | Struct (13) | `bd_Chart`, `bd_Song`, `bd_Run`, `beat_dodge_State` |
 | Matematika (12) | `bd_run_obstacle_y` (interpolasi linear), `bd_reach_steps` (langkah lane per waktu), normalisasi skor dengan bilangan bulat, `gfx_make_tone` (bunyi `sinf` untuk metronom) |
@@ -767,5 +768,5 @@ flowchart TD
 | Percabangan (5) | tertangkap atau lolos di `judge_bead`, bead terakhir objek |
 | Perulangan (6) | loop `while` yang menilai bead yang sudah tiba, di `beat_catch_step`; loop yang memutar ulang permainan sempurna di `reset_rules` |
 | Fungsi dan modularitas (10) | satu `bd_catch_tolerance` dipakai aturan dan pemeriksa chart; `award_bead` dan `award_finish` |
-| File handling (13) | memakai ulang `bd_song_load` dan `bd_songlist_load` |
+| File handling (13) | memakai ulang `bd_song_parse` dan `bd_songlist_load_assets` |
 | Matematika (12) | pengali combo `1 + min(combo / 10, 3)`, normalisasi skor dengan bilangan bulat, nilai absolut `abs()` untuk jarak lane |

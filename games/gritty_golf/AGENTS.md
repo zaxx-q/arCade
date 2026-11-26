@@ -13,7 +13,7 @@ Pixel mini-golf: 25 hand-made courses, three strikes per attempt, freeze the bal
 - `gritty_golf_game.c`: raylib loop + `game_gritty_golf_def`
 - `gritty_golf_render_game.c`: drawing (256x256 render texture, 2x blit, side panels). `gritty_golf_audio_game.c`: sound effects. `gritty_golf_front.h`: their raylib-free interface
 - `tests/test_gritty_golf.c`: adapter tests. `tests/gg/`: upstream's own tests (run as `gritty_golf.engine`)
-- Assets: `../../assets/gritty_golf/` (textures, Silkscreen bitmap font, 6 WAVs)
+- Assets: `../../assets/gritty_golf/` (textures, Silkscreen bitmap font, 6 WAVs), compiled into the executable and decoded from memory (`arc_asset_load` + `LoadImageFromMemory` / `LoadWaveFromMemory` / `Bmfont_Parse`)
 
 ## Setup & environment
 `cmake --preset logic` needs no raylib. To play: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade`.
@@ -35,7 +35,7 @@ Pixel mini-golf: 25 hand-made courses, three strikes per attempt, freeze the bal
 - Follow the game contract in `../AGENTS.md` (loop pattern, determinism, `finished` semantics).
 
 ## Security & safety
-- Only write under `ctx->data_dir`; read assets from `ctx->assets_dir`. Save files are validated by the engine (`Save_Load`: size, magic, version, checksum); a damaged file is renamed to `*.bad`, never trusted.
+- Only write under `ctx->data_dir`; get assets with `arc_asset_load(ctx->assets_dir, ...)` (built into the executable). Save files are validated by the engine (`Save_Load`: size, magic, version, checksum); a damaged file is renamed to `*.bad`, never trusted.
 
 ## PR/commit checklist
 - [ ] New rule has a unit test; `GAME.md` pseudocode, flowchart and concept table still match the code

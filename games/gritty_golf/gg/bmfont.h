@@ -34,6 +34,8 @@ typedef struct {
 } BakedFont;
 
 bool              Bmfont_Load(BakedFont *f, const char *path);
+/* [arCade patch 11] the same for the NUL-terminated text of a .fnt file that is already in memory */
+bool              Bmfont_Parse(BakedFont *f, const char *text);
 const BakedGlyph *Bmfont_Find(const BakedFont *f, int codepoint);   /* never NULL once loaded */
 int               Bmfont_Width(const BakedFont *f, const char *text);
 

@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "arcade/assets.h"
 #include "arcade/gfx.h"
 #include "gg/bmfont.h"
 #include "gg/palette.h"
@@ -118,32 +119,52 @@ static Color accent_large(void) {
 /* ================================================================== *
  *  Loading
  * ================================================================== */
-static bool load_tex(Texture2D *out, const char *dir, const char *name) {
-    char path[320];
-    snprintf(path, sizeof(path), "%s/textures/%s", dir, name);
-    if (!FileExists(path)) {
-        fprintf(stderr, "gritty_golf: missing texture: %s\n", path);
+/* Every file is an asset (arcade/assets.h): `dir` is the optional override folder ("" = built into the
+ * executable) and `rel` the path inside assets/, e.g. "gritty_golf/textures/sprBall.png". */
+static bool load_image(Image *out, const char *dir, const char *rel) {
+    ArcAsset a = arc_asset_load(dir, rel);
+    if (a.data == NULL) {
+        fprintf(stderr, "gritty_golf: missing asset: %s\n", rel);
         return false;
     }
-    *out = LoadTexture(path);
+    *out = LoadImageFromMemory(".png", a.data, (int)a.size);
+    arc_asset_release(&a); /* the pixels were copied: the file bytes are not needed any more */
+    if (out->data == NULL) {
+        fprintf(stderr, "gritty_golf: cannot decode: %s\n", rel);
+        return false;
+    }
+    return true;
+}
+
+static bool load_tex(Texture2D *out, const char *dir, const char *name) {
+    char rel[96];
+    snprintf(rel, sizeof(rel), "gritty_golf/textures/%s", name);
+    Image im;
+    if (!load_image(&im, dir, rel))
+        return false;
+    *out = LoadTextureFromImage(im);
+    UnloadImage(im);
     SetTextureFilter(*out, TEXTURE_FILTER_POINT); /* crisp pixels, no blur */
     return out->id != 0;
 }
 
 /* <name>.fnt (metrics) and the atlas image it names */
 static bool load_font(UiFont *f, const char *dir, const char *fnt_name) {
-    char path[320];
-    snprintf(path, sizeof(path), "%s/font/%s", dir, fnt_name);
-    if (!Bmfont_Load(&f->meta, path)) {
-        fprintf(stderr, "gritty_golf: cannot read font metrics: %s\n", path);
+    char rel[96];
+    snprintf(rel, sizeof(rel), "gritty_golf/font/%s", fnt_name);
+    ArcAsset fnt = arc_asset_load(dir, rel);
+    bool parsed = fnt.data != NULL && Bmfont_Parse(&f->meta, (const char *)fnt.data);
+    arc_asset_release(&fnt);
+    if (!parsed) {
+        fprintf(stderr, "gritty_golf: cannot read font metrics: %s\n", rel);
         return false;
     }
-    snprintf(path, sizeof(path), "%s/font/%.60s", dir, f->meta.atlas);
-    if (!FileExists(path)) {
-        fprintf(stderr, "gritty_golf: missing font image: %s\n", path);
+    snprintf(rel, sizeof(rel), "gritty_golf/font/%.60s", f->meta.atlas);
+    Image im;
+    if (!load_image(&im, dir, rel))
         return false;
-    }
-    f->atlas = LoadTexture(path);
+    f->atlas = LoadTextureFromImage(im);
+    UnloadImage(im);
     SetTextureFilter(f->atlas, TEXTURE_FILTER_POINT); /* never blur */
     return f->atlas.id != 0;
 }
@@ -151,11 +172,9 @@ static bool load_font(UiFont *f, const char *dir, const char *fnt_name) {
 /* The "used strike" marker: the bat sprite with a checkerboard of its pixels removed. It looks dimmed, but
  * every visible pixel is still a real palette colour (no alpha blending). */
 static bool load_bat_ghost(const char *dir) {
-    char path[320];
-    snprintf(path, sizeof(path), "%s/textures/sprBat.png", dir);
-    if (!FileExists(path))
+    Image im;
+    if (!load_image(&im, dir, "gritty_golf/textures/sprBat.png"))
         return false;
-    Image im = LoadImage(path);
     ImageFormat(&im, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
     Color *px = (Color *)im.data;
     for (int y = 0; y < im.height; y++)
@@ -170,13 +189,9 @@ static bool load_bat_ghost(const char *dir) {
 
 /* Copies the 12x12 hazard pattern into a plain array that the rasteriser (pure C) can read. */
 static bool load_hazard_tile(const char *dir) {
-    char path[320];
-    snprintf(path, sizeof(path), "%s/textures/sprDeathBg.png", dir);
-    if (!FileExists(path)) {
-        fprintf(stderr, "gritty_golf: missing texture: %s\n", path);
+    Image im;
+    if (!load_image(&im, dir, "gritty_golf/textures/sprDeathBg.png"))
         return false;
-    }
-    Image im = LoadImage(path);
     ImageFormat(&im, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
     A.tile_w = im.width > 32 ? 32 : im.width;
     A.tile_h = im.height > 32 ? 32 : im.height;
@@ -188,7 +203,8 @@ static bool load_hazard_tile(const char *dir) {
     return true;
 }
 
-bool gritty_golf_front_init(const char *dir) {
+bool gritty_golf_front_init(const char *assets_dir) {
+    const char *dir = assets_dir ? assets_dir : ""; /* NULL = built-in assets, like "" */
     memset(&A, 0, sizeof(A));
     A.layer_level = -1;
 

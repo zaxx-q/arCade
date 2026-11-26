@@ -40,7 +40,7 @@ arCade: a hub plus a collection of small games in **plain C99** drawn with **ray
 
 ## File Map
 ```
-core/include/arcade/  pure-C headers (game.h = contract, input.h, rng.h, mathx.h, leaderboard.h, sandbox.h, ...); gfx.h = raylib helpers
+core/include/arcade/  pure-C headers (game.h = contract, input.h, rng.h, mathx.h, leaderboard.h, assets.h, sandbox.h, ...); gfx.h = raylib helpers
 core/src/             pure-C implementations (unit-tested)      core/gfx/  raylib helpers (window, loop, drawing)
 app/                  hub: main.c (CLI + state machine), screens.c (menu, leaderboard), backdrop.c (live Synthwave City or sand), smoke.c
 games/<id>/           one game ON THE HUB MENU: <id>_logic.[ch] (pure) + <id>_game.c (raylib) + tests/ + GAME.md + AGENTS.md
@@ -50,7 +50,7 @@ cmake/                helpers: arcade_add_game(), registry generator, raylib fet
 tools/                new_game.cmake, next_version.sh, check_repo.sh, format.sh, gen_raylib_subset.sh, tests/
 tests/                arcade_test.h (tiny test framework) + core unit tests
 docs/                 DEVELOPMENT, ARCHITECTURE, RELEASING, REPORT_GUIDE, ADDING_A_GAME, SANDBOX, raylib_subset (generated)
-assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   .github/  CI + release workflows
+assets/               compiled INTO the executable (beatmaps/, fonts/, gritty_golf/): a release is one single file   .github/  CI + release workflows
 ```
 
 ## Golden Samples (follow these patterns)
@@ -70,6 +70,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 | Random numbers (never `rand()`) | `Rng`, `rng_range`, `rng_float` | `core/include/arcade/rng.h` |
 | 2D math, collisions | `Vec2`, `vec2_*`, `arc_circles_overlap`, `ARC_PI` (no `M_PI`) | `mathx.h`, `common.h` |
 | Portrait 480 x 684 playfield, pointer mapping | `ARC_PF_*`, `arc_pf_from_screen`, `arc_pf_contains` | `playfield.h` |
+| Font, sound, texture or song file from `assets/` | `arc_asset_load(ctx->assets_dir, "fonts/x.ttf")`, `arc_asset_release` | `assets.h` |
 | Safe strings | `arc_strlcpy`, `arc_stricmp` | `str.h` |
 | Input in logic + tests | `ArcadeInput`, `ArcadeMonkey` | `input.h` |
 | Particles, screen shake | `fx_burst`, `shake_start` | `fx.h` |
@@ -87,6 +88,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 | raylib function unsure | `docs/raylib_subset.md`, else `build/<preset>/_deps/raylib-src/src/raylib.h` (6.x differs from 5.x) |
 | Need file/network/OS API | don't: standard C only |
 | Need the network | not in games or core: only the hub, through `app/net_curl.c` (libcurl, optional via `ARCADE_ONLINE`; releases build it in statically, `ARCADE_ONLINE_BUNDLE_CURL`); the protocol and retries are plain C in `core/src/lbnet.c` |
+| Need a data file (image, sound, text) | put it in `assets/` and read it with `arc_asset_load` (it is compiled into the exe) |
 | Adding dependency | Ask first |
 
 ## Key Decisions
@@ -110,6 +112,7 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 ### Never Do
 - Include `raylib.h` / `arcade/gfx.h` from `*_logic.*`, `core/src`, or tests
 - Use `rand()`, `time()`, `M_PI`, VLAs, POSIX/Windows-only APIs in shared code
+- Open a file of `assets/` with `fopen()`/`LoadTexture(path)`/`LoadSound(path)` (the game is one single file: use `arc_asset_load`)
 - Call `DrawText()`/`MeasureText()` (use `gfx_text()`/`gfx_text_width()`: they apply the project font, Poiret One)
 - Call `EndDrawing()` in a game (use `arcade_frame_end()`); skip `arcade_loop_begin(ctx)`
 - Commit `build/`, `scores.txt`, secrets; push directly to `main`; edit generated files (`build/**/generated`, `docs/raylib_subset.md`)
