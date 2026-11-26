@@ -2,10 +2,10 @@
 
 # AGENTS.md - Synthwave City (`synthwave_city`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Not ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
-Synthwave City: a C99 port of the procedural neon megacity of `highsierralabs/Synthwave_City` (MIT). Fly freely, glide between six viewpoints, or let the tour drone fly (the camera banks into turns, its speed follows its height, and a flight or a tour can be taken over at any moment); score = whole kilometres flown. The game never ends and is never ranked. Rules and status: `GAME.md`.
+Synthwave City: a C99 port of the procedural neon megacity of `highsierralabs/Synthwave_City` (MIT). Fly freely, glide between six viewpoints, or let the tour drone fly (the camera banks into turns, its speed follows its height, and a flight or a tour can be taken over at any moment); score = whole kilometres flown. The game never ends by itself: leaving with Esc ends the run and records the score like any other game (under one kilometre records nothing). Rules and status: `GAME.md`.
 
 ## Key Files
 - `swc_core.h`, `swc_city.[ch]`, `swc_traffic.[ch]`, `swc_song.[ch]`: pure generators (city plan, traffic, composition); bit-exact with the TypeScript original

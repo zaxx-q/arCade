@@ -160,6 +160,5 @@ const GameDef game_different_color_def = {
     "A Different Color",                                  /* title             */
     "Find the one cell with a slightly different colour", /* tagline           */
     "click the odd cell on either board   30 s per board after the first   a wrong click ends the run",
-    130,  /* menu order        */
-    true, /* ranked            */
+    130, /* menu order        */
     play};

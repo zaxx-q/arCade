@@ -37,5 +37,4 @@ const GameDef game_@ID@_def = {
     "TODO: one-line hook",          /* tagline                          */
     "WASD / arrows: move",          /* controls hint                    */
     100,                            /* menu order (lower = earlier)     */
-    true,                           /* ranked: score goes to leaderboard */
     play};

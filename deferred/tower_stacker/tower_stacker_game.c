@@ -166,6 +166,5 @@ const GameDef game_tower_stacker_def = {
     "Tower Stacker",                                 /* title             */
     "Drop the sliding bar and keep your tower wide", /* tagline           */
     "click, Space or any key: drop the bar   a perfect landing keeps the full width",
-    160,  /* menu order        */
-    true, /* ranked            */
+    160, /* menu order        */
     play};

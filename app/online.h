@@ -38,10 +38,9 @@ void online_answer_first_run(AppState *app, bool keep_on);
  * all games, 1.. = app->games[*tab - 1]). */
 bool online_leaderboard_start(const AppState *app, int *tab);
 
-void online_tick(AppState *app); /* once per hub frame; never blocks */
-void online_submit(AppState *app, const char *table,
-                   int score);                         /* a ranked run finished (player = app->player) */
-void online_want(AppState *app, const char *table);    /* the Online tab shows this table */
-void online_refresh(AppState *app, const char *table); /* ... and the player pressed refresh */
+void online_tick(AppState *app);                                 /* once per hub frame; never blocks */
+void online_submit(AppState *app, const char *table, int score); /* a run finished (player = app->player) */
+void online_want(AppState *app, const char *table);              /* the Online tab shows this table */
+void online_refresh(AppState *app, const char *table);           /* ... and the player pressed refresh */
 
 #endif

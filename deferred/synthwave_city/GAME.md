@@ -30,7 +30,7 @@ Sesi tamu dan `play()` masing-masing punya `synthwave_city_State` dan `Soundtrac
 - Kamera (port `camera/rig.ts`): miring ke dalam belokan (di tur `0.24 * tanh(samping / 11)` radian; di terbang bebas sedikit miring ke arah geseran samping, `FREE_ROLL * clamp(geser / 70)`, diredam); sudut pandang melebar `7 * smoothstep(90, 420, kecepatan)` derajat; tahap `tur`, `bebas`, `gabung` (ditarik ke jalan terdekat dengan tumbukan), `campur` (tur baru dimulai dari titik itu dan pose melebur 2.5 detik), dan `luncur` (satu detik ke titik pandang, lalu bebas). Mengambil alih dari tur mewarisi posisi dan kecepatan, jadi tidak ada lompatan.
 - Lalu lintas: kendaraan beredar di jalur dengan periode tepat 4096 detik (fungsi murni dari waktu, tanpa state).
 - Musik: lagu 105 BPM, bar 16 sampai 31 dari gerakan pertama diputar berulang; denyut ketukan menggerakkan kilau neon.
-- **Skor = jumlah kilometer penuh yang ditempuh.** Game ini tidak pernah "selesai" dan tidak masuk ranking (`ranked = false`).
+- **Skor = jumlah kilometer penuh yang ditempuh.** Game ini tidak pernah "selesai" dengan sendirinya: keluar dengan Esc mengakhiri run, dan skor itu dicatat ke leaderboard seperti game lain (`finished = true`). Terbang kurang dari satu kilometer (skor 0) tidak dicatat.
 
 ## Cara kerja per frame
 1. `arcade_poll()` mengisi `ArcadeInput` (di smoke run, `scripted_input()` menggantikan "monyet" acak dengan film singkat (900 frame, berulang) yang menyentuh semua kontrol, termasuk tombol H di frame 20 dan 24 (HUD hilang lalu kembali), keenam keadaan saklar L di frame 840 sampai 900 dan tombol V di frame 790, 800, dan 810: medium, low, lalu high lagi). Front-end membaca H, P, dan N sendiri dari `in->typed` (bukan dari papan tombol).
@@ -297,7 +297,7 @@ Cara membandingkan dengan versi web: seed 1984, jam beku di 12, enam titik panda
 - Atlas iklan disebar 6 ms per frame di jendela biasa, jadi panel iklan hologram muncul sekitar satu detik sesudah start; yang lain langsung ada. Di harness headless semuanya digambar di frame pertama.
 - HUD digambar dengan skala menurut tinggi jendela (acuan 720). Bar judul paling atas milik `gfx_hud()` di core tidak ikut skala di jendela selain 720p (kode core tidak diubah). Jendela hub tetap 1280 x 720 tanpa fullscreen, jadi ukuran lain hanya terjadi kalau jendela diperbesar dari luar.
 - Perubahan jalur CPU dilarang tanpa alasan: gambar smoke run (CPU) harus tetap sama persis.
-- Penyimpangan: tidak ada ranking (tidak ada skor yang bermakna) dan game tidak pernah `finished`; keluar dengan Esc.
+- Penyimpangan: game tidak punya game over, jadi satu-satunya akhir run adalah keluar dengan Esc, dan itu dihitung sebagai `finished` kalau sudah menempuh minimal satu kilometer.
 - Ada garis lengkung samar di cakrawala saat terbang sangat tinggi (mode Panorama): langit 2D dan tanah 3D tidak disambung mulus.
 - Render CPU (smoke headless) sekitar 65 ms per frame, jadi 300 frame butuh sekitar 20 detik; di GPU jauh lebih cepat.
 - Logic tidak boleh memanggil `rand`, `srand`, `time`, atau `clock`: semua acak dari `SwcRng` yang diberi seed.

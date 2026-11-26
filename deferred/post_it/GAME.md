@@ -153,7 +153,6 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - Spawn virus dibatasi 10.000 percobaan agar tidak berputar selamanya kalau lapangan terlalu kecil.
 - Tombol yang ditahan memberi kemiringan 0,5, yang sudah sama dengan kecepatan dunia penuh (4 px per tick), jadi keyboard sama cepatnya dengan mouse yang jauh dari pusat.
 - Lebar lapangan sekarang 480 x 684; konstanta seperti `PI_ACC_PX = 240` adalah angka tetap, bukan proporsi lapangan, jadi 120 px dari pusat sudah memberi kecepatan penuh.
-- Game ini `ranked = true`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

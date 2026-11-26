@@ -134,7 +134,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - `dt` diabaikan karena game ini turn-based. Mode time attack (langkah 4) baru akan memakai `dt`.
 - Mengubah `core/src/sortlib.c` memengaruhi test lain (`core.sortlib`) dan game lain yang memakainya.
 - Kalau jatah swap habis, skor yang sudah terkumpul tetap dibawa (game over, bukan skor 0).
-- Game ini `ranked = true`, `order = 70`.
+- Game ini `order = 70`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

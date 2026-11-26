@@ -43,7 +43,7 @@ Satu frame di `play()` (`time_shooter_game.c`) berjalan seperti ini:
 |------|--------|------------------------|
 | `time_shooter_logic.h` | Definisi `ts_Enemy`, `ts_Bullet`, `time_shooter_State`, batas array, `TS_IDLE_SCALE`, dan 4 fungsi publik | menambah field state atau fungsi publik |
 | `time_shooter_logic.c` | Semua aturan: gerak pemain, `time_scale`, spawn, musuh, peluru, skor, plus konstanta (`PLAYER_SPEED`, dll.) | mengubah aturan atau angka keseimbangan |
-| `time_shooter_game.c` | Loop raylib, menggambar, partikel, getaran layar, HUD, dan `game_time_shooter_def` (judul, kontrol di menu, urutan, ranked) | mengubah tampilan atau teks di menu |
+| `time_shooter_game.c` | Loop raylib, menggambar, partikel, getaran layar, HUD, dan `game_time_shooter_def` (judul, kontrol di menu, urutan) | mengubah tampilan atau teks di menu |
 | `tests/test_time_shooter.c` | Unit test (hanya logic) | menambah atau mengubah aturan |
 | `CMakeLists.txt` | Mendaftarkan game ke build lewat `arcade_add_game(...)` | menambah file `.c` atau test baru |
 | `GAME.md` | Dokumen ini | aturan atau kode berubah (jaga pseudocode, flowchart, tabel konsep tetap cocok) |
@@ -142,7 +142,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - `spawn_enemy` mencoba 6 kali mencari titik > 280 px dari pemain, tapi kalau semuanya gagal, titik percobaan terakhir tetap dipakai. Jadi musuh sesekali bisa muncul dekat pemain.
 - Front-end menulis radius sebagai angka langsung (`12.0f` untuk musuh, `14.0f` untuk pemain), bukan memakai `ENEMY_R` / `PLAYER_R`. Kalau radius di logic diubah, ubah juga yang di `time_shooter_game.c`, atau gambar dan hitbox tidak sinkron.
 - Musuh dicek lebih dulu daripada peluru dalam satu langkah. Kalau musuh menyentuh pemain di frame yang sama dengan peluru yang akan mengenainya, musuh yang "menang".
-- Game ini `ranked = true`, `order = 10` (posisi pertama di menu).
+- Game ini `order = 10` (posisi pertama di menu).
 
 ## Langkah implementasi (Implementation steps)
 

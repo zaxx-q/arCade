@@ -578,5 +578,4 @@ const GameDef game_beat_dodge_def = {"beat_dodge",
                                      "Pick a mode and a song, then Left/Right or 1-4: change lane  Dodge: "
                                      "avoid the notes  Catch: be in their lane",
                                      50,
-                                     true,
                                      play};

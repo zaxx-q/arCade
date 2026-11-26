@@ -58,5 +58,4 @@ const GameDef game_sort_it_def = {
     "Be the sorting algorithm: fewest swaps wins",
     "Left/Right or click: choose a bar   Space or click again: swap with the first pick",
     70,
-    true,
     play};

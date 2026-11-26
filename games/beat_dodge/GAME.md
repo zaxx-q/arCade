@@ -335,7 +335,7 @@ Dua program test dijalankan oleh CTest sebagai `beat_dodge.test_beat_dodge` dan 
 - Nyawa habis tetap `finished = true`, jadi skor sampai titik itu dicatat ke leaderboard. Menekan Esc di tengah lagu tidak mencatat apa pun.
 - **Satu papan skor per mode, lagu, dan kesulitan.** `bd_board_name` menamai papan: `<Mode> / <judul lagu> / <kesulitan>` (misalnya `Catch / Bopeebo / hard`), dan hub menyimpannya di kolom `game` dengan kunci `beat_dodge:<nama papan>`. Format file tidak berubah. Konsekuensinya: (1) **mengganti judul lagu atau nama chart di file lagu memulai papan baru yang kosong**, skor lama tetap ada di papan dengan nama lama; (2) dua lagu dengan judul yang sama berbagi papan; (3) judul yang panjang dipotong (bukan mode atau kesulitan) supaya nama muat di `GAME_BOARD_LEN` (48); (4) catatan dari sebelum fitur ini tetap ada di papan polos `beat_dodge` ("older scores"), karena mode, lagu, dan kesulitannya tidak pernah dicatat dan tidak bisa ditebak.
 - **Audio belum diverifikasi** di sandbox build (tidak ada perangkat suara). Yang sudah dites: parsing, konversi, kebenaran chart, ketepatan waktu synth, pembagian lead/backing, dan tampilan lewat screenshot headless.
-- Game ini `ranked = true`, `order = 50`.
+- Game ini `order = 50`.
 
 ## Langkah implementasi (Implementation steps)
 

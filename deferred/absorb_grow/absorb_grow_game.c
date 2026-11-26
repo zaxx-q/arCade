@@ -59,5 +59,4 @@ const GameDef game_absorb_grow_def = {
     "Swallow the small, avoid the big, keep growing",
     "WASD: move   green = edible   red = dangerous   reach size 150 or survive 90 s",
     60,
-    true,
     play};

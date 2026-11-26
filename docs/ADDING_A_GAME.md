@@ -6,7 +6,7 @@
 3. **Mainkan**: `cmake --preset dev && cmake --build --preset dev && build/dev/bin/arCade` -> game muncul di menu. (`--list` menampilkan game yang ada di menu, yaitu isi `games/`; `--list --all` menambahkan game di `deferred/`.)
 4. **Ganti mekaniknya** di `my_game_logic.c` (C murni, deterministik, tanpa raylib), dan tulis test-nya lebih dulu atau bersamaan. Pertahankan 4 fungsi: `init`, `step`, `is_over`, `score`.
 5. **Gambar** di `my_game_game.c` dengan helper `gfx_*` dan palet `ARC_COL_*`. Pertahankan pemanggilan loop (`arcade_loop_begin`, `arcade_poll`, `arcade_frame_end`).
-6. **Isi metadata**: `GameDef` di bagian bawah `my_game_game.c` (tagline, controls, `order`, `ranked`), lalu `GAME.md` dan bagian "Game-specific rules" di `AGENTS.md`.
+6. **Isi metadata**: `GameDef` di bagian bawah `my_game_game.c` (tagline, controls, `order`), lalu `GAME.md` dan bagian "Game-specific rules" di `AGENTS.md`.
 7. **Cek**: `bash tools/format.sh && bash tools/check_repo.sh && ctest --preset logic`, lalu smoke run: `build/headless/bin/arCade --smoke my_game --frames 300`.
 8. **Buka PR** dengan judul `feat(my_game): add my_game`.
 

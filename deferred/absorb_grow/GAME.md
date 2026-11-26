@@ -135,7 +135,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - `spawn_blob` mencoba 8 kali; kalau semua gagal, posisi percobaan terakhir tetap dipakai, jadi blob bisa sesekali muncul agak dekat pemain.
 - Blob besar awal (setiap blob ke-7) diberi ukuran **setelah** `spawn_blob`, jadi posisinya dipilih berdasarkan ukuran lamanya.
 - Skor naik walaupun kalah. HUD memperlihatkan skor berjalan.
-- Game ini `ranked = true`, `order = 60`.
+- Game ini `order = 60`.
 
 ## Langkah implementasi (Implementation steps)
 

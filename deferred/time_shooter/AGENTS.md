@@ -2,7 +2,7 @@
 
 # AGENTS.md - Time Shooter (`time_shooter`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 1 | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 1
 
 ## Overview
 Time only moves when you move. Rules and status: `GAME.md`.

@@ -161,7 +161,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - Sudut musuh tidak dibungkus ke `0..2pi` (nilainya terus membesar). Dengan `double` itu aman untuk berjam-jam bermain.
 - Musuh bergabung saat bolamu melewati jam 3 (garis lap), sekitar 109 px dari lintasan bawah, jadi musuh baru tidak pernah muncul langsung di atas bolamu.
 - Rem membuat bola lebih besar (60 px) dan mudah kena, gas membuat bola kecil (36 px). Strategi bukan "selalu ngebut".
-- Game ini `ranked = true`, `order = 150`.
+- Game ini `order = 150`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

@@ -2,7 +2,7 @@
 
 # AGENTS.md - New Star (`new_star`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 New Star: tap the newest star after each fade; tapping an old star ends the run; from star 10 each round has a 15 s limit; score = new stars found. Rules and status: `GAME.md`.

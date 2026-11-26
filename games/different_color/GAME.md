@@ -147,7 +147,7 @@ cmake --preset headless && cmake --build --preset headless && build/headless/bin
 - Untuk papan yang bukan persegi penuh (misalnya 5 kotak di grid 3 x 2), kotak kelebihan tetap diwarnai tetapi tidak pernah menjadi sel yang beda.
 - Penarikan warna memakai penolakan (`DC_MAX_TRIES`); kalau gagal 10.000 kali, dipakai warna cadangan. Dalam praktik tidak pernah terjadi, tetapi cabang itu harus tetap ada supaya game tidak berputar selamanya.
 - Lebar kotak turun makin kecil di papan besar. Di 20 x 20 di lapangan 480 piksel, satu kotak sekitar 22 x 13 px, jadi toleransi klik 8 px berarti banyak.
-- Game ini `ranked = true`, `order = 130`.
+- Game ini `order = 130`.
 
 ## Langkah implementasi (Implementation steps)
 Daftar ini adalah pengembangan dari v1.

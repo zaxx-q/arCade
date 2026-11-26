@@ -143,5 +143,4 @@ const GameDef game_ghost_loop_def = {
     "WASD: move   SPACE: end the round early   R: redo   U: undo   C: restart   "
     "a ghost on a pad holds its door open for you",
     40,
-    true,
     play};

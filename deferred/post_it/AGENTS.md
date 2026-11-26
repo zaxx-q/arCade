@@ -2,7 +2,7 @@
 
 # AGENTS.md - Post It (`post_it`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 Post It: tilt the world with the pointer offset, glue post-its to your cluster, dodge viruses; score = cluster blocks. Rules and status: `GAME.md`.

@@ -2,7 +2,7 @@
 
 # AGENTS.md - @TITLE@ (`@ID@`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: @OWNER@ | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: @OWNER@
 
 ## Overview
 TODO(@OWNER@): one-sentence hook. Rules and status: `GAME.md`.

@@ -2,7 +2,7 @@
 
 # AGENTS.md - Ghost Loop (`ghost_loop`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 4 | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Member 4
 
 ## Overview
 Past runs replay as ghosts that help you. Rules and status: `GAME.md`.

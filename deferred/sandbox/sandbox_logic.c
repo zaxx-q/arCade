@@ -56,6 +56,7 @@ void sbx_init(sbx_State *s, unsigned seed) {
     s->paused = false;
     s->pal_hold = false;
     s->pal_hold2 = false;
+    s->painted = false;
     s->ticks = 0;
     build_scene(s);
 }
@@ -152,10 +153,14 @@ void sbx_step(sbx_State *s, const ArcadeInput *in, float dt) {
         s->pal_hold2 = false;
     int cx = (int)(in->aim_x / SBX_CELL), cy = (int)(in->aim_y / SBX_CELL);
     if (!on_panel) {
-        if (in->fire && !s->pal_hold)
+        if (in->fire && !s->pal_hold) {
             sandbox_paint(&s->world, cx, cy, s->brush, s->element);
-        if (in->alt && !s->pal_hold2)
+            s->painted = true;
+        }
+        if (in->alt && !s->pal_hold2) {
             sandbox_paint(&s->world, cx, cy, s->brush, s->element2);
+            s->painted = true;
+        }
     }
     if (!s->paused) {
         sandbox_step(&s->world);
@@ -166,6 +171,10 @@ void sbx_step(sbx_State *s, const ArcadeInput *in, float dt) {
 bool sbx_is_over(const sbx_State *s) {
     (void)s;
     return false;
+}
+
+bool sbx_painted(const sbx_State *s) {
+    return s->painted;
 }
 
 int sbx_score(const sbx_State *s) {

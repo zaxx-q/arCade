@@ -55,5 +55,4 @@ const GameDef game_echo_maze_def = {
     "Navigate a pitch-black maze by sonar",
     "WASD: move   Space: send a sonar ping (1 s cooldown)   reach the green exit, fewer pings = more points",
     20,
-    true,
     play};

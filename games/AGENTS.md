@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-08 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-26 -->
 
 # AGENTS.md - games/
 
@@ -27,7 +27,7 @@ Logic-only builds need no raylib: `cmake --preset logic`. To see the game: `cmak
 ## Code style & conventions
 - **Loop pattern** (in `<id>_game.c`): `arcade_loop_begin(ctx); while (arcade_loop_running()) { arcade_poll(&in); step(...); BeginDrawing(); draw; arcade_frame_end(); if (over) break; }`. Never call `EndDrawing()`, `InitWindow()`, `WindowShouldClose()`, or read the keyboard directly.
 - **Logic is pure and deterministic**: no raylib, no `rand()`/`time()`, no globals; randomness from an `Rng` seeded with `ctx->seed`; time only through the `dt`/fixed step passed in.
-- **Return value**: `finished = true` means game over/level complete (score is recorded if `ranked`); ESC returns `finished = false` (nothing recorded). `score >= 0`.
+- **Return value**: `finished = true` means the run ended (game over, level complete, or leaving a game that has no end) and its score is always recorded and uploaded: there are no unranked games. ESC in a game that can be lost returns `finished = false` (nothing recorded). A game with no end (`sandbox`, `synthwave_city`) returns `finished = true` when the player leaves after really playing (the sandbox: painted something; the city: flew at least one kilometre), so a quick look and Esc records nothing. `score >= 0`.
 - **Separate high-score tables (optional)**: a game with modes or levels can name the table of a run by writing it into `ctx->board` (`GAME_BOARD_LEN` bytes, may be NULL: check) before `play()` returns; the hub then records and ranks the score in `<id>:<board>` only. Leave it empty for one table per game (what every game did before). Example: `beat_dodge` (`bd_board_name`).
 - **Memory**: fixed-size arrays (`MAX_*` constants); big state is `static` in `play()`. No `malloc` unless justified in `GAME.md`.
 - **Window**: always 1280x720 (`ARC_SCREEN_W/H`), no fullscreen calls. HUD uses `gfx_hud()`; colours come from the `ARC_COL_*` palette.

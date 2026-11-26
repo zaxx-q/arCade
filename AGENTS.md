@@ -1,6 +1,6 @@
 <!-- FOR AI AGENTS - Human readability is a side effect, not a goal -->
 <!-- Managed by agent: keep sections and order; edit content, not structure -->
-<!-- Last updated: 2026-11-25 | Last verified: 2026-11-08 -->
+<!-- Last updated: 2026-11-26 | Last verified: 2026-11-08 -->
 
 # AGENTS.md
 
@@ -125,7 +125,6 @@ assets/               shipped with releases (beatmaps/, fonts/, gritty_golf/)   
 | step | one fixed `ARC_DT` (1/60 s) update of game logic |
 | monkey | reproducible random `ArcadeInput` for tests and smoke runs |
 | smoke run | `arCade --smoke`: scripted input, bounded frames, PNG screenshots |
-| ranked | `GameDef.ranked`: result goes to the leaderboard |
 
 ## Scoped AGENTS.md (MUST read when working in these directories)
 | Directory | File |

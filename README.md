@@ -128,7 +128,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
       </a>
       <p align="left">
-        Mainan falling-sand dengan 34 elemen dan suhu yang dihitung nyata: pasir, air, lava yang berubah warna menurut suhunya lalu membatu, api, TNT yang meledak menjadi ratusan percikan ke segala arah, uranium yang memanaskan diri, meleleh, lalu kritis dan menyapu dunia dengan sinar gamma, baja yang menghantar panas dan bata yang menyekat, dan lebih banyak lagi. Gambar dengan mouse, arahkan pointer untuk melihat suhu, tekan T untuk tampilan termal.<br/>
+        Mainan falling-sand dengan 34 elemen dan suhu yang dihitung nyata: pasir, air, lava yang berubah warna menurut suhunya lalu membatu, api, TNT yang meledak menjadi ratusan percikan ke segala arah, uranium yang memanaskan diri, meleleh, lalu kritis dan menyapu dunia dengan sinar gamma, baja yang menghantar panas dan bata yang menyekat, dan lebih banyak lagi. Gambar dengan mouse, arahkan pointer untuk melihat suhu, tekan T untuk tampilan termal. Skor = jumlah sel yang terisi saat kamu keluar dengan Esc.<br/>
         <b>Kontrol:</b> Klik atau seret untuk melukis (mouse kanan melukis elemen kedua, awalnya penghapus; klik kanan pada palet menggantinya, X menukar keduanya), klik palet, tombol 0-9, [ ] atau roda mouse untuk memilih elemen, +/- untuk ukuran kuas, Space untuk jeda, C untuk membersihkan, R untuk mereset.
       </p>
     </td>
@@ -216,7 +216,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/synthwave_city.png" width="380" alt="Screenshot Synthwave City"/>
       </a>
       <p align="left">
-        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Skor = kilometer yang ditempuh; tidak ada game over.<br/>
+        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Skor = kilometer yang ditempuh, dicatat ke leaderboard saat kamu keluar dengan Esc; tidak ada game over.<br/>
         <b>Kontrol:</b> WASD atau panah untuk terbang, tahan klik kiri dan seret untuk melihat sekeliling, klik kanan untuk dorongan, roda mouse untuk skala kecepatan, Spasi tur otomatis, 1-6 titik pandang, T ganti suasana, M bisukan musik.<br/>
         <b>Di hub:</b> game ini juga menjadi latar belakang hidup menu: klik latar belakang untuk memainkannya, <code>Esc</code> kembali ke menu.
       </p>

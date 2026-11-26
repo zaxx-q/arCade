@@ -1,11 +1,11 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-22 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-26 -->
 
 # AGENTS.md - Sandbox (`sandbox`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Unranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
-Falling-sand toy on the shared `core/sandbox` engine (also animates the hub background). Rules and status: `GAME.md`.
+Falling-sand toy on the shared `core/sandbox` engine (also animates the hub background). Score = cells filled when the player leaves with Esc, recorded like any other game (a run in which nothing was painted records nothing: `sbx_painted`). Rules and status: `GAME.md`.
 
 ## Key Files
 - `sandbox_logic.[ch]`: pure rules (no raylib), state struct, palette geometry, `init/step/is_over/score`

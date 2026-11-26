@@ -25,7 +25,8 @@ typedef struct GameContext {
 
 typedef struct GameResult {
     int score;     /* >= 0 */
-    bool finished; /* true = game over / level done (score is recorded); false = player pressed ESC */
+    bool finished; /* true = the run ended (game over, level done, or leaving a game that has no end): the
+                      score is recorded; false = the player abandoned it with ESC: nothing is recorded */
 } GameResult;
 
 typedef GameResult (*GamePlayFn)(const GameContext *ctx);
@@ -36,7 +37,6 @@ typedef struct GameDef {
     const char *tagline;  /* one-line hook shown on the menu card              */
     const char *controls; /* short controls hint shown on the menu card        */
     int order;            /* menu position: lower first, ties broken by id     */
-    bool ranked;          /* false = never written to the leaderboard          */
     GamePlayFn play;      /* runs the whole game loop and returns the result   */
 } GameDef;
 

@@ -13,7 +13,7 @@ Panahnya tidak pernah berbalik: **kode murni tidak pernah meng-include raylib**.
 
 ## Kontrak game (`core/include/arcade/game.h`)
 
-Setiap game mengekspor satu `const GameDef game_<id>_def` yang berisi `play(const GameContext*)`. Hub memanggil `play`, yang menjalankan seluruh game loop dan mengembalikan `GameResult {score, finished}`. Game `ranked` dengan `finished == true` ditulis ke `scores.txt`. Game yang punya beberapa mode atau level boleh mengisi `GameContext.board` (opsional, bisa `NULL`) dengan nama papan skor run itu, misalnya `Dodge / Bopeebo / normal`; hub lalu menyimpan dan meranking skornya hanya di papan itu (kunci `<id>:<papan>`, lihat "papan" di `leaderboard.h`). Game yang tidak mengisinya tetap satu papan per game, seperti sebelumnya.
+Setiap game mengekspor satu `const GameDef game_<id>_def` yang berisi `play(const GameContext*)`. Hub memanggil `play`, yang menjalankan seluruh game loop dan mengembalikan `GameResult {score, finished}`. Hasil dengan `finished == true` ditulis ke `scores.txt` (dan dikirim ke leaderboard online kalau menyala); tidak ada game yang dikecualikan. Game yang punya beberapa mode atau level boleh mengisi `GameContext.board` (opsional, bisa `NULL`) dengan nama papan skor run itu, misalnya `Dodge / Bopeebo / normal`; hub lalu menyimpan dan meranking skornya hanya di papan itu (kunci `<id>:<papan>`, lihat "papan" di `leaderboard.h`). Game yang tidak mengisinya tetap satu papan per game, seperti sebelumnya.
 
 Di dalam `play`, setiap game mengikuti loop yang sama:
 

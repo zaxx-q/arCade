@@ -1,6 +1,6 @@
 # Sandbox - design brief
 
-**Owner:** Leader  **Folder:** `deferred/sandbox/`  **Status:** v4 sudah jalan (unranked): 34 elemen, suhu yang benar-benar dihitung, mouse kanan memegang elemen kedua (awalnya penghapus), ledakan dari percikan yang terbang ke segala arah, uranium yang meleleh lalu kritis, dan lava yang berubah warna menurut suhu lalu membatu
+**Owner:** Leader  **Folder:** `deferred/sandbox/`  **Status:** v4 sudah jalan: 34 elemen, suhu yang benar-benar dihitung, mouse kanan memegang elemen kedua (awalnya penghapus), ledakan dari percikan yang terbang ke segala arah, uranium yang meleleh lalu kritis, dan lava yang berubah warna menurut suhu lalu membatu
 
 ## Hook
 Mainan falling-sand (pasir jatuh). Engine yang sama (`core/sandbox*.c`) juga menganimasikan background hub, jadi menambah elemen akan memperbaiki keduanya.
@@ -100,16 +100,16 @@ Kolom "Ingatan" adalah arti `aux[]` (ingatan per sel).
 | Basalt (tersembunyi) | padat | batu gelap hasil lava yang mengeras; melebur lagi jadi lava di 1100 C | - |
 
 ## Aturan dan skor
-Tidak ada menang atau kalah. "Skor" di HUD hanyalah jumlah sel yang terisi. Game ini `ranked = false`.
+Tidak ada menang atau kalah. "Skor" di HUD adalah jumlah sel yang terisi.
 
-Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tidak dicatat ke leaderboard (`finished = false`).
+Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Game ini tidak punya akhir, jadi keluar dengan Esc mengakhiri run: skor saat itu dicatat ke leaderboard seperti game lain (`finished = true`) dan dikirim ke leaderboard online. Tapi hanya run yang benar-benar dimainkan yang dicatat: `play()` mengembalikan `finished = sbx_painted(&s)`, jadi kalau pemain keluar tanpa melukis atau menghapus apa pun, tidak ada yang dicatat (`finished = false`). Itu perlu karena adegan awal sudah punya skor (sekitar 1600 sel, dan tanamannya tumbuh sendiri), jadi mengintip sandbox lalu keluar tanpa itu akan menaruh adegan yang belum disentuh di papan. Skor tertinggi yang mungkin adalah `SBX_W * SBX_H` = 49600 (layar penuh).
 
 ## Cara kerja per frame
 1. `arcade_poll(&in)` mengisi `ArcadeInput`. Yang dipakai game ini: `typed` (huruf atau angka yang diketik), `wheel` (scroll mouse), `action_pressed` (Space/Enter), `fire`, `fire_pressed`, `alt` dan `alt_pressed` (mouse kiri dan kanan), serta posisi mouse `aim_x`, `aim_y`.
 2. `sbx_step(&s, &in, ARC_DT)` (`dt` diabaikan):
    1. `handle_keys`: angka `0`-`9` memilih slot palet 0-9; `[` dan `]` serta scroll mouse menggeser pilihan (berputar); `c` mengosongkan dunia; `r` membangun ulang scene awal; `x` menukar `element` dan `element2`; `t` membalik `world.heat_view` (tampilan termal); `+`/`=` dan `-` mengubah ukuran kuas (dijepit 0 sampai 12); Space atau Enter membalik `paused`.
    2. Kalau mouse kiri baru ditekan di atas palet, slot di bawahnya menjadi elemen pertama (`sbx_select`) dan `pal_hold` menyala sampai tombol dilepas. Mouse kanan yang baru ditekan di atas palet menjadi elemen kedua (`sbx_select2`) dengan `pal_hold2` yang sama gunanya.
-   3. Posisi mouse diubah menjadi sel: `aim / SBX_CELL`. Selama pointer tidak di atas panel palet: mouse kiri (kalau `pal_hold` mati) memanggil `sandbox_paint` dengan `element`, mouse kanan (kalau `pal_hold2` mati) memanggil `sandbox_paint` dengan `element2` (awalnya `EL_EMPTY`, yaitu penghapus). Melukis tetap bisa dilakukan saat pause.
+   3. Posisi mouse diubah menjadi sel: `aim / SBX_CELL`. Selama pointer tidak di atas panel palet: mouse kiri (kalau `pal_hold` mati) memanggil `sandbox_paint` dengan `element`, mouse kanan (kalau `pal_hold2` mati) memanggil `sandbox_paint` dengan `element2` (awalnya `EL_EMPTY`, yaitu penghapus). Setiap panggilan itu menyalakan `painted`. Melukis tetap bisa dilakukan saat pause.
    4. Kalau tidak sedang pause, `sandbox_step(&s->world)` menjalankan satu tick dunia dan `ticks++`.
 3. Di dalam `sandbox_step` (engine): `moved[]` digeser (bit "bergerak di tick ini" menjadi "bergerak di tick lalu", bit arah terbang dipertahankan), dan `tick++`. Lalu setiap baris dari **bawah ke atas**, arah penyisiran bergantian, tiap sel yang belum bertindak menjalankan `sandbox_react` (kimia dan suhu) dan, kalau tidak berubah, `sandbox_move` (gerak; partikel terbang seperti percikan dan sinar gamma dilayani `sandbox_fly` di `sandbox_burst.c`). Setelah itu `sandbox_heat_step` mengalirkan panas antar sel. Setiap 6 tick `sandbox_life_step` memajukan satu generasi Game of Life.
 4. Front-end menggambar dunia lewat `gfx_sandbox_view_draw` (tekstur 320 x 155, warna tiap sel dari `sandbox_pixel`, diperbesar menjadi 1280 x 620; `sandbox_pixel` juga menggambar bara pijar dan tampilan termal), lalu lingkaran kuas, HUD ("SANDBOX", skor, nama elemen, ukuran kuas, "THERMAL VIEW", "PAUSED"), baris bantuan, label nama dan suhu di dekat pointer (`sbx_probe`), dan palet di bawah layar. Semua itu digambar oleh satu fungsi, `draw_frame`.
@@ -129,7 +129,7 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `deferred/sandbox/sandbox_logic.h` | `sbx_State`, `SBX_W/H/CELL`, geometri palet `SBX_PAL_*`, fungsi publik `sbx_*` | menambah field state game atau mengubah tata letak palet |
 | `deferred/sandbox/sandbox_logic.c` | `handle_keys`, `build_scene` (termasuk panci di atas Heater), `sbx_step`, `sbx_probe`, klik palet kiri dan kanan, skor, batas kuas | menambah tombol atau alat baru |
 | `deferred/sandbox/sandbox_game.c` | Loop raylib, `draw_frame`, `draw_palette`, label suhu, HUD, `game_sandbox_def` | mengubah tampilan palet, label suhu, atau teks di menu |
-| `deferred/sandbox/tests/test_sandbox.c` | 18 unit test untuk lapisan game | menambah tombol atau alat |
+| `deferred/sandbox/tests/test_sandbox.c` | 19 unit test untuk lapisan game | menambah tombol atau alat |
 | `tests/test_sandbox.c` (di root repo) | 90 unit test untuk engine (`core.sandbox`) | menambah elemen atau aturan |
 | `core/gfx/gfx_draw.c` | `gfx_sandbox_view_draw`: memindahkan `sandbox_pixel` ke tekstur | jarang |
 | `app/backdrop.c` | Animasi pasir dan air di belakang menu hub (memakai engine yang sama) | mengubah background hub |
@@ -183,6 +183,7 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `paused` | `bool` | `true` kalau simulasi dijeda |
 | `pal_hold` | `bool` | tekanan mouse kiri dimulai di palet, jangan melukis sampai dilepas |
 | `pal_hold2` | `bool` | hal yang sama untuk mouse kanan |
+| `painted` | `bool` | pemain sudah melukis atau menghapus sesuatu di dunia sejak sandbox dibuka; hanya run seperti itu yang dicatat |
 | `ticks` | `unsigned` | jumlah tick simulasi yang sudah berjalan |
 
 `ThermalDef` (satu baris di `k_thermal[]`, `sandbox_heat.c`): suhu awal (`temp0`), daya hantar (`cond`), kapasitas panas (`cap`), kehilangan ke udara (`loss`), suhu menyala sendiri (`autoignite`), batas dingin dan panas beserta elemen hasilnya (`cold_t`/`cold_to`, `hot_t`/`hot_to`), `rate`, `fixed` (suhu tetap), dan kalor laten pendidihan/pembekuan (`latent_hot`/`latent_cold`).
@@ -193,6 +194,7 @@ Rumusnya (`sbx_score`): `lebar * tinggi - jumlah sel kosong`. Hasil akhirnya tid
 | `sbx_init(s, seed)` | Membuat dunia 320 x 160, memilih pasir, kuas 3, lalu `build_scene` | `play()`, test |
 | `sbx_step(s, in, dt)` | Satu langkah: tombol, klik palet, melukis, simulasi | `play()` tiap frame, test |
 | `sbx_is_over(s)` / `sbx_score(s)` | Selalu `false` dan jumlah sel terisi | `play()` |
+| `sbx_painted(s)` | Apakah pemain sudah melukis sesuatu (menentukan `finished` saat keluar) | `play()`, test |
 | `sbx_over_panel(px, py)` / `sbx_palette_slot_at(px, py)` / `sbx_select(s, i)` | Pointer di atas panel, slot palet di bawah pointer, memilih slot pertama (`sbx_select`) atau kedua (`sbx_select2`) | `sbx_step`, `draw_palette`, test |
 | `sbx_probe(s, px, py, &id, &temp)` | Elemen dan suhu sel di bawah pointer; `false` kalau pointer di palet atau di luar dunia | `play()` (label suhu), test |
 | `build_scene(s)` (static) | Mengosongkan dunia lalu menaruh mangkuk batu berisi air, panci baja di atas Heater dengan kaki bata, rak tanah, dan tiga biji | `sbx_init`, tombol `r` |
@@ -254,6 +256,7 @@ Lapisan game (`deferred/sandbox/tests/test_sandbox.c`, nama test CTest `sandbox.
 | `test_monkey_is_safe` | 3000 langkah input acak: kuas selalu 0-12 dan kedua elemen terpilih selalu elemen yang terlihat di palet atau penghapus |
 | `test_palette_geometry` | Setiap elemen punya slot; titik tengah slot mengenai slot itu sendiri; slot kosong dan dunia mengembalikan -1; panel mulai tepat di tempat dunia berakhir |
 | `test_click_on_palette_selects_without_painting` | Klik palet memilih elemen tanpa melukis; menyeret ke dunia tidak melukis sampai tombol dilepas |
+| `test_a_run_counts_only_once_the_player_painted` | Waktu berlalu, `C`, `R`, klik palet, dan menyeret klik palet ke dunia tidak menyalakan `painted`; klik baru di dunia menyalakannya dan tetap menyala setelah `C`; mouse kanan (penghapus) juga menghitung |
 | `test_cannot_paint_through_the_panel` | Mouse di atas panel tidak melukis atau menghapus; klik slot kosong (slot pertama setelah elemen terakhir) tidak mengubah pilihan |
 | `test_right_mouse_erases_by_default` | Elemen kedua awalnya `EL_EMPTY`: mouse kanan menghapus |
 | `test_right_click_on_a_slot_sets_the_second_element` | Klik kanan pada slot palet memilih elemen kedua tanpa mengubah elemen pertama dan tanpa melukis; menyeret ke dunia tidak melukis sampai tombol dilepas |

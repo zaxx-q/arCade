@@ -2,7 +2,7 @@
 
 # AGENTS.md - BW Reflex (`bw_reflex`)
 
-Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader | Ranked
+Scope: this folder only. Repo rules: `../../AGENTS.md`. Game contract: `../AGENTS.md`. Design brief: `GAME.md`. Owner: Leader
 
 ## Overview
 BW Reflex: flip the base colour so it matches the falling block when it lands; score = blocks matched. Rules and status: `GAME.md`.
