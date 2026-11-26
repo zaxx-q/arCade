@@ -115,7 +115,34 @@ static void draw_in_column(const char *text, int x, int y, int size, int max_w, 
 }
 
 /* ---------------------------------------------------------------- name entry */
-static void draw_name_view(const AppState *app, const char *buf, float t) {
+/* The hub starts without a name (main.c leaves app->player empty), and this screen does not let go until one
+ * is typed, so nobody lands on the boards under a default. Later (N in the menu) a player who already has a
+ * name may press Enter on an empty line to keep it. A name needs a visible character: spaces alone would show
+ * as an empty row on the boards. */
+#define NAME_NUDGE_SECS 0.7f /* how long the "a name is required" line stays red after an empty Enter */
+
+static bool has_visible_char(const char *s) {
+    for (; *s != '\0'; s++)
+        if (*s != ' ')
+            return true;
+    return false;
+}
+
+/* Copies `src` into `dst` without the spaces at either end. */
+static void copy_trimmed(char *dst, size_t cap, const char *src) {
+    while (*src == ' ')
+        src++;
+    size_t n = strlen(src);
+    while (n > 0 && src[n - 1] == ' ')
+        n--;
+    if (n >= cap)
+        n = cap - 1;
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+}
+
+static void draw_name_view(const AppState *app, const char *buf, float nudge, float t) {
+    const bool required = app->player[0] == '\0'; /* no name yet: an empty line cannot be accepted */
     gfx_backdrop(t);
     backdrop_draw(0.55f);
     draw_title("a collection of small, strange games");
@@ -124,19 +151,29 @@ static void draw_name_view(const AppState *app, const char *buf, float t) {
     char shown[LB_NAME_LEN + 2];
     snprintf(shown, sizeof(shown), "%s%s", buf, ((int)(t * 2.0f) & 1) ? "_" : " ");
     gfx_text_center(shown, ARC_SCREEN_W / 2, 352, 34, ARC_COL_YELLOW);
-    gfx_text_center(TextFormat("empty keeps \"%s\"", app->player), ARC_SCREEN_W / 2, 398, 15, ARC_COL_DIM);
-    const Hint hint[] = {{"Enter", "continue"}};
-    draw_hint_row_centered(ARC_SCREEN_H - 38, hint, 1);
+    if (required)
+        gfx_text_center("type a name to continue", ARC_SCREEN_W / 2, 398, 15,
+                        nudge > 0.0f ? ARC_COL_RED : ARC_COL_DIM);
+    else
+        gfx_text_center(TextFormat("empty keeps \"%s\"", app->player), ARC_SCREEN_W / 2, 398, 15,
+                        ARC_COL_DIM);
+    if (!required || has_visible_char(buf)) { /* Enter only shows as a key once it would do something */
+        const Hint hint[] = {{"Enter", "continue"}};
+        draw_hint_row_centered(ARC_SCREEN_H - 38, hint, 1);
+    }
 }
 
 Screen screen_name(AppState *app) {
     char buf[LB_NAME_LEN] = ""; /* starts empty: typing replaces the current name */
     int len = 0;
     float t = 0.0f;
+    float nudge = 0.0f; /* seconds left of the red "type a name" line after Enter on an empty line */
     arcade_flush_input();
     while (!arcade_quit_requested()) {
         online_tick(app);
         t += ARC_DT;
+        if (nudge > 0.0f)
+            nudge -= ARC_DT;
         for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
             if (c >= 32 && c < 127 && c != '|' && len < LB_NAME_LEN - 1) {
                 buf[len++] = (char)c;
@@ -145,13 +182,17 @@ Screen screen_name(AppState *app) {
         if (IsKeyPressed(KEY_BACKSPACE) && len > 0)
             buf[--len] = '\0';
         if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
-            if (len > 0)
-                arc_strlcpy(app->player, buf, sizeof(app->player));
-            return SCR_MENU;
+            if (has_visible_char(buf)) {
+                copy_trimmed(app->player, sizeof(app->player), buf);
+                return SCR_MENU;
+            }
+            if (app->player[0] != '\0') /* changing the name with N: an empty line keeps the current one */
+                return SCR_MENU;
+            nudge = NAME_NUDGE_SECS; /* the first name is required: stay here */
         }
         backdrop_update(false, false, 0, 0);
         BeginDrawing();
-        draw_name_view(app, buf, t);
+        draw_name_view(app, buf, nudge, t);
         EndDrawing();
     }
     return SCR_QUIT;
@@ -1165,9 +1206,15 @@ const char *screens_preview_name(int which) {
 
 void screens_draw_preview(AppState *app, int which, float t) {
     switch (which) {
-    case PREVIEW_NAME:
-        draw_name_view(app, "Ana", t);
+    case PREVIEW_NAME: {
+        /* the screen as it is at startup: no name yet, so one is required */
+        char kept[LB_NAME_LEN];
+        arc_strlcpy(kept, app->player, sizeof(kept));
+        app->player[0] = '\0';
+        draw_name_view(app, "Ana", 0.0f, t);
+        arc_strlcpy(app->player, kept, sizeof(app->player));
         break;
+    }
     case PREVIEW_MENU:
     case PREVIEW_MENU_SANDBOX:
     case PREVIEW_ARCHIVE:

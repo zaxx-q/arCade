@@ -128,7 +128,8 @@ int main(int argc, char **argv) {
                  : "");
     lb_load(&app.lb, app.scores_path); /* a missing file just means "no scores yet" */
     online_init(&app);                 /* the online leaderboard: on by default, after the first-run notice */
-    arc_strlcpy(app.player, "PLAYER", sizeof(app.player));
+    /* app.player stays empty: the name screen is the first one and does not accept an empty name, so nobody
+     * plays under a default one */
     app_sort_games(&app);
 
     arcade_gfx_init(false, app.assets_dir);
