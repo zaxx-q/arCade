@@ -19,6 +19,7 @@
 #define BD_W 160
 #define BD_H 90
 #define BD_CELL 8 /* 160 * 8 = 1280, 90 * 8 = 720 */
+#define BD_BRUSH 1
 
 /* The vault interior in sandbox cells: 16 wide, 10 tall, hanging in the open on the right-hand side.
  * It sits clear of the ledges and streams (x 98..135), and the drain below keeps heaps from ever reaching it,
@@ -132,9 +133,9 @@ void backdrop_update(bool paint_sand, bool paint_water, int mouse_x, int mouse_y
     if (g_frame % 3 == 0)
         sandbox_paint(&g_sb, rng_range(&g_rng, 106, 121), 2, 0, EL_WATER); /* water trickle */
     if (paint_sand)
-        sandbox_paint(&g_sb, mouse_x / BD_CELL, mouse_y / BD_CELL, 2, EL_SAND);
+        sandbox_paint(&g_sb, mouse_x / BD_CELL, mouse_y / BD_CELL, BD_BRUSH, EL_SAND);
     if (paint_water)
-        sandbox_paint(&g_sb, mouse_x / BD_CELL, mouse_y / BD_CELL, 2, EL_WATER);
+        sandbox_paint(&g_sb, mouse_x / BD_CELL, mouse_y / BD_CELL, BD_BRUSH, EL_WATER);
     sandbox_step(&g_sb);
     (void)vault_update(&g_sb, &g_vault); /* opens (and drains) once it is full; the menu polls is_open */
 
