@@ -6,9 +6,9 @@
 [![Language: C99](https://img.shields.io/badge/Language-C99-blue.svg)](https://en.wikipedia.org/wiki/C99)
 [![Graphics: raylib 6.2](https://img.shields.io/badge/Graphics-raylib%206.2-red.svg)](https://www.raylib.com)
 
-arCade adalah hub arcade yang berisi kumpulan game kecil yang ditulis dengan C99 prosedural dan raylib 6.2, dibuat untuk proyek tugas kuliah (Dasar Pemrograman). Di dalamnya ada background menu berupa simulasi pasir jatuh (falling-sand) yang beranimasi, serta leaderboard lokal yang tersimpan permanen.
+arCade adalah hub arcade berisi kumpulan game yang ditulis dengan C99 prosedural dan raylib 6.2, dibuat untuk proyek tugas kuliah Dasar Pemrograman. Di dalamnya ada background menu berupa kota Synthwave tanpa batas yang beranimasi, dengan simulasi pasir jatuh (falling-sand) sebagai pilihan lain, serta leaderboard lokal yang tersimpan permanen.
 
-Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. Logic berjalan dengan fixed timestep dan tidak bergantung pada grafis, sehingga seluruh proyek bisa di-build dan di-test dalam hitungan detik tanpa membuka window.
+Setiap game dipisah menjadi library logic dan front-end raylib. Logic berjalan dengan fixed timestep dan tidak bergantung pada raylib, jadi seluruh proyek bisa di-build dan di-test dalam hitungan detik tanpa membuka window.
 
 ---
 
@@ -23,7 +23,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/beat_dodge_catch.png" width="188" alt="Screenshot Beat Dodge &amp; Catch (mode Catch)"/>
       </a>
       <p align="left">
-        Game ritme dengan dua mode yang dipilih lewat tombol besar DODGE / CATCH di layar pilih lagu. Lagunya dibuat dari file MIDI dan dimainkan lewat synthesizer bawaan; rintangan dan ribbon (rangkaian not cepat yang disambung jadi satu pita) jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. <b>Dodge:</b> hindari not. Satu objek hanya memakai satu nyawa, dan lolos tipis (close call) bernilai dua kali lipat. <b>Catch:</b> berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo supaya pengali skor naik sampai x4, dan jaga health.<br/>
+        Game ritme dengan dua mode yang dipilih lewat tombol besar DODGE / CATCH di layar pilih lagu. Lagunya dibuat dari file MIDI dan dimainkan lewat synthesizer bawaan; rintangan dan ribbon (rangkaian not cepat yang disambung jadi satu pita) jatuh lewat tiga atau empat lane dan sampai di garis bawah tepat pada beat. <b>Dodge:</b> hindari not. Satu objek hanya mengurangi satu nyawa, dan lolos tipis (close call) bernilai dua kali lipat. <b>Catch:</b> berdirilah di lane sebuah not tepat saat ia sampai di garis, jaga combo supaya pengali skor naik sampai x4, dan jaga health.<br/>
         <b>Kontrol:</b> A dan D atau tombol panah kiri dan kanan untuk pindah lane, atau tombol 1 sampai 4 untuk loncat langsung ke sebuah lane. Di layar pilih lagu, tombol M atau klik DODGE / CATCH mengganti mode.
       </p>
     </td>
@@ -45,7 +45,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/different_color.png" width="380" alt="Screenshot A Different Color"/>
       </a>
       <p align="left">
-        Dua papan kotak berwarna acak, satu kotak di papan bawah sedikit berbeda warnanya. Temukan dia sebelum 30 detik habis; papan makin besar tiap ronde.<br/>
+        Dua papan kotak berwarna acak, satu kotak di papan bawah sedikit berbeda warnanya. Temukan kotak itu sebelum 30 detik habis; papan makin besar tiap ronde.<br/>
         <b>Kontrol:</b> Klik kotak yang berbeda di papan atas atau bawah.
       </p>
     </td>
@@ -63,7 +63,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 </table>
 
 <details>
-  <summary><b>Game yang arsipkan (14 game di <code>deferred/</code>)</b></summary>
+  <summary><b>Game yang diarsipkan (14 game di <code>deferred/</code>)</b></summary>
   <br/>
 
 <table>
@@ -96,7 +96,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/ghost_loop.png" width="380" alt="Screenshot Ghost Loop"/>
       </a>
       <p align="left">
-        Setiap ronde berlangsung 8 detik. Saat ronde diulang, percobaan-percobaan sebelumnya diputar ulang sebagai ghost. Berdirilah di atas tombol lantai pada ronde awal supaya ghost-mu menahan pintu tetap terbuka untukmu di ronde berikutnya.<br/>
+        Setiap ronde berlangsung 8 detik. Saat ronde diulang, percobaan sebelumnya diputar ulang sebagai ghost. Berdirilah di atas tombol lantai pada ronde awal supaya ghost-mu menahan pintu tetap terbuka untukmu di ronde berikutnya.<br/>
         <b>Kontrol:</b> WASD atau tombol panah untuk bergerak.
       </p>
     </td>
@@ -128,7 +128,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/sandbox.png" width="380" alt="Screenshot Sandbox"/>
       </a>
       <p align="left">
-        Mainan falling-sand dengan 34 elemen dan suhu yang dihitung nyata: pasir, air, lava yang berubah warna menurut suhunya lalu membatu, api, TNT yang meledak menjadi ratusan percikan ke segala arah, uranium yang memanaskan diri, meleleh, lalu kritis dan menyapu dunia dengan sinar gamma, baja yang menghantar panas dan bata yang menyekat, dan lebih banyak lagi. Gambar dengan mouse, arahkan pointer untuk melihat suhu, tekan T untuk tampilan termal. Skor = jumlah sel yang terisi saat kamu keluar dengan Esc.<br/>
+        Mainan falling-sand dengan 34 elemen dan suhu yang benar-benar dihitung: pasir, air, lava yang berubah warna menurut suhunya lalu membatu, api, TNT yang meledak menjadi ratusan percikan ke segala arah, uranium yang memanaskan diri, meleleh, lalu kritis dan menyapu dunia dengan sinar gamma, baja yang menghantar panas dan bata yang tidak, dan lain-lain. Gambar dengan mouse, arahkan pointer untuk melihat suhu, tekan T untuk tampilan termal. Skor = jumlah sel yang terisi saat kamu keluar dengan Esc.<br/>
         <b>Kontrol:</b> Klik atau seret untuk melukis (mouse kanan melukis elemen kedua, awalnya penghapus; klik kanan pada palet menggantinya, X menukar keduanya), klik palet, tombol 0-9, [ ] atau roda mouse untuk memilih elemen, +/- untuk ukuran kuas, Space untuk jeda, C untuk membersihkan, R untuk mereset.
       </p>
     </td>
@@ -150,7 +150,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/post_it.png" width="380" alt="Screenshot Post It"/>
       </a>
       <p align="left">
-        Satu post-it kuning di tengah. Miringkan dunia dengan mouse, tempelkan post-it berwarna ke gugusanmu, dan jangan sampai virus merah menyentuh satu pun.<br/>
+        Satu post-it kuning di tengah. Miringkan dunia dengan mouse, tempelkan post-it berwarna ke kumpulan post-it di tengah, dan jangan sampai virus merah menyentuh satu pun.<br/>
         <b>Kontrol:</b> Mouse (geser menjauh dari tengah) atau WASD/panah untuk memiringkan dunia, klik atau P untuk jeda.
       </p>
     </td>
@@ -194,7 +194,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/tower_stacker.png" width="380" alt="Screenshot Tower Stacker"/>
       </a>
       <p align="left">
-        Satu batang bergeser di atas menara. Jatuhkan tepat waktu: bagian yang menjorok dipotong, jadi menara makin sempit. Landasan sempurna menjaga lebar penuh. Batang datang dari kiri atau kanan secara acak. Setelah kalah, kamu bisa melihat menaramu dulu.<br/>
+        Satu batang bergeser di atas menara. Jatuhkan tepat waktu: bagian yang menjorok dipotong, jadi menara makin sempit. Kalau jatuhnya pas, lebar menara tidak berkurang. Batang datang dari kiri atau kanan secara acak. Setelah kalah, kamu bisa melihat menaramu dulu.<br/>
         <b>Kontrol:</b> Klik, Spasi, atau tombol apa saja untuk menjatuhkan batang, dan untuk lanjut setelah game selesai.
       </p>
     </td>
@@ -206,7 +206,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/new_star.png" width="380" alt="Screenshot New Star"/>
       </a>
       <p align="left">
-        Tiap ronde layar menggelap dan satu bintang baru muncul. Ketuk bintang yang baru saja muncul; mengetuk bintang lama mengakhiri permainan.<br/>
+        Tiap ronde layar menggelap dan satu bintang baru muncul. Klik bintang yang baru saja muncul; kalau yang kamu klik bintang lama, permainan selesai.<br/>
         <b>Kontrol:</b> Klik bintang yang baru muncul.
       </p>
     </td>
@@ -216,7 +216,7 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
         <img src="docs/screenshots/synthwave_city.png" width="380" alt="Screenshot Synthwave City"/>
       </a>
       <p align="left">
-        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibangkitkan dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Skor = kilometer yang ditempuh, dicatat ke leaderboard saat kamu keluar dengan Esc; tidak ada game over.<br/>
+        Terbang bebas di atas kota neon tanpa ujung saat matahari terbenam: sekitar 16 ribu gedung, jalan raya penuh lalu lintas, hologram, dan lagu synthwave 105 BPM, semuanya dibuat dari satu seed. Ada tur otomatis, enam titik pandang, dan tiga suasana (matahari terbenam, tengah malam, Miami). Skor = kilometer yang ditempuh, dicatat ke leaderboard saat kamu keluar dengan Esc; tidak ada game over.<br/>
         <b>Kontrol:</b> WASD atau panah untuk terbang, tahan klik kiri dan seret untuk melihat sekeliling, klik kanan untuk dorongan, roda mouse untuk skala kecepatan, Spasi tur otomatis, 1-6 titik pandang, T ganti suasana, M bisukan musik.<br/>
         <b>Di hub:</b> game ini juga menjadi latar belakang hidup menu: klik latar belakang untuk memainkannya, <code>Esc</code> kembali ke menu.
       </p>
@@ -228,35 +228,35 @@ Setiap game dipisah menjadi pustaka logic berupa C murni dan front-end raylib. L
 
 ---
 
-## Sorotan
+## Hightlights
 
-- Background hub menjalankan game Synthwave City yang hidup (drone terbang sendiri di belakang menu; klik latar belakang untuk memainkannya). Simulasi falling-sand dengan vault arsip ada di latar belakang sandbox, lewat tombol kecil di menu atau tombol `B`.
-- Skor disimpan di file teks biasa (scores.txt) dengan insertion sort, dan pencarian memakai binary search. Game dengan beberapa mode atau level (Beat Dodge & Catch) punya papan skor terpisah per mode, lagu, dan kesulitan. Setiap papan menampilkan skor terbaik tiap pemain (bukan semua percobaan), daftarnya bisa digulir, dan baris pemain yang sedang main ditandai.
-- Leaderboard online (opsional): tab Online di leaderboard menampilkan skor semua pemain dari server. Fitur ini menyala secara bawaan (kalau libcurl ada), dan kalau menyala, leaderboard (tombol L) terbuka langsung di tab Online, pada game yang sedang dipilih di menu (tombol Tab pindah ke skor lokal). Tetapi saat game pertama kali dibuka ada layar pemberitahuan yang menjelaskan apa yang dikirim (nama pemain, game, skor, dan ID install acak dari server; hanya untuk permainan dari saat itu) beserta alamat servernya, dan pemain bisa mematikannya sebelum ada yang terkirim (N atau Esc). Mematikannya juga bisa kapan saja lewat tab Online (tombol O), atau dengan membuat file `online.cfg` berisi `enabled|0` di folder data; mematikan juga membuang skor yang masih mengantre. Skor ditulis ke antrean di disk lebih dulu lalu dikirim satu per satu di latar belakang, jadi game tidak pernah menunggu server. Kalau server tidak terjangkau skor dikirim nanti, dan tabel terakhir yang diterima tetap bisa dilihat. Skor online bergantung pada kejujuran klien (kode game publik dan file di komputer pemain bisa diubah), jadi server hanya membatasi skor ke yang mungkin di tiap game. Fitur ini memakai libcurl (opsional, lihat `docs/DEVELOPMENT.md`); tanpa libcurl game tetap dibangun, hanya tanpa tab Online. Paket rilis (Linux dan Windows) sudah membawa libcurl di dalam programnya, jadi tidak ada yang perlu dipasang; di Linux game memakai file sertifikat CA sistem (paket `ca-certificates`) untuk memeriksa server, dan kalau file itu tidak ada tab Online tampil offline. Servernya (Cloudflare Worker + D1) ada di repositori terpisah, `zaxx-q/arcade-leaderboard-server`, supaya repositori ini tetap C murni.
+- Background hub menjalankan Synthwave City secara langsung: drone terbang sendiri di belakang menu, dan klik di background untuk memainkannya. Simulasi falling-sand dengan vault arsip ada di background sandbox, lewat tombol kecil di menu atau tombol `B`.
+- Skor disimpan di file teks biasa (`scores.txt`) lewat insertion sort, dan pencarian memakai binary search. Game dengan beberapa mode atau level (Beat Dodge & Catch) punya papan skor terpisah per mode, lagu, dan kesulitan. Setiap papan menampilkan skor terbaik tiap pemain (bukan semua percobaan), daftarnya bisa digulir, dan baris pemain yang sedang bermain ditandai.
+- Leaderboard online (opsional): tab Online menampilkan skor semua pemain dari server. Apa saja yang dikirim dan cara mematikannya dijelaskan di bagian [Leaderboard online](#leaderboard-online).
 - Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
-- Update logic berjalan pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
-- Game terdaftar otomatis dari folder di games/ (tampil di menu) dan deferred/ (ditunda, hanya lewat arsip); menambah atau memindahkan game tidak perlu mengubah file source hub yang sudah ada.
+- Logic di-update pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
+- Game terdaftar otomatis dari folder `games/` (tampil di menu) dan `deferred/` (ditunda, hanya lewat arsip); menambah atau memindahkan game tidak perlu mengubah file source hub yang sudah ada.
 - Bisa di-build dan dijalankan di Linux maupun Windows.
 
 ---
 
-## Mulai cepat
+## Mulai
 
-### Rilis siap pakai
+### Download
 
 Build siap pakai untuk Linux dan Windows tersedia di [halaman releases](https://github.com/zaxx-q/arCade/releases/latest).
 
-- Windows: unduh `arCade-vX.Y.Z-windows-x86_64.exe` lalu klik dua kali.
-- Linux: unduh `arCade-vX.Y.Z-linux-x86_64`, jalankan `chmod +x arCade-vX.Y.Z-linux-x86_64`, lalu `./arCade-vX.Y.Z-linux-x86_64`.
+- Windows: Download `arCade-vX.Y.Z-windows-x86_64.exe` lalu klik dua kali.
+- Linux: Download `arCade-vX.Y.Z-linux-x86_64`, jalankan `chmod +x arCade-vX.Y.Z-linux-x86_64`, lalu `./arCade-vX.Y.Z-linux-x86_64`.
 
-Rilis berupa satu file saja, tanpa zip dan tanpa folder `assets/`: font, suara, tekstur, lagu, dan teks lisensi sudah dikompilasi ke dalam program. Teks lisensi dan atribusi pihak ketiga bisa dibaca dengan `arCade --licenses`.
+Seluruh game berupa satu file saja, tanpa zip dan tanpa folder `assets/`: font, suara, tekstur, lagu, dan teks lisensi sudah dikompilasi ke dalam program. Teks lisensi dan atribusi pihak ketiga bisa dibaca dengan `arCade --licenses`.
 
 ### Build dari source
 
-Kebutuhan: CMake 3.25 atau lebih baru, compiler C99 (GCC, Clang, atau MSVC), dan Ninja. CMake mengunduh dan mengompilasi raylib 6.2 pada build pertama.
+Dependencies: CMake 3.25 atau lebih baru, compiler C99 (GCC, Clang, atau MSVC), dan Ninja. CMake mengunduh dan mengompilasi raylib 6.2 pada build pertama.
 
 ```bash
-# 1. Build dan jalankan unit test tanpa grafis
+# 1. Build dan jalankan unit test tanpa raylib
 cmake --preset logic && cmake --build --preset logic && ctest --preset logic
 
 # 2. Build hub game lengkap dengan raylib
@@ -276,17 +276,17 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 | ----------------------- | ---------------------------------------------- |
 | Up / Down atau W / S    | Memilih game di menu (mouse dan scroll juga bisa) |
 | Enter atau klik         | Memulai game yang dipilih                      |
-| L                       | Membuka leaderboard (Left / Right: ganti game, Up / Down: ganti papan skor game yang punya papan per mode/lagu, PgUp / PgDn atau roda mouse: gulir daftar, Tab: pindah antara tab Online dan skor lokal (leaderboard terbuka di tab Online kalau skor online menyala), R: segarkan tab Online, O: matikan skor online) |
+| L                       | Membuka leaderboard (Left / Right: ganti game, Up / Down: ganti papan skor game yang punya papan per mode/lagu, PgUp / PgDn atau roda mouse: gulir daftar, Tab: pindah antara tab Online dan skor lokal, R: segarkan tab Online, O: matikan skor online) |
 | N                       | Mengganti nama pemain                          |
 | B atau tombol kecil di kanan atas | Menukar latar belakang menu antara kota (Synthwave City) dan sandbox |
 | M                       | Membisukan lagu kota (di latar belakang kota) |
-| Klik di latar belakang kota | Menyembunyikan menu dan memainkan Synthwave City (WASD terbang, seret mouse untuk menoleh, Spasi tur, 1-6 titik pandang, T suasana) |
+| Klik di latar belakang kota (di luar panel menu) | Menyembunyikan menu dan memainkan Synthwave City (WASD terbang, seret mouse untuk menoleh, Spasi tur, 1-6 titik pandang, T suasana) |
 | Esc                     | Saat terbang di kota: menampilkan menu lagi. Di menu: keluar dari hub (di dalam game lain: kembali ke menu) |
-| F11                     | Layar penuh tanpa border (borderless) hidup/mati, di hub dan di semua game |
+| F11                     | Menyalakan atau mematikan layar penuh tanpa border (borderless), di hub dan di semua game |
 
 Ukuran window bebas: window bisa ditarik ke ukuran apa saja (minimal 640 x 360), dipaksa layar penuh oleh window manager, atau dipindah ke layar penuh dengan `F11`. Layar 1280 x 720 diskalakan seragam sebesar mungkin lalu ditaruh di tengah, jadi teks tetap tajam dan tidak ada yang melar; latar belakang, grid, bar HUD, dan Synthwave City memenuhi seluruh window, juga saat rasio window bukan 16:9. Mouse tetap tepat di semua ukuran.
 
-Latar belakang bawaan adalah Synthwave City: drone terbang sendiri di belakang menu. Klik di mana saja di luar panel menu untuk menyembunyikan menu dan memainkan kotanya; tekan `Esc` untuk menampilkan menu lagi dan mengembalikan kontrol ke menu. Tombol kecil "switch to sandbox" (atau `B`) menukar ke latar belakang sandbox, tempat klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan sandbox ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
+Latar belakang bawaan adalah Synthwave City, dengan drone yang terbang sendiri di belakang menu. Tombol kecil "switch to sandbox" (atau `B`) menukarnya ke latar belakang sandbox, tempat klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan sandbox ada tub batu bergembok bertuliskan "archive": isi sampai penuh dengan pasir atau air untuk membuka arsip game (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
 
 Flag command line:
 
@@ -303,21 +303,33 @@ arCade --smoke <id>          # Menjalankan pengecekan headless untuk satu game
 
 ---
 
+## Leaderboard online
+
+Tab Online di leaderboard menampilkan skor semua pemain dari server. Fitur ini opsional dan aktif secara bawaan kalau libcurl tersedia. Kalau aktif, tombol `L` membuka leaderboard langsung di tab Online, pada game yang sedang dipilih di menu, dan `Tab` pindah ke skor lokal.
+
+Saat game pertama kali dibuka, layar pemberitahuan menjelaskan apa yang dikirim: nama pemain, game, skor, dan ID install acak dari server, hanya untuk permainan sejak saat itu. Alamat servernya juga tertulis di layar itu. Pemain bisa mematikan fitur ini di sana sebelum ada yang terkirim, dengan `N` atau `Esc`. Setelah itu pun bisa dimatikan kapan saja lewat tab Online (`O`), atau dengan membuat file `online.cfg` berisi `enabled|0` di folder data. Mematikannya juga membuang skor yang masih mengantre.
+
+Skor ditulis ke antrean di disk lebih dulu, lalu dikirim satu per satu di latar belakang, jadi game tidak pernah menunggu server. Kalau server tidak terjangkau, skor dikirim nanti, dan tabel terakhir yang diterima tetap bisa dilihat. Skor online bergantung pada kejujuran klien, karena kode game publik dan file di komputer pemain bisa diubah. Server hanya membatasi skor ke nilai yang mungkin di tiap game.
+
+Fitur ini memakai libcurl (opsional, lihat [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)); tanpa libcurl game tetap dibangun, hanya tanpa tab Online. Paket rilis untuk Linux dan Windows sudah membawa libcurl di dalam programnya, jadi tidak ada yang perlu dipasang. Di Linux, game memakai file sertifikat CA sistem (paket `ca-certificates`) untuk memeriksa server, dan kalau file itu tidak ada, tab Online tampil offline. Servernya (Cloudflare Worker + D1) ada di repositori terpisah, `zaxx-q/arcade-leaderboard-server`, supaya repositori ini hanya berisi C.
+
+---
+
 ## Arsitektur
 
-Proyek ini menjaga pemisahan yang tegas antara aturan game dan rendering:
+Aturan game dan rendering dipisah dengan tegas:
 
 ```
 app/ (hub menu, leaderboard, smoke runner)
  └── games/<id>/<id>_game.c    (menggambar dan membaca input dengan raylib; deferred/<id>/ sama)
       ├── core/gfx/            (setup window, frame timing, helper menggambar)
-      └── games/<id>/<id>_logic.c (C99 murni: state, collision, scoring)
+      └── games/<id>/<id>_logic.c (C99 tanpa raylib: state, collision, scoring)
            └── core/src/       (RNG, input monkey, sandbox engine, leaderboard)
 ```
 
-Layer logic di `games/<id>/<id>_logic.c` tidak pernah meng-include `raylib.h`. Pemisahan ini memungkinkan testing headless di CI, dan memastikan aturan inti bisa dievaluasi terpisah dari raylib.
+Layer logic di `games/<id>/<id>_logic.c` tidak pernah meng-include `raylib.h`. Pemisahan ini memungkinkan testing headless di CI dan membuat aturan inti bisa dites terpisah dari raylib.
 
-Untuk detail soal kontrak loop dan layout memori, lihat [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Detail kontrak loop game ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
