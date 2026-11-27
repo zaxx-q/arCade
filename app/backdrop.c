@@ -19,16 +19,16 @@
 #define BD_W 160
 #define BD_H 90
 #define BD_CELL 8 /* 160 * 8 = 1280, 90 * 8 = 720 */
-#define BD_BRUSH 1
+#define BD_BRUSH 0
 
-/* The vault interior in sandbox cells: 16 wide, 10 tall, hanging in the open on the right-hand side.
+/* The vault interior in sandbox cells: 18 wide, 14 tall, hanging in the open on the right-hand side.
  * It sits clear of the ledges and streams (x 98..135), and the drain below keeps heaps from ever reaching it,
  * so nothing fills it by accident. Everything left of x = 96 is hidden behind the menu panel: keep it empty.
  */
 #define VAULT_X 139
 #define VAULT_Y 50
-#define VAULT_W 16
-#define VAULT_H 10
+#define VAULT_W 18
+#define VAULT_H 14
 
 static Sandbox g_sb;
 static GfxSandboxView g_view;
