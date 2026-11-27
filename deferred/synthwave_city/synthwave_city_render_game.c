@@ -225,8 +225,8 @@ static void setup_frame(const synthwave_city_State *s, double t) {
     F.camz = s->cam.z;
     F.t = t;
     F.pulse = (float)swc_beat_pulse(s);
-    F.w = GetScreenWidth();
-    F.h = GetScreenHeight();
+    F.w = GetRenderWidth(); /* the framebuffer's own size: it lags GetScreenWidth() by a frame after F11 */
+    F.h = GetRenderHeight();
     float cy = (float)cos(s->cam.yaw), sy = (float)sin(s->cam.yaw);
     float cp = (float)cos(s->cam.pitch), sp = (float)sin(s->cam.pitch);
     F.fwd[0] = -sy * cp;

@@ -58,8 +58,8 @@ Detail dari kode:
    4. `Game_Tick(&s->game, &cmd)` menjalankan engine satu tick (fisika, pickup, tombol, bendera, transisi, simpan progres).
    5. `frames++`, dan `finish_armed` berkurang satu kalau sedang menyala.
 3. Kalau `s.mute_toggled`, `Audio_ToggleMute()` dipanggil dan flag dihapus.
-4. `gritty_golf_front_render_canvas` menggambar kanvas 256x256 ke render texture. Ini **harus sebelum** `BeginDrawing()`, karena render texture tidak boleh aktif bersamaan dengan frame layar.
-5. `BeginDrawing()`, `gritty_golf_front_draw_screen` (latar, HUD lewat `gfx_hud`, panel kiri dan kanan, kanvas 2x dengan filter titik), `arcade_frame_end()`.
+4. `gritty_golf_front_render_canvas` menggambar kanvas 256x256 ke render texture. Ini **harus sebelum** `arcade_frame_begin()`, karena render texture tidak boleh aktif bersamaan dengan frame layar.
+5. `arcade_frame_begin()`, `gritty_golf_front_draw_screen` (latar, HUD lewat `gfx_hud`, panel kiri dan kanan, kanvas 2x; filter titik kalau skala window membuat tiap piksel kanvas persegi seragam, selain itu filter bilinear tipis), `arcade_frame_end()`.
 6. Kalau `gritty_golf_is_over(&s)`, keluar dari loop. Sesudah loop: audio, front-end, lalu `gritty_golf_shutdown` (juga menyimpan progres yang belum tertulis).
 
 Sebelum loop (hanya di permainan sungguhan, bukan `--smoke`): `gritty_golf_open_profile` memuat profil pemain, `gritty_golf_show_splash` menampilkan kartu judul 1,8 detik, dan `Audio_Init` memuat suara kalau ada perangkat audio.
@@ -180,7 +180,7 @@ Dua test terdaftar: `gritty_golf.engine` (test bawaan engine upstream, 12 file `
 
 ## Jebakan dan hal yang perlu diingat
 - **`gg/` tidak boleh diedit atau diformat.** Hanya 7 patch yang sah (4 fungsional, 3 hanya komentar penekan cppcheck) dan semuanya tercatat di `gg/VENDORED.md`. Folder itu memang tidak memakai awalan `gritty_golf_`: itu pengecualian yang disengaja, sama seperti `sbx_` di sandbox.
-- **Render texture digambar sebelum `BeginDrawing()`.** Memindahkannya ke dalam frame layar akan merusak gambar.
+- **Render texture digambar sebelum `arcade_frame_begin()`.** Memindahkannya ke dalam frame layar akan merusak gambar.
 - **Blit kanvas harus tepat 2x dengan filter titik.** Skala bukan bilangan bulat membuat pixel art buram; tinggi sumber negatif dipakai karena render texture OpenGL terbalik.
 - **Fisika harus deterministik.** Target logic memakai `-ffp-contract=off`; tanpa itu hasil replay bisa berbeda antar kompiler. Determinisme antar platform (MinGW, MSVC) belum diperiksa di sini.
 - **ESC selalu ke hub.** Pilih level pindah ke `L` dan ikon di kanvas, karena di versi aslinya Esc membukanya.

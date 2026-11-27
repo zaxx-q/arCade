@@ -59,7 +59,7 @@ static void draw_virus(float x, float y, bool near_cluster, float t) {
 static void draw_world(const post_it_State *s, float t) {
     DrawRectangle(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H, Fade(ARC_COL_PANEL, 0.95f));
     /* items wrap up to ~28 px outside the playfield: clip them so they never bleed into the gutters */
-    BeginScissorMode(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
+    arcade_scissor_begin(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", s->blockn);
     gfx_text_center(buf, ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 4 - 40, 60, Fade(ARC_COL_DIM, 0.45f));
@@ -151,7 +151,7 @@ static GameResult play(const GameContext *ctx) {
             if (audio)
                 PlaySound(lose);
         }
-        BeginDrawing();
+        arcade_frame_begin();
         gfx_backdrop(t);
         draw_world(&s, t);
         draw_frame();

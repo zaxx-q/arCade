@@ -48,7 +48,7 @@ static void draw_beams(const laser_mirrors_State *s) {
 static void draw_clear_banner(const laser_mirrors_State *s, float t) {
     bool last = s->level + 1 >= LM_LEVEL_COUNT;
     bool ready = s->hold >= LM_CLEAR_HOLD;
-    DrawRectangle(0, 270, ARC_SCREEN_W, 170, Fade(ARC_COL_BG, 0.86f));
+    gfx_band(270, 170, Fade(ARC_COL_BG, 0.86f));
     gfx_text_center(last ? "ALL LEVELS CLEARED" : "LEVEL CLEARED", ARC_SCREEN_W / 2, 284, 44, ARC_COL_GREEN);
     gfx_text_center(TextFormat("+%d   %d moves (par %d)", s->level_points, s->moves, s->par),
                     ARC_SCREEN_W / 2, 346, 28, ARC_COL_YELLOW);
@@ -133,7 +133,7 @@ static GameResult play(const GameContext *ctx) {
         arcade_poll(&in);
         laser_mirrors_step(&s, &in, ARC_DT);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw_frame(&s, t);
         arcade_frame_end();
         if (laser_mirrors_is_over(&s))

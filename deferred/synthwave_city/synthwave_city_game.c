@@ -291,9 +291,9 @@ static DebugSwitches debug_read(bool headless) {
 
 /* ------------------------------------------------------------------ HUD */
 
-/* The HUD is laid out for the hub's 1280 x 720 window. A window of another size (a maximised or full-screen
- * one) gets the same layout scaled by its height, anchored to the bottom, so the text stays where the eye
- * expects it and does not shrink into a corner. At 720 pixels every number below is what it always was. */
+/* The HUD is laid out on the hub's 1280 x 720 design canvas, like every other screen: arcade_frame_begin()
+ * scales that canvas to the window, so the text keeps its place and its proportions in a window of any size.
+ * Only the picture itself fills the whole window (see game_draw). */
 #define SHADE_TOP 540
 #define SHADE_STRIPS 18
 #define SHADE_STRIP_H 10 /* the shade covers y = 540..720, darkest at the bottom */
@@ -309,21 +309,19 @@ typedef struct HudInfo {
     float toast_left; /* seconds the toast stays */
 } HudInfo;
 
-static int hud_px(float k, int v) {
-    return (int)floorf((float)v * k + 0.5f);
-}
-
 static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *h, const char *esc_does) {
     double speed = sqrt(s->cam.vx * s->cam.vx + s->cam.vy * s->cam.vy + s->cam.vz * s->cam.vz);
-    float k = (float)GetScreenHeight() / (float)ARC_SCREEN_H;
-    int width = GetScreenWidth();
-    /* a soft shade behind the text, so it stays readable over bright sky */
+    /* a soft shade behind the text, so it stays readable over bright sky; it runs across the whole window,
+     * and down to its bottom edge when the window is taller than 16:9 */
+    Rectangle win = arcade_view_bounds();
+    int shade_x = (int)floorf(win.x), shade_w = (int)ceilf(win.width) + 1;
     for (int i = 0; i < SHADE_STRIPS;
          i++) { /* plain strips: a gradient quad is not blended right by the CPU rasteriser */
         float f = (float)(i + 1) / (float)SHADE_STRIPS;
-        int y0 = hud_px(k, SHADE_TOP + i * SHADE_STRIP_H),
-            y1 = hud_px(k, SHADE_TOP + (i + 1) * SHADE_STRIP_H);
-        DrawRectangle(0, y0, width, y1 - y0, Fade(BLACK, 0.62f * f * sqrtf(f)));
+        int y0 = SHADE_TOP + i * SHADE_STRIP_H, y1 = SHADE_TOP + (i + 1) * SHADE_STRIP_H;
+        if (i == SHADE_STRIPS - 1)
+            y1 = (int)ceilf(win.y + win.height) + 1;
+        DrawRectangle(shade_x, y0, shade_w, y1 - y0, Fade(BLACK, 0.62f * f * sqrtf(f)));
     }
     const char *mode = s->touring ? "TOUR" : "FLY";
     char gpu[64] = "";
@@ -339,9 +337,9 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
                         h->live != SWC_LIVE_ALL ? "   " : "",
                         h->live != SWC_LIVE_ALL ? swc_layers_label(h->live) : "",
                         h->grabbed ? "   MOUSE GRABBED (ESC frees it)" : ""),
-             hud_px(k, 24), hud_px(k, 650), hud_px(k, 18), ARC_COL_CYAN);
+             24, 650, 18, ARC_COL_CYAN);
     if (h->toast_left > 0.0f) /* the new state, for a moment, also when it is back to the start */
-        gfx_text(h->toast, hud_px(k, 24), hud_px(k, 600), hud_px(k, 20),
+        gfx_text(h->toast, 24, 600, 20,
                  Fade(ARC_COL_YELLOW, h->toast_left > 0.5f ? 0.95f : h->toast_left * 1.9f));
     if (t < 14.0f) {
         Color hint = Fade(ARC_COL_TEXT, 0.8f * (1.0f - t / 14.0f) + 0.15f);
@@ -357,7 +355,7 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
                           "ESC: free the mouse"
                         : "WASD: fly   Q / E: down / up   SHIFT: boost   CLICK: grab the mouse to look   "
                           "WHEEL: speed   SPACE: tour";
-        gfx_text(line1, hud_px(k, 24), hud_px(k, 676), hud_px(k, 16), hint);
+        gfx_text(line1, 24, 676, 16, hint);
         gfx_text(
             h->renderer == RENDERER_CPU_ONLY
                 ? TextFormat(
@@ -367,11 +365,10 @@ static void draw_overlay(const synthwave_city_State *s, float t, const HudInfo *
                       "1-6: viewpoints   T: mood   N: new city   H: hide UI   L: layers   G: renderer   "
                       "V: quality   M: mute   ESC: %s",
                       esc_does),
-            hud_px(k, 24), hud_px(k, 696), hud_px(k, 16), hint);
+            24, 696, 16, hint);
     }
     if (s->view >= 0 && !s->touring)
-        gfx_text(s->views[s->view].name, hud_px(k, 24), hud_px(k, 626), hud_px(k, 20),
-                 Fade(ARC_COL_MAGENTA, 0.9f));
+        gfx_text(s->views[s->view].name, 24, 626, 20, Fade(ARC_COL_MAGENTA, 0.9f));
 }
 
 /* ------------------------------------------------------------------ one frame of the game */
@@ -389,6 +386,9 @@ static void game_step(synthwave_city_State *s, Soundtrack *m, const ArcadeInput 
  * their own (search lights), `hud_time` fades the controls help. */
 static void game_draw(const synthwave_city_State *s, float scene_time, bool hud, float hud_time,
                       const HudInfo *h, const char *esc_does) {
+    /* The picture is rendered for the real window (its own resolution, its own aspect ratio), so it is drawn
+     * outside the design canvas: in window pixels, filling every pixel of the window. */
+    arcade_native_begin();
     ClearBackground(BLACK);
     if (h->renderer == RENDERER_GPU) {
         swc_gpu_note_frame((double)GetFrameTime()); /* for the adaptive render scale */
@@ -396,6 +396,7 @@ static void game_draw(const synthwave_city_State *s, float scene_time, bool hud,
     } else {
         swc_render_scene(s, (double)scene_time);
     }
+    arcade_native_end();
     if (hud) {
         gfx_hud("Synthwave City", synthwave_city_score(s), swc_mood_name(s->mood));
         draw_overlay(s, hud_time, h, esc_does);
@@ -403,6 +404,15 @@ static void game_draw(const synthwave_city_State *s, float scene_time, bool hud,
 }
 
 /* ------------------------------------------------------------------ the mouse grab */
+
+/* Looking around is measured in window pixels: the same drag turns the camera by the same angle in a small
+ * window and on a 4K screen, as it always did. arcade_poll() maps the mouse into the design canvas, which a
+ * bigger window would make slower, so the look gets the window's own pixels back. */
+static void window_aim(ArcadeInput *in) {
+    Vector2 m = arcade_window_mouse();
+    in->aim_x = m.x;
+    in->aim_y = m.y;
+}
 
 /* Grabbing the mouse hides the cursor and keeps it in the window, so that moving the mouse looks around
  * without a button held (what pointer lock does in the web version). It is asked for by a click in free
@@ -493,8 +503,10 @@ static GameResult play(const GameContext *ctx) {
             arcade_input_clear(&in); /* hold still at the chosen viewpoint */
         else if (ctx->headless)
             scripted_input(arcade_frame_index(), &in);
-        else
+        else {
             arcade_poll(&in);
+            window_aim(&in);
+        }
         for (int k = 0; k < dbg.key_count; k++)
             if (dbg.key_frame[k] == arcade_frame_index() && in.typed == 0)
                 in.typed = dbg.key_char[k];
@@ -553,7 +565,7 @@ static GameResult play(const GameContext *ctx) {
         hud.tier = tier;
         hud.scale = renderer == RENDERER_GPU ? swc_gpu_render_scale() : 1.0;
         hud.msaa = renderer == RENDERER_GPU ? swc_gpu_msaa_samples() : 0;
-        BeginDrawing();
+        arcade_frame_begin();
         game_draw(&s, t, !ui_hidden, t, &hud, "leave");
         arcade_frame_end(); /* REQUIRED instead of EndDrawing() */
     }
@@ -651,12 +663,17 @@ void swc_session_update(const ArcadeInput *in, float dt) {
     if (!g->active)
         return;
     ArcadeInput idle;
+    ArcadeInput flown;
     if (!g->player_flies || in == NULL) { /* nobody flies: empty input, so only the drone moves the camera */
         arcade_input_clear(&idle);
         if (g->hand_back && !g_guest_state.touring)
             idle.action_pressed = true; /* the same press as Space: the drone takes the camera from here */
         g->hand_back = false;
         in = &idle;
+    } else {
+        flown = *in;
+        window_aim(&flown); /* the hub polled the mouse in design pixels: see window_aim */
+        in = &flown;
     }
     if (in->typed == 'h' || in->typed == 'H' || in->typed == 'p' || in->typed == 'P')
         g->ui_hidden = !g->ui_hidden;

@@ -75,7 +75,7 @@ static void draw_notice(const ghost_loop_State *s) {
 static void draw_clear_banner(const ghost_loop_State *s, float t) {
     const gl_Level *lv = ghost_loop_level(s->level);
     bool last = s->level + 1 >= GL_LEVEL_COUNT;
-    DrawRectangle(0, 270, ARC_SCREEN_W, 170, Fade(ARC_COL_BG, 0.88f));
+    gfx_band(270, 170, Fade(ARC_COL_BG, 0.88f));
     gfx_text_center(last ? "ALL LEVELS CLEARED" : "LEVEL CLEARED", ARC_SCREEN_W / 2, 284, 44, ARC_COL_GREEN);
     gfx_text_center(TextFormat("+%d   %d ghosts (par %d)   %.1f s", s->level_points, s->ghost_count,
                                lv->par_ghosts, (float)s->step / 60.0f),
@@ -124,7 +124,7 @@ static GameResult play(const GameContext *ctx) {
         arcade_poll(&in);
         ghost_loop_step(&s, &in, ARC_DT);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw_frame(&s, t);
         arcade_frame_end();
         if (ghost_loop_is_over(&s))

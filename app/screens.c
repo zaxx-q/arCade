@@ -191,9 +191,9 @@ Screen screen_name(AppState *app) {
             nudge = NAME_NUDGE_SECS; /* the first name is required: stay here */
         }
         backdrop_update(false, false, 0, 0);
-        BeginDrawing();
+        arcade_frame_begin();
         draw_name_view(app, buf, nudge, t);
-        EndDrawing();
+        arcade_frame_end();
     }
     return SCR_QUIT;
 }
@@ -413,9 +413,9 @@ Screen screen_menu(AppState *app) {
                         click_held = false;
                 }
                 backdrop_fly(&in);
-                BeginDrawing();
+                arcade_frame_begin();
                 backdrop_draw(1.0f);
-                EndDrawing();
+                arcade_frame_end();
                 continue;
             }
         }
@@ -485,9 +485,9 @@ Screen screen_menu(AppState *app) {
         backdrop_update(paint && IsMouseButtonDown(MOUSE_BUTTON_LEFT),
                         paint && IsMouseButtonDown(MOUSE_BUTTON_RIGHT), (int)m.x, (int)m.y);
 
-        BeginDrawing();
+        arcade_frame_begin();
         draw_menu_view(app, first, t);
-        EndDrawing();
+        arcade_frame_end();
     }
     return SCR_QUIT;
 }
@@ -598,9 +598,9 @@ Screen screen_result(AppState *app) {
         if (IsKeyPressed(KEY_L))
             return SCR_LEADERBOARD;
         backdrop_update(false, false, 0, 0);
-        BeginDrawing();
+        arcade_frame_begin();
         draw_result_view(app, t);
-        EndDrawing();
+        arcade_frame_end();
     }
     return SCR_QUIT;
 }
@@ -676,9 +676,9 @@ void screen_online_first_run(AppState *app) {
             return;
         }
         backdrop_update(false, false, 0, 0);
-        BeginDrawing();
+        arcade_frame_begin();
         draw_first_run(t);
-        EndDrawing();
+        arcade_frame_end();
     }
 }
 
@@ -1170,9 +1170,9 @@ Screen screen_leaderboard(AppState *app) {
             scroll_view(&g_lbv, scroll);
         backdrop_update(false, false, 0, 0);
 
-        BeginDrawing();
+        arcade_frame_begin();
         draw_leaderboard_view(app, &g_lbv, searching, query, t);
-        EndDrawing();
+        arcade_frame_end();
     }
     return SCR_QUIT;
 }

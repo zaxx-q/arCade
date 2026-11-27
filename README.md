@@ -282,6 +282,9 @@ Detail setup per platform (paket MSYS2 di Windows, library dev di Linux) ada di 
 | M                       | Membisukan lagu kota (di latar belakang kota) |
 | Klik di latar belakang kota | Menyembunyikan menu dan memainkan Synthwave City (WASD terbang, seret mouse untuk menoleh, Spasi tur, 1-6 titik pandang, T suasana) |
 | Esc                     | Saat terbang di kota: menampilkan menu lagi. Di menu: keluar dari hub (di dalam game lain: kembali ke menu) |
+| F11                     | Layar penuh tanpa border (borderless) hidup/mati, di hub dan di semua game |
+
+Ukuran window bebas: window bisa ditarik ke ukuran apa saja (minimal 640 x 360), dipaksa layar penuh oleh window manager, atau dipindah ke layar penuh dengan `F11`. Layar 1280 x 720 diskalakan seragam sebesar mungkin lalu ditaruh di tengah, jadi teks tetap tajam dan tidak ada yang melar; latar belakang, grid, bar HUD, dan Synthwave City memenuhi seluruh window, juga saat rasio window bukan 16:9. Mouse tetap tepat di semua ukuran.
 
 Latar belakang bawaan adalah Synthwave City: drone terbang sendiri di belakang menu. Klik di mana saja di luar panel menu untuk menyembunyikan menu dan memainkan kotanya; tekan `Esc` untuk menampilkan menu lagi dan mengembalikan kontrol ke menu. Tombol kecil "switch to sandbox" (atau `B`) menukar ke latar belakang sandbox, tempat klik kiri menggambar pasir dan klik kanan menggambar air. Di sisi kanan sandbox ada bejana batu bergembok bertuliskan "archive": isi penuh dengan pasir atau air untuk membuka arsip game (lihat [docs/DEFERRED.md](docs/DEFERRED.md)).
 
@@ -292,6 +295,8 @@ arCade --list                # Menampilkan game yang tampil di menu hub (folder 
 arCade --list --all          # Menampilkan juga game yang ditunda (folder deferred/)
 arCade --all                 # Menjalankan hub dengan arsip sudah terbuka (untuk developer)
 arCade --version             # Menampilkan informasi versi
+arCade --size 1920x1080      # Membuka window dengan ukuran tertentu (default 1280x720); pada smoke run: ukuran frame
+arCade --fullscreen          # Mulai dalam layar penuh tanpa border (F11 menukarnya saat berjalan)
 arCade --smoke all           # Menjalankan pengecekan headless otomatis untuk semua game, termasuk yang ditunda
 arCade --smoke <id>          # Menjalankan pengecekan headless untuk satu game
 ```

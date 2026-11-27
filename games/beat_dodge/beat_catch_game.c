@@ -24,7 +24,7 @@ static void draw_game(const beat_catch_State *s, float t) {
     float pop = arc_clampf(s->catch_flash / 0.3f, 0.0f, 1.0f);
     bd_ui_draw_field(&s->run, BD_UI_CATCH, t, s->catch_lane, pop);
     if (s->run.hit_flash > 0.0f) /* a missed bead */
-        DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_RED, s->run.hit_flash * 0.8f));
+        gfx_fill_below(36, Fade(ARC_COL_RED, s->run.hit_flash * 0.8f));
     draw_health(s->health);
     if (s->combo >= 2) {
         int mult = beat_catch_combo_multiplier(s->combo);
@@ -34,8 +34,9 @@ static void draw_game(const beat_catch_State *s, float t) {
             gfx_text_center(TextFormat("x%d", mult), ARC_SCREEN_W / 2, ARC_SCREEN_H - 52, 24, ARC_COL_YELLOW);
     }
     /* song progress under the HUD */
-    DrawRectangle(0, 36, (int)((float)ARC_SCREEN_W * arc_clampf(s->run.time / s->run.end_time, 0.0f, 1.0f)),
-                  3, ARC_COL_CYAN);
+    Rectangle win = arcade_view_bounds(); /* the bar grows across the whole window */
+    DrawRectangle((int)win.x, 36, (int)(win.width * arc_clampf(s->run.time / s->run.end_time, 0.0f, 1.0f)), 3,
+                  ARC_COL_CYAN);
     if (s->run.time < 2.6f) /* song title card */
         gfx_text_center(s->run.song.title, ARC_SCREEN_W / 2, 250, 54,
                         Fade(ARC_COL_TEXT, arc_clampf((2.6f - s->run.time) / 0.8f, 0.0f, 1.0f)));
@@ -72,7 +73,7 @@ GameResult bd_ui_play_catch(const GameContext *ctx, const bd_Song *song, int cha
             PlaySound(oops);
         last_missed = s->missed;
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw_game(s, t);
         gfx_hud("BEAT CATCH", beat_catch_score(s),
                 TextFormat("%s [%s]   %d BPM", s->run.song.title, s->run.song.charts[s->run.chart].name,

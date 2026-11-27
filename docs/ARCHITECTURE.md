@@ -22,10 +22,22 @@ arcade_loop_begin(ctx);
 while (arcade_loop_running()) {          // false saat ESC, window ditutup, atau max_frames (smoke)
     ArcadeInput in; arcade_poll(&in);    // keyboard/mouse ATAU input "monkey" berskrip saat smoke run
     xxx_step(&s, &in, ARC_DT);           // logic murni, step tetap 1/60 detik
-    BeginDrawing(); ...draw...; arcade_frame_end();   // EndDrawing + snapshot PNG saat smoke run
+    arcade_frame_begin(); ...draw...; arcade_frame_end();   // BeginDrawing + skala window; EndDrawing + snapshot PNG saat smoke run
     if (xxx_is_over(&s)) break;
 }
 ```
+
+## Ukuran window dan layar penuh
+
+Window bisa berukuran apa saja (ditarik, dipaksa layar penuh oleh window manager, atau `F11`), tetapi semua layar tetap dirancang di satu **kanvas desain** tetap `ARC_SCREEN_W x ARC_SCREEN_H` (1280 x 720). `arcade_frame_begin()` memasang satu transformasi (geser lalu skala seragam) sehingga kanvas itu memenuhi window sebesar mungkin dan berada di tengah; sisa strip di dua sisi (kalau window bukan 16:9) tetap bagian window. Akibatnya:
+
+- logic game, tata letak, dan test tidak berubah: koordinat tetap koordinat desain, dan mouse (`ArcadeInput.aim_x/aim_y`, `GetMousePosition()`) sudah dipetakan kembali ke koordinat desain;
+- yang harus menjangkau tepi window (latar, grid, bar HUD, flash layar penuh) memakai `arcade_view_bounds()`, `gfx_backdrop()`, `gfx_hud()`, `gfx_band()`, `gfx_fill_below()`, bukan `0..ARC_SCREEN_W`;
+- `BeginScissorMode()` bekerja dalam piksel window, jadi game memakai `arcade_scissor_begin()` yang menerima piksel desain;
+- renderer yang mengisi window sendiri (adegan 3D Synthwave City) menggambar di antara `arcade_native_begin()` dan `arcade_native_end()`, tempat satu unit = satu piksel window;
+- teks tetap tajam: tiap atlas font dirasterisasi pada ukuran sebenarnya di layar (ukuran desain x skala, dibulatkan ke 1/8) dan titik awal teks dibulatkan ke piksel window (`gfx_text.c`).
+
+Matematikanya murni C dan diuji tanpa raylib (`core/include/arcade/view.h`, `core/src/view.c`, `tests/test_view.c`). Sisi raylib ada di `core/gfx/gfx.c` (`view_sync`, `arcade_frame_begin`).
 
 ## Registry game otomatis
 

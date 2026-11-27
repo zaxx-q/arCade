@@ -203,6 +203,9 @@ static bool load_hazard_tile(const char *dir) {
     return true;
 }
 
+static int g_canvas_filter =
+    TEXTURE_FILTER_POINT; /* what the canvas texture has now: see set_canvas_filter */
+
 bool gritty_golf_front_init(const char *assets_dir) {
     const char *dir = assets_dir ? assets_dir : ""; /* NULL = built-in assets, like "" */
     memset(&A, 0, sizeof(A));
@@ -252,6 +255,7 @@ bool gritty_golf_front_init(const char *assets_dir) {
 
     A.target = LoadRenderTexture(VIRTUAL_SIZE, VIRTUAL_SIZE);
     SetTextureFilter(A.target.texture, TEXTURE_FILTER_POINT); /* the 2x blow-up must not blur */
+    g_canvas_filter = TEXTURE_FILTER_POINT;                   /* (see set_canvas_filter for other scales) */
     if (A.target.id == 0) {
         gritty_golf_front_shutdown();
         return false;
@@ -702,6 +706,20 @@ static void draw_right_panel(const gritty_golf_State *s, Vec2 mouse) {
     }
 }
 
+/* The canvas is pixel art shown at 2 design pixels per canvas pixel. In a window that is scaled by a whole
+ * number (or very nearly) every canvas pixel is a square of the same size, so point filtering keeps it crisp.
+ * At any other scale point filtering would make some canvas pixels wider than others, so the picture is
+ * smoothed a little instead. */
+static void set_canvas_filter(void) {
+    float per_pixel = 2.0f * arcade_view_scale();
+    bool whole = fabsf(per_pixel - roundf(per_pixel)) < 0.02f * per_pixel;
+    int want = whole ? TEXTURE_FILTER_POINT : TEXTURE_FILTER_BILINEAR;
+    if (want != g_canvas_filter) {
+        SetTextureFilter(A.target.texture, want);
+        g_canvas_filter = want;
+    }
+}
+
 void gritty_golf_front_draw_screen(const gritty_golf_State *s, Vec2 mouse, float t) {
     gfx_backdrop(t * 0.2f);
     if (!A.ready || !s->ready)
@@ -717,6 +735,7 @@ void gritty_golf_front_draw_screen(const gritty_golf_State *s, Vec2 mouse, float
     Rectangle src = {0.0f, 0.0f, (float)VIRTUAL_SIZE, -(float)VIRTUAL_SIZE};
     Rectangle dst = {(float)GG_VIEW_X, (float)GG_VIEW_Y, (float)GG_VIEW_SIZE, (float)GG_VIEW_SIZE};
     Vector2 origin = {0.0f, 0.0f};
+    set_canvas_filter();
     DrawTexturePro(A.target.texture, src, dst, origin, 0.0f, WHITE);
 
     char extra[64];

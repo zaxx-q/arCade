@@ -43,7 +43,7 @@ static GameResult play(const GameContext *ctx) {
 
         /* the picture first (it needs its own render texture), then the screen around it */
         gritty_golf_front_render_canvas(&s, gritty_golf_to_canvas(in.aim_x, in.aim_y));
-        BeginDrawing();
+        arcade_frame_begin();
         gritty_golf_front_draw_screen(&s, vec2(in.aim_x, in.aim_y), t);
         arcade_frame_end();
         if (gritty_golf_is_over(&s))

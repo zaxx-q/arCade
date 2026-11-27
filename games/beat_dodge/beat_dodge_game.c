@@ -389,7 +389,7 @@ static void draw_game(const beat_dodge_State *s, float t) {
     bd_ui_draw_field(&s->run, BD_UI_DODGE, t, -1, 0.0f);
     float px = lane_x(s->run.lanes, s->run.lane);
     if (s->run.hit_flash > 0.0f)
-        DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_RED, s->run.hit_flash));
+        gfx_fill_below(36, Fade(ARC_COL_RED, s->run.hit_flash));
     for (int h = 0; h < s->lives; h++)
         DrawCircle(40 + h * 34, 76, 11, ARC_COL_RED);
     if (s->close_flash > 0.0f) /* no combo in Beat Dodge: the reward is the close call itself */
@@ -399,8 +399,9 @@ static void draw_game(const beat_dodge_State *s, float t) {
         gfx_text_center(TextFormat("close calls %d", s->close_calls), ARC_SCREEN_W / 2, ARC_SCREEN_H - 52, 24,
                         ARC_COL_YELLOW);
     /* song progress under the HUD */
-    DrawRectangle(0, 36, (int)((float)ARC_SCREEN_W * arc_clampf(s->run.time / s->run.end_time, 0.0f, 1.0f)),
-                  3, ARC_COL_CYAN);
+    Rectangle win = arcade_view_bounds(); /* the bar grows across the whole window */
+    DrawRectangle((int)win.x, 36, (int)(win.width * arc_clampf(s->run.time / s->run.end_time, 0.0f, 1.0f)), 3,
+                  ARC_COL_CYAN);
     if (s->run.time < 2.6f) /* song title card */
         gfx_text_center(s->run.song.title, ARC_SCREEN_W / 2, 250, 54,
                         Fade(ARC_COL_TEXT, arc_clampf((2.6f - s->run.time) / 0.8f, 0.0f, 1.0f)));
@@ -425,7 +426,7 @@ bool bd_ui_select_song(const GameContext *ctx, const char *title, bd_Menu *menu,
         bd_menu_step(menu, &in, list);
         menu_mouse(menu, &in, list);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw_select(title, list, menu, t);
         arcade_frame_end();
         if (menu->chosen)
@@ -465,7 +466,7 @@ void bd_ui_preview_select(const GameContext *ctx, const char *title, bd_ChartKin
     float t = 0.0f;
     while (arcade_loop_running()) {
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw_select(title, list, &m, t);
         arcade_frame_end();
     }
@@ -507,7 +508,7 @@ static GameResult play_dodge(const GameContext *ctx, const bd_Song *song, int ch
         if (metronome && s->run.beat_event)
             PlaySound(tick);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw_game(s, t);
         gfx_hud("BEAT DODGE", beat_dodge_score(s),
                 TextFormat("%s [%s]   %d BPM", s->run.song.title, s->run.song.charts[s->run.chart].name,

@@ -18,7 +18,7 @@ static GameResult play(const GameContext *ctx) {
         arcade_poll(&in);
         @ID@_step(&s, &in, ARC_DT);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin(); /* REQUIRED instead of BeginDrawing(): fits the 1280x720 canvas to the window */
         draw(&s, t);
         gfx_hud("@TITLE@", @ID@_score(&s), TextFormat("%.0fs", s.time_left > 0 ? s.time_left : 0));
         arcade_frame_end(); /* REQUIRED instead of EndDrawing() */

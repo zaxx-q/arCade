@@ -38,7 +38,7 @@ static GameResult play(const GameContext *ctx) {
         }
         fx_update(&fx, ARC_DT);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw(&s, t);
         gfx_draw_particles(&fx, vec2(0.0f, 0.0f));
         gfx_hud("ABSORB AND GROW", absorb_grow_score(&s),

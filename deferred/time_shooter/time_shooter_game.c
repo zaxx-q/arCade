@@ -22,7 +22,7 @@ static void draw(const time_shooter_State *s, float t, Vec2 shake) {
                   s->time_scale > 0.5f ? ARC_COL_GREEN : ARC_COL_CYAN);
     gfx_text("TIME", 228, ARC_SCREEN_H - 26, 16, ARC_COL_DIM);
     if (s->time_scale < 0.5f)
-        DrawRectangle(0, 36, ARC_SCREEN_W, ARC_SCREEN_H - 36, Fade(ARC_COL_CYAN, 0.04f));
+        gfx_fill_below(36, Fade(ARC_COL_CYAN, 0.04f));
 }
 
 static GameResult play(const GameContext *ctx) {
@@ -54,7 +54,7 @@ static GameResult play(const GameContext *ctx) {
         shake_update(&shake, ARC_DT);
         t += ARC_DT;
         Vec2 off = shake_offset(&shake, &shake_rng);
-        BeginDrawing();
+        arcade_frame_begin();
         draw(&s, t, off);
         gfx_draw_particles(&fx, off);
         gfx_hud("TIME SHOOTER", time_shooter_score(&s), TextFormat("kills %d", s.kills));

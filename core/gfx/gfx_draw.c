@@ -15,10 +15,14 @@ void gfx_backdrop(float t) {
     Color line = gfx_rgba(40, 50, 100, 60);
     int step = 64;
     int off = (int)fmodf(t * 12.0f, (float)step);
-    for (int x = -off; x < ARC_SCREEN_W; x += step)
-        DrawLine(x, 0, x, ARC_SCREEN_H, line);
-    for (int y = -off; y < ARC_SCREEN_H; y += step)
-        DrawLine(0, y, ARC_SCREEN_W, y, line);
+    /* the grid covers the whole window, not just the 16:9 canvas */
+    Rectangle b = arcade_view_bounds();
+    int x0 = (int)floorf(b.x / (float)step) * step - off, x1 = (int)ceilf(b.x + b.width);
+    int y0 = (int)floorf(b.y / (float)step) * step - off, y1 = (int)ceilf(b.y + b.height);
+    for (int x = x0; x < x1; x += step)
+        DrawLine(x, y0, x, y1, line);
+    for (int y = y0; y < y1; y += step)
+        DrawLine(x0, y, x1, y, line);
 }
 
 void gfx_text_center(const char *text, int cx, int y, int size, Color c) {
@@ -44,9 +48,22 @@ void gfx_glow_line(Vec2 a, Vec2 b, float thick, Color c) {
     DrawLineEx(s, e, thick, c);
 }
 
+void gfx_band(int y, int h, Color c) {
+    Rectangle b = arcade_view_bounds();
+    DrawRectangle((int)floorf(b.x), y, (int)ceilf(b.width) + 1, h, c);
+}
+
+void gfx_fill_below(int y, Color c) {
+    Rectangle b = arcade_view_bounds();
+    int bottom = (int)ceilf(b.y + b.height);
+    DrawRectangle((int)floorf(b.x), y, (int)ceilf(b.width) + 1, bottom - y, c);
+}
+
 void gfx_hud(const char *title, int score, const char *extra) {
     char buf[64];
-    DrawRectangle(0, 0, ARC_SCREEN_W, 36, Fade(ARC_COL_PANEL, 0.85f));
+    gfx_band(
+        0, 36,
+        Fade(ARC_COL_PANEL, 0.85f)); /* the bar runs across the whole window, the text stays on the canvas */
     gfx_text(title, 16, 5, 22, ARC_COL_CYAN);
     snprintf(buf, sizeof(buf), "SCORE %d", score);
     gfx_text_center(buf, ARC_SCREEN_W / 2, 5, 22, ARC_COL_YELLOW);

@@ -134,7 +134,7 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
             } else {
                 backdrop_update(false, false, 0, 0);
             }
-            BeginDrawing();
+            arcade_frame_begin();
             screens_draw_preview(app, which, t);
             arcade_frame_end();
         }
@@ -232,7 +232,7 @@ static int run_city_check(const CliOptions *opt, AppState *app, const char *data
         arcade_loop_begin(&ctx);
         while (
             arcade_loop_running()) { /* one frame of the backdrop: a flat frame means its textures are gone */
-            BeginDrawing();
+            arcade_frame_begin();
             backdrop_draw(1.0f);
             arcade_frame_end();
         }
@@ -250,7 +250,7 @@ static int run_city_check(const CliOptions *opt, AppState *app, const char *data
 }
 
 int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_dir) {
-    arcade_gfx_init(true, assets_dir);
+    arcade_gfx_init_sized(true, assets_dir, opt->width, opt->height, false); /* --size: the frame size */
     if (!IsWindowReady()) {
         fprintf(stderr, "smoke: could not open a window / software framebuffer\n");
         return 1;

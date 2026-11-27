@@ -78,6 +78,7 @@ assets/               compiled INTO the executable (beatmaps/, fonts/, gritty_go
 | Falling sand | `sandbox_*` | `sandbox.h` |
 | MIDI files, synthesised music | `midi_load`, `synth_render`, `tools/midi2beatmap` | `midi.h`, `synth.h`, `docs/SONGS.md` |
 | Drawing, HUD, glow, audio tone | `gfx_*`, `arcade_*` | `gfx.h` (front-ends only) |
+| Window of any size / full screen (scale, bounds, scissor, 3D scenes) | `arcade_frame_begin`, `arcade_view_bounds`, `arcade_scissor_begin`, `arcade_native_begin/end`, `gfx_band`, `gfx_fill_below` | `gfx.h`, `view.h` (pure math) |
 
 ## Heuristics (quick decisions)
 | When | Do |
@@ -114,7 +115,8 @@ assets/               compiled INTO the executable (beatmaps/, fonts/, gritty_go
 - Use `rand()`, `time()`, `M_PI`, VLAs, POSIX/Windows-only APIs in shared code
 - Open a file of `assets/` with `fopen()`/`LoadTexture(path)`/`LoadSound(path)` (the game is one single file: use `arc_asset_load`)
 - Call `DrawText()`/`MeasureText()` (use `gfx_text()`/`gfx_text_width()`: they apply the project font, Poiret One)
-- Call `EndDrawing()` in a game (use `arcade_frame_end()`); skip `arcade_loop_begin(ctx)`
+- Call `BeginDrawing()`/`EndDrawing()` in a game (use `arcade_frame_begin()`/`arcade_frame_end()`); skip `arcade_loop_begin(ctx)`
+- Use window pixels in a game (`GetScreenWidth()`, `BeginScissorMode()`): the canvas is scaled to the window for you
 - Commit `build/`, `scores.txt`, secrets; push directly to `main`; edit generated files (`build/**/generated`, `docs/raylib_subset.md`)
 
 ## Codebase State

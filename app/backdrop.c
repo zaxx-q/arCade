@@ -153,12 +153,16 @@ void backdrop_update(bool paint_sand, bool paint_water, int mouse_x, int mouse_y
 #define SHADE_BOTTOM_H 110
 
 static void draw_edge_shade(void) {
+    /* the shade follows the window's edges, not the 16:9 canvas's: the strips start at the real top and
+     * bottom (and are as wide as the window) when the window has another shape */
+    Rectangle win = arcade_view_bounds();
+    int x = (int)floorf(win.x), w = (int)ceilf(win.width) + 1;
+    int top = (int)floorf(win.y), bottom = (int)ceilf(win.y + win.height);
     for (int i = 0; i < SHADE_STRIPS; i++) {
         float k = 1.0f - (float)i / (float)SHADE_STRIPS; /* 1 at the screen edge, towards 0 inside */
         int top_h = SHADE_TOP_H / SHADE_STRIPS, bottom_h = SHADE_BOTTOM_H / SHADE_STRIPS;
-        DrawRectangle(0, i * top_h, ARC_SCREEN_W, top_h, Fade(ARC_COL_BG, 0.80f * k * k));
-        DrawRectangle(0, ARC_SCREEN_H - (i + 1) * bottom_h, ARC_SCREEN_W, bottom_h,
-                      Fade(ARC_COL_BG, 0.88f * k * k));
+        DrawRectangle(x, top + i * top_h, w, top_h, Fade(ARC_COL_BG, 0.80f * k * k));
+        DrawRectangle(x, bottom - (i + 1) * bottom_h, w, bottom_h, Fade(ARC_COL_BG, 0.88f * k * k));
     }
 }
 
@@ -167,7 +171,9 @@ void backdrop_draw(float alpha) {
         swc_session_draw();
         if (alpha <
             1.0f) { /* a hub screen is on top: the sand fades into the dark background, the city too */
-            DrawRectangle(0, 0, ARC_SCREEN_W, ARC_SCREEN_H, Fade(ARC_COL_BG, 1.0f - alpha));
+            Rectangle win = arcade_view_bounds();
+            DrawRectangle((int)floorf(win.x), (int)floorf(win.y), (int)ceilf(win.width) + 1,
+                          (int)ceilf(win.height) + 1, Fade(ARC_COL_BG, 1.0f - alpha));
             draw_edge_shade();
         }
         return;

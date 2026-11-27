@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
      * plays under a default one */
     app_sort_games(&app);
 
-    arcade_gfx_init(false, app.assets_dir);
+    arcade_gfx_init_sized(false, app.assets_dir, opt.width, opt.height, opt.fullscreen);
     if (!IsWindowReady()) {
         fprintf(stderr, "error: could not open the game window\n");
         return 1;

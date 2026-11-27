@@ -35,7 +35,7 @@ Satu frame di `play()` (`time_shooter_game.c`) berjalan seperti ini:
    6. Setiap musuh yang hidup bergerak ke arah pemain sejauh `speed * wdt`. Kalau lingkarannya menyentuh pemain, `over = true`.
    7. Setiap peluru yang hidup bergerak `vel * wdt`. Kalau keluar layar, peluru dimatikan. Kalau mengenai musuh, keduanya dimatikan, `kills++`, dan posisi kill disimpan di `last_kill`.
 3. Front-end melihat `kills` dan `over` untuk memicu efek: ledakan partikel dan layar bergetar tiap kill, ledakan besar saat pemain mati.
-4. `BeginDrawing()`, lalu `draw()` menggambar backdrop (grid ikut membeku bersama dunia), musuh, peluru, pemain, **time bar**, dan tint biru tipis saat dunia membeku. Setelah itu HUD, lalu `arcade_frame_end()`.
+4. `arcade_frame_begin()`, lalu `draw()` menggambar backdrop (grid ikut membeku bersama dunia), musuh, peluru, pemain, **time bar**, dan tint biru tipis saat dunia membeku. Setelah itu HUD, lalu `arcade_frame_end()`.
 5. Kalau `time_shooter_is_over()` bernilai `true`, loop berhenti dan hasil (`score`, `finished`) dikembalikan ke hub.
 
 ## Peta file

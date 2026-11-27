@@ -28,8 +28,8 @@ static void draw_probe_tip(const char *text, const ArcadeInput *in) {
 }
 
 static void draw_palette(const sbx_State *s, const ArcadeInput *in) {
-    DrawRectangle(0, SBX_PAL_Y - SBX_PAL_PAD, ARC_SCREEN_W, ARC_SCREEN_H - SBX_PAL_Y + SBX_PAL_PAD,
-                  ARC_COL_PANEL);
+    gfx_fill_below(SBX_PAL_Y - SBX_PAL_PAD,
+                   ARC_COL_PANEL); /* across the whole window, down to its bottom edge */
     int hover = sbx_palette_slot_at(in->aim_x, in->aim_y);
     for (int i = 0; i < sandbox_palette_count(); i++) {
         ElementId id = sandbox_palette_id(i);
@@ -80,7 +80,7 @@ static GameResult play(const GameContext *ctx) {
         ArcadeInput in;
         arcade_poll(&in);
         sbx_step(&s, &in, ARC_DT);
-        BeginDrawing();
+        arcade_frame_begin();
         draw_frame(&s, &view, &in);
         arcade_frame_end();
     }
