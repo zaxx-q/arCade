@@ -98,6 +98,7 @@ bool IsMusicValid(Music music);  // Check if music stream is valid (context and 
 bool IsWaveValid(Wave wave);  // Check if wave data is valid (data loaded and parameters)
 bool IsWindowFocused(void);  // Check if window is currently focused
 bool IsWindowReady(void);  // Check if window has been initialized successfully
+bool IsWindowState(unsigned int flag);  // Check if one specific window flag is enabled
 char *LoadFileText(const char *fileName);  // Load text data from file (read), returns a '\0' terminated string
 Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, const int *codepoints, int codepointCount); // Load font from mem
 Color *LoadImageColors(Image image);  // Load color data from image as a Color array (RGBA - 32bit)
@@ -124,6 +125,8 @@ void ResumeMusicStream(Music music);  // Resume playing paused music
 bool SaveFileText(const char *fileName, const char *text);  // Save text data to file (write), string must be '\0' terminated, returns true on success
 void SetConfigFlags(unsigned int flags);  // Set init configuration flags (view FLAGS)
 void SetExitKey(int key);  // Set a custom key to exit program (default is ESC)
+void SetMouseOffset(int offsetX, int offsetY);  // Set mouse offset
+void SetMouseScale(float scaleX, float scaleY);  // Set mouse scaling
 void SetMusicVolume(Music music, float volume);  // Set volume for music (1.0 is max level)
 void SetSoundPitch(Sound sound, float pitch);  // Set pitch for a sound (1.0 is base level)
 void SetSoundVolume(Sound sound, float volume);  // Set volume for a sound (1.0 is max level)
@@ -131,9 +134,11 @@ void SetTargetFPS(int fps);  // Set target FPS (maximum)
 void SetTextureFilter(Texture2D texture, int filter);  // Set texture scaling filter mode
 void SetTextureWrap(Texture2D texture, int wrap);  // Set texture wrapping mode
 void SetTraceLogLevel(int logLevel);  // Set the current threshold (minimum) log level
+void SetWindowMinSize(int width, int height);  // Set window minimum dimensions (for FLAG_WINDOW_RESIZABLE)
 void StopMusicStream(Music music);  // Stop music playing
 void StopSound(Sound sound);  // Stop playing a sound
 const char *TextFormat(const char *text, ...);  // Text formatting with variables (sprintf() style)
+void ToggleBorderlessWindowed(void);  // Toggle window state: borderless windowed, resizes window to match monitor resolution
 void TraceLog(int logLevel, const char *text, ...);  // Show trace log messages (LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR...)
 void UnloadFont(Font font);  // Unload font from GPU memory (VRAM)
 void UnloadImage(Image image);  // Unload image from CPU memory (RAM)
@@ -203,8 +208,10 @@ typedef struct Sound {
 
 ## Constants used by this project
 ```c
+FLAG_BORDERLESS_WINDOWED_MODE = 0x00008000, // Set to run program in borderless windowed mode
 FLAG_MSAA_4X_HINT  = 0x00000020,  // Set to try enabling MSAA 4X
 FLAG_VSYNC_HINT  = 0x00000040,  // Set to try enabling V-Sync on GPU
+FLAG_WINDOW_RESIZABLE  = 0x00000004,  // Set to allow resizable window
 KEY_A  = 65,  // Key: A | a
 KEY_B  = 66,  // Key: B | b
 KEY_BACKSPACE  = 259,  // Key: Backspace
@@ -214,6 +221,7 @@ KEY_E  = 69,  // Key: E | e
 KEY_ENTER  = 257,  // Key: Enter
 KEY_ESCAPE  = 256,  // Key: Esc
 KEY_F  = 70,  // Key: F | f
+KEY_F11  = 300,  // Key: F11
 KEY_KP_ENTER  = 335,  // Key: Keypad Enter
 KEY_L  = 76,  // Key: L | l
 KEY_LEFT  = 263,  // Key: Cursor left

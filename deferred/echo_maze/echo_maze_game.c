@@ -34,7 +34,7 @@ static GameResult play(const GameContext *ctx) {
         ArcadeInput in;
         arcade_poll(&in);
         echo_maze_step(&s, &in, ARC_DT);
-        BeginDrawing();
+        arcade_frame_begin();
         draw(&s);
         gfx_hud("ECHO MAZE", echo_maze_score(&s), TextFormat("pings %d   %.0fs", s.pings, s.time));
         if (s.pings == 0)

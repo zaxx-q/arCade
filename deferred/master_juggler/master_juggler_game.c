@@ -165,7 +165,7 @@ static GameResult play(const GameContext *ctx) {
         if (s.tries_lost != tries_seen && audio)
             PlaySound(life);
         tries_seen = s.tries_lost;
-        BeginDrawing();
+        arcade_frame_begin();
         gfx_backdrop(t);
         draw_world(&s);
         draw_frame();

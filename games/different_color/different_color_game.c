@@ -131,7 +131,7 @@ static GameResult play(const GameContext *ctx) {
             if (audio)
                 PlaySound(lose);
         }
-        BeginDrawing();
+        arcade_frame_begin();
         gfx_backdrop(t);
         draw_world(&s);
         draw_frame();

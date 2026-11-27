@@ -53,6 +53,9 @@
 /* ---- Window lifecycle: called ONCE by the hub (app/), never by a game ---- */
 void arcade_gfx_init(bool headless,
                      const char *assets_dir); /* opens the 1280x720 window and loads the font */
+/* The same, with a window of width x height (0 = the design size) that may start in borderless full screen.
+ * The window is resizable in both cases: see "Window size and full screen" below. */
+void arcade_gfx_init_sized(bool headless, const char *assets_dir, int width, int height, bool fullscreen);
 void arcade_gfx_shutdown(void);
 bool arcade_quit_requested(void); /* true when the window close button was pressed */
 void arcade_flush_input(void);    /* draws one blank frame so stale key presses are consumed */
@@ -64,7 +67,7 @@ void arcade_flush_input(void);    /* draws one blank frame so stale key presses 
  *       ArcadeInput in;
  *       arcade_poll(&in);
  *       xxx_step(&state, &in, ARC_DT);   // pure logic
- *       BeginDrawing();
+ *       arcade_frame_begin();            // instead of BeginDrawing()
  *       ... draw ...
  *       arcade_frame_end();              // instead of EndDrawing()
  *       if (xxx_is_over(&state)) break;
@@ -73,9 +76,38 @@ void arcade_flush_input(void);    /* draws one blank frame so stale key presses 
 void arcade_loop_begin(const GameContext *ctx);
 bool arcade_loop_running(void);    /* false on ESC (interactive), window close, or max_frames (smoke) */
 void arcade_poll(ArcadeInput *in); /* real keyboard/mouse, or scripted "monkey" input in smoke runs */
+void arcade_frame_begin(void);     /* BeginDrawing() + the window-to-canvas transform (see below) */
 void arcade_frame_end(void);       /* EndDrawing() + smoke screenshots + frame counter */
 int arcade_frame_index(void);
 bool arcade_screenshot_ok(void); /* smoke: at least one non-blank snapshot was exported */
+
+/* ---- Window size and full screen ----
+ *
+ * The window can be any size: dragged to a new size, forced to full screen by a window manager, or put into
+ * borderless full screen with F11 (arcade_frame_begin handles the key in every loop). Everything is still
+ * laid out on the fixed design canvas ARC_SCREEN_W x ARC_SCREEN_H; arcade_frame_begin() scales that canvas
+ * to the biggest size that fits the window and centres it, so a game draws exactly as before:
+ *  - coordinates are design pixels, never window pixels (do not use GetScreenWidth()/GetScreenHeight());
+ *  - the mouse (ArcadeInput.aim_x/aim_y, GetMousePosition()) is already in design pixels;
+ *  - what the canvas does not cover (a window that is not 16:9) is only a margin: backdrops and full-width
+ *    bars should reach the window's edges, so use arcade_view_bounds() instead of 0..ARC_SCREEN_W;
+ *  - BeginScissorMode() works in window pixels: use arcade_scissor_begin() instead;
+ *  - a renderer that fills the real window itself (a 3D scene) draws between arcade_native_begin() and
+ *    arcade_native_end(), where one unit is one window pixel.
+ * The pure math (and its tests) is in arcade/view.h. */
+Rectangle
+arcade_view_bounds(void);       /* the whole window in design units: x and y are <= 0 when it is not 16:9 */
+float arcade_view_scale(void);  /* window pixels per design pixel (1 inside arcade_native_begin) */
+void arcade_native_begin(void); /* leave the design transform: units are window pixels (3D scenes) */
+void arcade_native_end(void);   /* back to the design canvas */
+void arcade_scissor_begin(int x, int y, int w, int h); /* BeginScissorMode() with a design-pixel rectangle */
+Vector2
+arcade_window_mouse(void); /* the mouse in window pixels (mouse look: same speed at any window size) */
+void arcade_toggle_fullscreen(void); /* borderless full screen on/off (F11); no video mode change */
+bool arcade_is_fullscreen(void);
+/* Called by arcade_frame_begin / gfx_text: */
+Vector2 arcade_view_snap(Vector2 p); /* a design position moved to the nearest window pixel (crisp text) */
+void gfx_text_frame_begin(void);     /* drops font atlases made for another scale */
 
 /* ---- Audio (optional: every game must still work silently) ---- */
 bool arcade_audio_ready(void); /* false in smoke runs and on machines without a sound device */
@@ -101,6 +133,11 @@ void gfx_text_right(const char *text, int right_x, int y, int size, Color c);
 void gfx_glow_circle(float x, float y, float r, Color c);
 void gfx_glow_line(Vec2 a, Vec2 b, float thick, Color c);
 void gfx_hud(const char *title, int score, const char *extra); /* top bar: title, score, extra text */
+/* Full-width fills: they run to the window's left and right edges, not just the canvas's (see "Window size
+ * and full screen" above). gfx_band covers the design rows y .. y + h; gfx_fill_below covers everything from
+ * row y to the bottom of the window (a screen flash or tint under the HUD bar). */
+void gfx_band(int y, int h, Color c);
+void gfx_fill_below(int y, Color c);
 void gfx_draw_particles(const ParticleSystem *ps, Vec2 offset);
 Color gfx_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 

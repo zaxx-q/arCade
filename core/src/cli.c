@@ -15,6 +15,21 @@ static bool parse_uint(const char *s, long max, long *out) {
     return true;
 }
 
+/* "1920x1080" (or 'X'): both sides must be a plain number within the range a window can have. */
+static bool parse_size(const char *s, int *w, int *h) {
+    char *end = NULL;
+    long a = strtol(s, &end, 10);
+    if (end == s || (*end != 'x' && *end != 'X'))
+        return false;
+    const char *rest = end + 1;
+    long b = strtol(rest, &end, 10);
+    if (end == rest || *end != '\0' || a < 160 || a > 16384 || b < 160 || b > 16384)
+        return false;
+    *w = (int)a;
+    *h = (int)b;
+    return true;
+}
+
 static bool fail(CliOptions *o, const char *msg, const char *arg) {
     snprintf(o->error, sizeof(o->error), "%s: %s", msg, arg ? arg : "");
     return false;
@@ -39,6 +54,13 @@ bool cli_parse(int argc, char **argv, CliOptions *o) {
             o->show_all = true;
         } else if (strcmp(a, "--licenses") == 0) {
             o->show_licenses = true;
+        } else if (strcmp(a, "--fullscreen") == 0) {
+            o->fullscreen = true;
+        } else if (strcmp(a, "--size") == 0) {
+            if (!has_value || !parse_size(argv[i + 1], &o->width, &o->height))
+                return fail(o, "invalid value for --size (expected WxH, e.g. 1920x1080)",
+                            has_value ? argv[i + 1] : NULL);
+            i++;
         } else if (strcmp(a, "--smoke") == 0) {
             if (!has_value)
                 return fail(o, "missing value for", a);
@@ -81,6 +103,8 @@ const char *cli_usage(void) {
            "  --smoke <id|all>       automated run with scripted input (CI); needs --frames etc.\n"
            "  --frames N             frames per game in a smoke run (default 300)\n"
            "  --seed N               RNG seed for a smoke run (default 1234)\n"
+           "  --size WxH             window size (default 1280x720); in a smoke run, the frame size\n"
+           "  --fullscreen           start in borderless full screen (F11 toggles it while playing)\n"
            "  --out DIR              folder for smoke screenshots (default smoke-out)\n"
            "  --data-dir DIR         folder for scores.txt (default: next to the executable)\n"
            "  --assets-dir DIR       read assets from DIR instead of the built-in ones (development)\n"

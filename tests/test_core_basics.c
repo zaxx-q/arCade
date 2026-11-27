@@ -160,6 +160,31 @@ static void test_cli(void) {
     CHECK(!cli_parse(2, bad3, &o));
     char *bad4[] = {"hub", "--frames", "0"};
     CHECK(!cli_parse(3, bad4, &o));
+
+    /* window size and full screen */
+    char *size[] = {"hub", "--size", "1920x1080", "--fullscreen"};
+    CHECK(cli_parse(4, size, &o));
+    CHECK_EQ_INT(o.width, 1920);
+    CHECK_EQ_INT(o.height, 1080);
+    CHECK(o.fullscreen);
+    CHECK(cli_parse(1, none, &o));
+    CHECK_EQ_INT(o.width, 0); /* 0 = the design size */
+    CHECK_EQ_INT(o.height, 0);
+    CHECK(!o.fullscreen);
+    char *size_cap[] = {"hub", "--size", "800X600"};
+    CHECK(cli_parse(3, size_cap, &o));
+    CHECK_EQ_INT(o.width, 800);
+    CHECK_EQ_INT(o.height, 600);
+    char *size_bad1[] = {"hub", "--size", "1920"};
+    CHECK(!cli_parse(3, size_bad1, &o));
+    char *size_bad2[] = {"hub", "--size", "1920x"};
+    CHECK(!cli_parse(3, size_bad2, &o));
+    char *size_bad3[] = {"hub", "--size", "10x10"}; /* too small to be a window */
+    CHECK(!cli_parse(3, size_bad3, &o));
+    char *size_bad4[] = {"hub", "--size", "1920x1080x2"};
+    CHECK(!cli_parse(3, size_bad4, &o));
+    char *size_bad5[] = {"hub", "--size"};
+    CHECK(!cli_parse(2, size_bad5, &o));
 }
 
 static void test_playfield_helpers(void) {

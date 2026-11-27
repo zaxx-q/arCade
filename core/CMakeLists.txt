@@ -3,7 +3,7 @@
 arcade_embed_assets(ARCADE_ASSETS_C)
 add_library(arcade_core STATIC
   src/rng.c src/str.c src/input.c src/leaderboard.c src/lbnet.c src/sortlib.c src/sandbox.c src/sandbox_elements.c src/sandbox_move.c src/sandbox_react.c src/sandbox_heat.c src/sandbox_burst.c src/sandbox_color.c
-  src/vault.c src/fx.c src/cli.c src/synth.c src/midi.c src/assets.c "${ARCADE_ASSETS_C}")
+  src/vault.c src/fx.c src/cli.c src/view.c src/synth.c src/midi.c src/assets.c "${ARCADE_ASSETS_C}")
 target_include_directories(arcade_core PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_BINARY_DIR}/generated") # generated arcade/version.h

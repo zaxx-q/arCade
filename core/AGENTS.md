@@ -20,8 +20,9 @@ Shared library for every game and arCade. Two parts: **pure C** (`core/src`, hea
 | `include/arcade/sortlib.h` | bubble/selection/insertion sort with swap counters |
 | `include/arcade/synth.h`, `src/synth.c` | pure software synth (notes + drums -> 16-bit PCM, WAV header) |
 | `include/arcade/midi.h`, `src/midi.c` | Standard MIDI File reader (note events per track) |
-| `gfx/gfx_text.c` | project font (Poiret One): one atlas per pixel size; ALWAYS draw text via `gfx_text()` |
-| `gfx/gfx.c`, `gfx/gfx_draw.c` | the only code that calls raylib for loop/input/drawing helpers |
+| `include/arcade/view.h`, `src/view.c` | how the 1280 x 720 canvas fits a window of any size (scale, centre, window edges in design units, pixel mapping); pure, tested in `tests/test_view.c` |
+| `gfx/gfx_text.c` | project font (Poiret One): one atlas per pixel size and window scale; ALWAYS draw text via `gfx_text()` |
+| `gfx/gfx.c`, `gfx/gfx_draw.c` | the only code that calls raylib for loop/input/drawing helpers; `gfx.c` also owns the window: resizable, F11 full screen, the canvas-to-window transform and the mouse mapping (`arcade_frame_begin`, `arcade_native_begin/end`) |
 
 ## Setup & environment
 Pure part: any C99 compiler + CMake (`cmake --preset logic`). Front-end part needs raylib (downloaded by CMake on first configure; Linux needs the X11/GL dev packages listed in `docs/DEVELOPMENT.md`).
@@ -35,7 +36,7 @@ Pure part: any C99 compiler + CMake (`cmake --preset logic`). Front-end part nee
 - Portable C99 only: use `ARC_PI` (not `M_PI`), `arc_strlcpy`/`arc_stricmp` (not `strlcpy`/`strcasecmp`/`strdup`), no VLAs, no POSIX/Windows headers.
 - Pure files never include `raylib.h` or `arcade/gfx.h`; `gfx.h` is the only header that does.
 - Fixed-size arrays and caller-owned structs: no `malloc` in hot paths; large structs are passed by pointer.
-- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_lbnet`, `test_sortlib`, `test_sandbox`, `test_vault`, `test_assets`).
+- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_lbnet`, `test_sortlib`, `test_sandbox`, `test_vault`, `test_assets`, `test_view`).
 - API changes to `GameContext`, `GameDef`, `ArcadeInput`, `arcade_loop_*`, `arcade_poll`: update **all** of `core/gfx/gfx.c`, `input.c` (monkey), `app/`, `games/_template`, and every game; ask first.
 
 ## Security & safety

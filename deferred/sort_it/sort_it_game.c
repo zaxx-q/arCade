@@ -39,7 +39,7 @@ static GameResult play(const GameContext *ctx) {
         arcade_poll(&in);
         sort_it_step(&s, &in, ARC_DT);
         t += ARC_DT;
-        BeginDrawing();
+        arcade_frame_begin();
         draw(&s, t);
         gfx_hud("SORT IT", sort_it_score(&s), "");
         arcade_frame_end();

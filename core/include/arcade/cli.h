@@ -15,9 +15,11 @@ typedef struct CliOptions {
     int frames;            /* --frames N (smoke), default 300 */
     unsigned seed;         /* --seed N, default 1234 */
     char out_dir[256];     /* --out DIR (screenshots), default "smoke-out" */
-    char data_dir[256];    /* --data-dir DIR, default "" = next to the executable */
-    char assets_dir[256];  /* --assets-dir DIR, default "" = the assets built into the executable */
-    char error[96];        /* filled when cli_parse returns false */
+    int width, height;  /* --size WxH: window size (or smoke-run frame size); 0 = the design size 1280x720 */
+    bool fullscreen;    /* --fullscreen: start in borderless full screen (F11 toggles it any time) */
+    char data_dir[256]; /* --data-dir DIR, default "" = next to the executable */
+    char assets_dir[256]; /* --assets-dir DIR, default "" = the assets built into the executable */
+    char error[96];       /* filled when cli_parse returns false */
 } CliOptions;
 
 bool cli_parse(int argc, char **argv, CliOptions *opt);

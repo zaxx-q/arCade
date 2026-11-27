@@ -16,11 +16,11 @@ bool gritty_golf_front_init(const char *assets_dir);
 void gritty_golf_front_shutdown(void);
 
 /* Draws the 256x256 game picture into its render texture. `mouse` is in canvas pixels (hover highlights).
- * Call it BEFORE BeginDrawing(): a render texture may not be active while the screen frame is. */
+ * Call it BEFORE arcade_frame_begin(): a render texture may not be active while the screen frame is. */
 void gritty_golf_front_render_canvas(const gritty_golf_State *s, Vec2 mouse);
 
 /* Draws the arCade screen: backdrop, HUD bar, side panels and the canvas at 2x. Call it between
- * BeginDrawing() and arcade_frame_end(). `mouse` is in screen pixels, `t` is seconds since start. */
+ * arcade_frame_begin() and arcade_frame_end(). `mouse` is in screen pixels, `t` is seconds since start. */
 void gritty_golf_front_draw_screen(const gritty_golf_State *s, Vec2 mouse, float t);
 
 #endif

@@ -1,10 +1,12 @@
 /* Window, frame loop, input polling and smoke-test screenshots. */
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "arcade/gfx.h"
 #include "arcade/str.h"
 #include "arcade/version.h"
+#include "arcade/view.h"
 #include "rlgl.h"
 
 static struct {
@@ -14,23 +16,61 @@ static struct {
     ArcadeMonkey monkey;
     char shot_path[512];
     bool shot_ok;
+    ArcView view; /* how the 1280 x 720 design canvas sits in the window right now */
+    bool native;  /* inside arcade_native_begin / arcade_native_end: units are window pixels */
 } g;
 
-void arcade_gfx_init(bool headless, const char *assets_dir) {
+/* ---- window size: the design canvas is scaled and centred in whatever window we have ---- */
+
+/* Refits the canvas to the current window size and points the mouse at it. Cheap, so it runs whenever the
+ * window may have changed (after every EndDrawing, which is where raylib processes the resize events).
+ * GetMousePosition() is then (window position - offset) / scale = a design position. */
+static void view_sync(void) {
+    /* The render size is the size of the framebuffer being drawn to. Unlike GetScreenWidth() it only changes
+     * when the window really has been resized, so the frame in which F11 is pressed is not drawn too big. */
+    arc_view_fit(&g.view, GetRenderWidth(), GetRenderHeight());
+    if (g.native)
+        return; /* inside the native section the mouse stays in window pixels */
+    SetMouseOffset((int)-g.view.off_x, (int)-g.view.off_y);
+    SetMouseScale(1.0f / g.view.scale, 1.0f / g.view.scale);
+}
+
+/* The modelview matrix that maps design units to window pixels (translate, then scale). */
+static void apply_design_transform(void) {
+    rlMatrixMode(RL_MODELVIEW);
+    rlLoadIdentity();
+    rlTranslatef(g.view.off_x, g.view.off_y, 0.0f);
+    rlScalef(g.view.scale, g.view.scale, 1.0f);
+}
+
+void arcade_gfx_init_sized(bool headless, const char *assets_dir, int width, int height, bool fullscreen) {
     SetTraceLogLevel(LOG_WARNING);
     unsigned flags = FLAG_VSYNC_HINT;
     if (!headless)
-        flags |= FLAG_MSAA_4X_HINT;
+        flags |= FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE;
     SetConfigFlags(flags);
-    InitWindow(ARC_SCREEN_W, ARC_SCREEN_H, "arCade " ARCADE_VERSION_STRING);
+    if (width < 1 || height < 1) {
+        width = ARC_SCREEN_W;
+        height = ARC_SCREEN_H;
+    }
+    InitWindow(width, height, "arCade " ARCADE_VERSION_STRING);
     gfx_text_init(assets_dir);
     SetExitKey(KEY_NULL); /* ESC means "back to the hub", not "close the window" */
-    if (!headless)
+    if (!headless) {
+        SetWindowMinSize(ARC_VIEW_MIN_W, ARC_VIEW_MIN_H);
         SetTargetFPS(ARC_FPS);
+    }
     memset(&g, 0, sizeof(g));
     g.headless = headless;
+    if (!headless && fullscreen)
+        ToggleBorderlessWindowed(); /* no video mode switch: instant, and it restores the old size */
+    view_sync();
     if (!headless)
         InitAudioDevice(); /* may fail on machines without sound: games must cope */
+}
+
+void arcade_gfx_init(bool headless, const char *assets_dir) {
+    arcade_gfx_init_sized(headless, assets_dir, 0, 0, false);
 }
 
 void arcade_gfx_shutdown(void) {
@@ -49,9 +89,11 @@ void arcade_flush_input(void) {
     BeginDrawing();
     ClearBackground(ARC_COL_BG);
     EndDrawing();
+    view_sync();
 }
 
 void arcade_loop_begin(const GameContext *ctx) {
+    view_sync();
     g.headless = ctx->headless;
     g.frame = 0;
     g.max_frames = ctx->max_frames;
@@ -85,7 +127,7 @@ void arcade_poll(ArcadeInput *in) {
     in->move_y = axis(IsKeyDown(KEY_W) || IsKeyDown(KEY_UP), IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN));
     in->move_z = axis(IsKeyDown(KEY_Q), IsKeyDown(KEY_E));
     in->shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-    Vector2 m = GetMousePosition();
+    Vector2 m = GetMousePosition(); /* already in design pixels: see view_sync() */
     in->aim_x = m.x;
     in->aim_y = m.y;
     in->fire = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
@@ -138,12 +180,104 @@ static void snapshot(void) {
     UnloadImage(img);
 }
 
+void arcade_frame_begin(void) {
+    if (!g.headless && IsKeyPressed(KEY_F11))
+        arcade_toggle_fullscreen(); /* before BeginDrawing: the window is not resized in the middle of a frame
+                                     */
+    BeginDrawing();
+    g.native = false;
+    view_sync(); /* the window may have been resized since the last frame ended */
+    apply_design_transform();
+    gfx_text_frame_begin();
+}
+
 void arcade_frame_end(void) {
     bool last = g.max_frames > 0 && g.frame + 1 >= g.max_frames;
     if (g.shot_path[0] != '\0' && (g.frame % 60 == 59 || last))
         snapshot();
     EndDrawing();
+    g.native = false;
+    view_sync(); /* EndDrawing polled the events: a resize or a mouse move is applied from here on */
     g.frame++;
+}
+
+Rectangle arcade_view_bounds(void) {
+    Rectangle r;
+    if (g.native) {
+        r.x = 0.0f;
+        r.y = 0.0f;
+        r.width = (float)g.view.win_w;
+        r.height = (float)g.view.win_h;
+    } else {
+        r.x = g.view.left;
+        r.y = g.view.top;
+        r.width = g.view.right - g.view.left;
+        r.height = g.view.bottom - g.view.top;
+    }
+    return r;
+}
+
+float arcade_view_scale(void) {
+    return g.native ? 1.0f : g.view.scale;
+}
+
+void arcade_native_begin(void) {
+    if (g.native)
+        return;
+    rlDrawRenderBatchActive(); /* what was queued still belongs to the design transform */
+    rlMatrixMode(RL_MODELVIEW);
+    rlLoadIdentity();
+    g.native = true;
+    SetMouseOffset(0, 0);
+    SetMouseScale(1.0f, 1.0f);
+}
+
+void arcade_native_end(void) {
+    if (!g.native)
+        return;
+    rlDrawRenderBatchActive();
+    g.native = false;
+    view_sync();
+    apply_design_transform(); /* EndMode3D and EndTextureMode reset the modelview matrix */
+}
+
+void arcade_scissor_begin(int x, int y, int w, int h) {
+    if (g.native) {
+        BeginScissorMode(x, y, w, h);
+        return;
+    }
+    int wx, wy, ww, wh;
+    arc_view_window_rect(&g.view, (float)x, (float)y, (float)w, (float)h, &wx, &wy, &ww, &wh);
+    BeginScissorMode(wx, wy, ww, wh);
+}
+
+Vector2 arcade_window_mouse(void) {
+    Vector2 m = GetMousePosition();
+    if (g.native)
+        return m;
+    Vec2 w = arc_view_to_window(&g.view, m.x, m.y);
+    Vector2 r = {w.x, w.y};
+    return r;
+}
+
+Vector2 arcade_view_snap(Vector2 p) {
+    if (g.native) {
+        Vector2 r = {roundf(p.x), roundf(p.y)};
+        return r;
+    }
+    Vector2 r = {(roundf(g.view.off_x + p.x * g.view.scale) - g.view.off_x) / g.view.scale,
+                 (roundf(g.view.off_y + p.y * g.view.scale) - g.view.off_y) / g.view.scale};
+    return r;
+}
+
+void arcade_toggle_fullscreen(void) {
+    if (g.headless)
+        return;
+    ToggleBorderlessWindowed(); /* the new size arrives with the next window event: see view_sync() */
+}
+
+bool arcade_is_fullscreen(void) {
+    return !g.headless && IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
 }
 
 int arcade_frame_index(void) {

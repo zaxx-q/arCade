@@ -55,7 +55,7 @@ static void draw_bar(const tower_stacker_State *s) {
 
 static void draw_world(const tower_stacker_State *s, float t) {
     DrawRectangle(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H, Fade(ARC_COL_PANEL, 0.92f));
-    BeginScissorMode(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
+    arcade_scissor_begin(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", s->score);
     gfx_text_center(buf, ARC_PF_X + s->w / 2, ARC_PF_Y + s->h / 8 - 4, 60, Fade(ARC_COL_DIM, 0.55f));
@@ -136,7 +136,7 @@ static GameResult play(const GameContext *ctx) {
             if (audio)
                 PlaySound(lose);
         }
-        BeginDrawing();
+        arcade_frame_begin();
         gfx_backdrop(t);
         draw_world(&s, t);
         draw_frame();

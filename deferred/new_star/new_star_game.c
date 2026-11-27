@@ -95,7 +95,7 @@ static void draw_face(Vector2 c, float size, int type) {
 
 static void draw_world(const new_star_State *s) {
     DrawRectangle(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H, Fade(ARC_COL_PANEL, 0.92f));
-    BeginScissorMode(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
+    arcade_scissor_begin(ARC_PF_X, ARC_PF_Y, ARC_PF_W, ARC_PF_H);
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", s->score);
     gfx_text_center(buf, ARC_PF_X + (int)s->score_pos.x, ARC_PF_Y + (int)s->score_pos.y - 40, 60,
@@ -193,7 +193,7 @@ static GameResult play(const GameContext *ctx) {
             if (audio)
                 PlaySound(lose);
         }
-        BeginDrawing();
+        arcade_frame_begin();
         gfx_backdrop(t);
         draw_world(&s);
         draw_frame();

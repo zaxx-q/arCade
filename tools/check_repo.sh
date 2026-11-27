@@ -25,9 +25,15 @@ for dir in games/*/ deferred/*/; do
     grep -q "game_${id}_def" "${dir}${id}_game.c" || err "$path/${id}_game.c must define 'const GameDef game_${id}_def'"
     grep -q "arcade_loop_begin(" "${dir}${id}_game.c" || err "$path/${id}_game.c must call arcade_loop_begin(ctx)"
     grep -q "arcade_frame_end(" "${dir}${id}_game.c" || err "$path/${id}_game.c must end frames with arcade_frame_end()"
-    grep -qE "BeginDrawing\(\)" "${dir}${id}_game.c" || err "$path/${id}_game.c never calls BeginDrawing()"
+    grep -qE "arcade_frame_begin\(\)" "${dir}${id}_game.c" || err "$path/${id}_game.c never calls arcade_frame_begin()"
+    if code_lines "${dir}${id}_game.c" | grep -E '\bBeginDrawing\(' >/dev/null; then
+      err "$path/${id}_game.c calls BeginDrawing(): use arcade_frame_begin() (it fits the screen to a resized window)"
+    fi
     if code_lines "${dir}${id}_game.c" | grep -E '\bEndDrawing\(' >/dev/null; then
       err "$path/${id}_game.c calls EndDrawing(): use arcade_frame_end() instead"
+    fi
+    if code_lines "${dir}${id}_game.c" | grep -E '\b(BeginScissorMode|GetScreenWidth|GetScreenHeight|GetRenderWidth|GetRenderHeight)\(' >/dev/null; then
+      err "$path/${id}_game.c uses window pixels: draw on the ARC_SCREEN_W x ARC_SCREEN_H canvas (arcade_scissor_begin, arcade_view_bounds, arcade_native_begin: docs/ARCHITECTURE.md)"
     fi
   fi
   if [ -f "${dir}CMakeLists.txt" ]; then
