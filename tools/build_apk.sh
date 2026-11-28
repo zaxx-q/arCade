@@ -115,7 +115,7 @@ main() {
   "$aapt2" compile --dir "$here/android/res" -o "$work/res.zip"
   "$aapt2" link -o "$work/base.apk" -I "$jar" --manifest "$here/android/AndroidManifest.xml" \
     --min-sdk-version "$MIN_SDK" --target-sdk-version "$TARGET_SDK" \
-    --version-code "$code" --version-name "$version" -R "$work/res.zip"
+    --version-code "$code" --version-name "$version" --auto-add-overlay -R "$work/res.zip"
   # 2. the library goes in STORED (-0, not compressed): the manifest says extractNativeLibs=false, so Android runs
   #    it straight from the .apk, and that needs it uncompressed and page aligned. -X: no extra file attributes.
   mkdir -p "$work/pkg/lib/$ABI"
