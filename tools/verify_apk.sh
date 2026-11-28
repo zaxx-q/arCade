@@ -83,7 +83,12 @@ check_badging() { # text what
   if has "$1"; then pass "$2"; else fail "$2 (expected '$1' in the output of aapt2 dump badging)"; fi
 }
 check_badging "package: name='$PACKAGE' versionCode='$code' versionName='$version'" "package $PACKAGE, version $version, code $code"
-check_badging "sdkVersion:'$MIN_SDK'" "minSdk $MIN_SDK"
+# Build-Tools < 35 prints sdkVersion:'26'; >= 35 may print minSdkVersion:'26' (no space) or sdkVersion:'26'.
+if has "sdkVersion:'$MIN_SDK'" || has "minSdkVersion:'$MIN_SDK'"; then
+  pass "minSdk $MIN_SDK"
+else
+  fail "minSdk $MIN_SDK (expected 'sdkVersion:'$MIN_SDK'' or 'minSdkVersion:'$MIN_SDK'' in aapt2 dump badging)"
+fi
 check_badging "targetSdkVersion:'$TARGET_SDK'" "targetSdk $TARGET_SDK"
 # the whole line, so that a second ABI after the first would not pass
 if printf '%s\n' "$badging" | grep -Fxq "native-code: '$ABI'"; then
@@ -123,11 +128,12 @@ fi
 # ---- alignment and the files in the zip ---------------------------------------------------------------------
 alignrc=0
 alignout="$("$zipalign" -c -P 16 -v 4 "$apk" 2>&1)" || alignrc=$?
-if [ "$alignrc" -eq 0 ] && printf '%s\n' "$alignout" | grep -Fq "Verification successful"; then
+# Build-Tools 35 zipalign has a typo: "Verification succesful" (one 's'); accept both.
+if [ "$alignrc" -eq 0 ] && printf '%s\n' "$alignout" | grep -Fq "Verification succes"; then
   pass "zipalign: 16 KB aligned"
 else
   printf '%s\n' "$alignout" | tail -n 5 >&2
-  fail "zipalign -c -P 16 did not report 'Verification successful'"
+  fail "zipalign -c -P 16 did not report 'Verification succes[s]ful'"
 fi
 
 lib_name="lib/$ABI/libarcade.so"
