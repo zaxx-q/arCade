@@ -236,7 +236,7 @@ Setiap game dipisah menjadi library logic dan front-end raylib. Logic berjalan d
 - Efek suara hub dan klik ritme dibuat langsung lewat kode (audio tone). Hanya Gritty Golf yang membawa 6 file WAV sendiri.
 - Logic di-update pada rate tetap 60 Hz dengan random number generator PCG32, jadi hasil permainan dan replay selalu konsisten.
 - Game terdaftar otomatis dari folder `games/` (tampil di menu) dan `deferred/` (ditunda, hanya lewat arsip); menambah atau memindahkan game tidak perlu mengubah file source hub yang sudah ada.
-- Bisa di-build dan dijalankan di Linux maupun Windows.
+- Bisa di-build dan dijalankan di Linux, Windows, dan Android (APK arm64 dengan kontrol sentuh; lihat [docs/ANDROID.md](docs/ANDROID.md)).
 
 ---
 
@@ -244,10 +244,11 @@ Setiap game dipisah menjadi library logic dan front-end raylib. Logic berjalan d
 
 ### Download
 
-Build siap pakai untuk Linux dan Windows tersedia di [halaman releases](https://github.com/zaxx-q/arCade/releases/latest).
+Build siap pakai untuk Linux, Windows, dan Android tersedia di [halaman releases](https://github.com/zaxx-q/arCade/releases/latest).
 
 - Windows: Download `arCade-vX.Y.Z-windows-x86_64.exe` lalu klik dua kali.
 - Linux: Download `arCade-vX.Y.Z-linux-x86_64`, jalankan `chmod +x arCade-vX.Y.Z-linux-x86_64`, lalu `./arCade-vX.Y.Z-linux-x86_64`.
+- Android (8.0 ke atas, HP 64-bit): Download `arCade-vX.Y.Z-android-arm64.apk` di HP dan buka (izinkan pemasangan dari sumber ini). Detail, kontrol sentuh, dan cara membangunnya ada di [docs/ANDROID.md](docs/ANDROID.md).
 
 Seluruh game berupa satu file saja, tanpa zip dan tanpa folder `assets/`: font, suara, tekstur, lagu, dan teks lisensi sudah dikompilasi ke dalam program. Teks lisensi dan atribusi pihak ketiga bisa dibaca dengan `arCade --licenses`.
 

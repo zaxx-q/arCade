@@ -1,4 +1,4 @@
-<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-25 -->
+<!-- Managed by agent: keep sections and order; edit content, not structure. Last updated: 2026-11-28 -->
 
 # AGENTS.md - .github/
 
@@ -11,8 +11,9 @@ CI and release automation. `workflows/ci.yml` (pull requests) and `workflows/rel
 | File                    | Trigger                                                  | Job names that matter                                                                                            |
 | ----------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `workflows/checks.yml`  | `workflow_call` (`full: bool`)                           | `lint`, `linux`, `windows-mingw`; full lane: `sanitizers`, `static-analysis`, `scripts`, `windows-msvc`, `smoke` |
-| `workflows/ci.yml`      | pull_request, manual                                     | `changes`, `pr-title`, `checks`, `ci-ok` (**the only required status check**)                                    |
-| `workflows/release.yml` | push to `main`, manual (`bump`, `prerelease`, `dry_run`) | `checks`, `version`, `build-linux`, `build-windows`, `publish`                                                   |
+| `workflows/ci.yml`      | pull_request, manual                                     | `changes`, `pr-title`, `checks`, `android` (not required yet), `ci-ok` (**the only required status check**)                                    |
+| `workflows/release.yml` | push to `main`, manual (`bump`, `prerelease`, `dry_run`) | `checks`, `version`, `build-linux`, `build-windows`, `build-android`, `publish`                                                   |
+| `workflows/android.yml` | `workflow_call` (`version`, `release`, the 4 signing secrets), manual | `apk`: NDK build, `tools/build_apk.sh`, `tools/verify_apk.sh`; `release: true` signs with the repository key and fails without it |
 | `dependabot.yml`        | weekly                                                   | bumps pinned action versions via PRs                                                                             |
 
 ## Setup & environment
@@ -33,12 +34,13 @@ Validate workflow YAML locally with actionlint (`actionlint` in the repo root, n
 - Never put `${{ github.event.* }}` (PR title, branch name, labels) directly in a `run:` script: pass it through `env:` and quote it (script injection).
 - `concurrency`: CI cancels superseded runs; `release` serialises (never cancel a running release).
 - All checks are blocking (`windows-msvc` and `smoke` promoted to blocking after verified green run).
+- Android is the exception until its first green run: `ci.yml`'s `android` job is not in `ci-ok`'s `needs`, and `release.yml`'s `publish` has an `if:` that lets Linux and Windows release without the .apk. Removing both is the promotion (`docs/RELEASING.md`, `docs/ANDROID.md`).
 - Branch protection to apply by hand: PRs only, **merge commit** (squash and rebase disabled — full history preserved), require the check **`CI OK`**.
 - Versioning: tags `vX.Y.Z` only; the bump comes from Conventional Commits (`feat!` major, `feat` minor, else patch; `[skip release]` skips). No bump commits.
 
 ## Security & safety
 
-- Never use `secrets: inherit`; the release uses only the built-in `github.token`.
+- Never use `secrets: inherit`. The release uses the built-in `github.token` and, for the Android .apk only, the four signing secrets named one by one in `build-android` (`ARCADE_KEYSTORE_B64`, `ARCADE_KEYSTORE_PASSWORD`, `ARCADE_KEY_ALIAS`, `ARCADE_KEY_PASSWORD`); `android.yml` hands them to the signing step only when `release` is true, and the keystore never leaves the runner's temp folder. Never commit `*.jks`.
 - Do not add third-party actions without asking first; prefer plain `gh`/shell steps.
 
 ## PR/commit checklist

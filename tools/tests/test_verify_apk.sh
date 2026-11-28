@@ -67,7 +67,7 @@ CERT="AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB
 CERT_PLAIN="abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 good_files() {
   cat >"$TMP/badging" <<EOF
-package: name='dev.arcade.hub' versionCode='1002003' versionName='1.2.3' platformBuildVersionName='15' compileSdkVersion='35'
+package: name='io.github.zaxx_q.arcade' versionCode='1002003' versionName='1.2.3' platformBuildVersionName='15' compileSdkVersion='35'
 sdkVersion:'26'
 targetSdkVersion:'35'
 uses-feature: name='android.hardware.touchscreen'
@@ -140,9 +140,9 @@ case_fails() { # name expected-message [args for run]
 }
 
 sed -i "s/versionCode='1002003'/versionCode='1002004'/" "$TMP/badging"
-case_fails "wrong versionCode" "FAIL: package dev.arcade.hub"
-sed -i "s/name='dev.arcade.hub'/name='com.example.other'/" "$TMP/badging"
-case_fails "wrong package" "FAIL: package dev.arcade.hub"
+case_fails "wrong versionCode" "FAIL: package io.github.zaxx_q.arcade"
+sed -i "s/name='io.github.zaxx_q.arcade'/name='com.example.other'/" "$TMP/badging"
+case_fails "wrong package" "FAIL: package io.github.zaxx_q.arcade"
 sed -i "s/targetSdkVersion:'35'/targetSdkVersion:'36'/" "$TMP/badging"
 case_fails "wrong targetSdk" "FAIL: targetSdk 35"
 sed -i "s/native-code: 'arm64-v8a'/native-code: 'arm64-v8a' 'x86_64'/" "$TMP/badging"

@@ -21,6 +21,9 @@ Shared library for every game and arCade. Two parts: **pure C** (`core/src`, hea
 | `include/arcade/synth.h`, `src/synth.c` | pure software synth (notes + drums -> 16-bit PCM, WAV header) |
 | `include/arcade/midi.h`, `src/midi.c` | Standard MIDI File reader (note events per track) |
 | `include/arcade/view.h`, `src/view.c` | how the 1280 x 720 canvas fits a window of any size (scale, centre, window edges in design units, pixel mapping); pure, tested in `tests/test_view.c` |
+| `include/arcade/touch.h`, `src/touch.c` | touch controls as pure logic: virtual stick, action button, back and extra-key buttons, finger ownership (the finger that lands on a control keeps it), one-shot direction edges; layout in the 1280 x 720 canvas; tested in `tests/test_touch.c` |
+| `include/arcade/osk.h`, `src/osk.c` | on-screen keyboard layout and hit test (name entry in the hub, typing in games); tested in `tests/test_osk.c` |
+| `gfx/gfx_touch.c`, `gfx/gfx_android.c` | raylib side of touch (reads the fingers, draws the controls, turns taps and buttons into key presses seen by `arcade_key_pressed`; `ARCADE_TOUCH_UI=1` turns it on at a desktop) and of Android (private files folder, audio muted while not in front); the Android parts only compile under `ARCADE_ANDROID` (docs/ANDROID.md) |
 | `gfx/gfx_text.c` | project font (Poiret One): one atlas per pixel size and window scale; ALWAYS draw text via `gfx_text()` |
 | `gfx/gfx.c`, `gfx/gfx_draw.c` | the only code that calls raylib for loop/input/drawing helpers; `gfx.c` also owns the window: resizable, F11 full screen, the canvas-to-window transform and the mouse mapping (`arcade_frame_begin`, `arcade_native_begin/end`) |
 
@@ -36,7 +39,7 @@ Pure part: any C99 compiler + CMake (`cmake --preset logic`). Front-end part nee
 - Portable C99 only: use `ARC_PI` (not `M_PI`), `arc_strlcpy`/`arc_stricmp` (not `strlcpy`/`strcasecmp`/`strdup`), no VLAs, no POSIX/Windows headers.
 - Pure files never include `raylib.h` or `arcade/gfx.h`; `gfx.h` is the only header that does.
 - Fixed-size arrays and caller-owned structs: no `malloc` in hot paths; large structs are passed by pointer.
-- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_lbnet`, `test_sortlib`, `test_sandbox`, `test_vault`, `test_assets`, `test_view`).
+- Every public function in `core/src` has a unit test in `tests/` (`test_core_basics`, `test_leaderboard`, `test_lbnet`, `test_sortlib`, `test_sandbox`, `test_vault`, `test_assets`, `test_view`, `test_touch`, `test_osk`).
 - API changes to `GameContext`, `GameDef`, `ArcadeInput`, `arcade_loop_*`, `arcade_poll`: update **all** of `core/gfx/gfx.c`, `input.c` (monkey), `app/`, `games/_template`, and every game; ask first.
 
 ## Security & safety

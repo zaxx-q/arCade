@@ -17,7 +17,7 @@
 # (default: readelf; the NDK's llvm-readelf also works) and python3.
 set -uo pipefail
 
-PACKAGE=dev.arcade.hub
+PACKAGE=io.github.zaxx_q.arcade
 MIN_SDK=26
 TARGET_SDK=35
 ABI=arm64-v8a

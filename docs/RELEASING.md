@@ -13,6 +13,7 @@
 
   Level tertinggi yang menang. Rilis pertama adalah `v0.1.0`.
 - Setelah itu build Linux dan Windows dirilis sebagai **satu file executable** masing-masing (`arCade-vX.Y.Z-linux-x86_64` dan `arCade-vX.Y.Z-windows-x86_64.exe`; tanpa zip/tar, karena `assets/` dan teks lisensi sudah dikompilasi ke dalam program), `SHA256SUMS.txt` ditambahkan, dan GitHub Release dengan release notes otomatis dipublikasikan. Pengguna Linux perlu `chmod +x` setelah mengunduh (GitHub tidak menyimpan izin eksekusi).
+- Build Android ikut dirilis sebagai `arCade-vX.Y.Z-android-arm64.apk` (ditandatangani dengan kunci rilis dari secret repository; lihat [ANDROID.md](ANDROID.md)). Selama job Android belum terbukti hijau, ia **tidak menahan** rilis: tanpa APK, Linux dan Windows tetap terbit dan ringkasan `publish` memberi peringatan.
 - Sebelum diunggah, setiap executable disalin sendirian ke folder kosong dan dijalankan dengan `--licenses`: ini membuktikan teks lisensinya memang ada di dalam file. Job `smoke` di `checks.yml` melakukan hal yang sama untuk `--smoke all`, jadi font, suara, tekstur, dan lagu yang tidak ikut terkompilasi akan menggagalkan CI.
 - Jalankan manual: **Actions -> Release -> Run workflow**: `bump` (auto/patch/minor/major), `prerelease`, `dry_run` (membangun semuanya tanpa mempublikasikan apa pun). Bump manual mengabaikan `[skip release]`.
 
@@ -22,7 +23,9 @@
 3. Settings -> Actions -> General: izinkan actions dan reusable workflows; Workflow permissions: **read repository contents** (job rilis meminta izin write sendiri).
 4. Settings -> Branches (atau Rulesets): lindungi `main`: wajibkan pull request, wajibkan status check **`CI OK`**, blokir force push. (Repo private butuh plan yang mendukung branch protection: GitHub Pro lewat Education mendukungnya.)
 5. Label: buat `full-ci` (PR dengan label ini juga menjalankan jalur lengkap).
-6. Jalankan Actions -> Release dengan `dry_run = true` sekali untuk melihat semua job lolos sebelum rilis sungguhan pertama.
+6. Android: buat kunci rilis dan simpan sebagai secret `ARCADE_KEYSTORE_B64`, `ARCADE_KEYSTORE_PASSWORD` (opsional `ARCADE_KEY_ALIAS`, `ARCADE_KEY_PASSWORD`) dan variable `ARCADE_KEY_SHA256` (langkah di [ANDROID.md](ANDROID.md#kunci-penandatangan-rilis-sekali-saja)). Simpan cadangan keystore di luar repository: kunci yang hilang berarti semua pengguna harus uninstall sebelum bisa memperbarui.
+7. Jalankan Actions -> Android -> Run workflow sekali (kunci sekali pakai, APK keluar sebagai artifact), lalu pasang di HP.
+8. Jalankan Actions -> Release dengan `dry_run = true` sekali untuk melihat semua job lolos sebelum rilis sungguhan pertama.
 
 ## Leaderboard online di rilis
 Setiap rilis membawa tab Online. Supaya game tetap jalan di komputer yang hanya punya library desktop, libcurl **tidak diambil dari sistem**: ia dibangun dari source dan ditautkan statis (`cmake/ArcadeCurl.cmake`, dipakai lewat `-DARCADE_ONLINE=ON -DARCADE_ONLINE_BUNDLE_CURL=ON` di `release.yml`).
@@ -39,6 +42,8 @@ Setiap rilis membawa tab Online. Supaya game tetap jalan di komputer yang hanya 
 
 ## Menaikkan job yang tidak memblokir
 `windows-msvc` dan `smoke` memakai `continue-on-error: true`. Setelah keduanya hijau beberapa kali berturut-turut, hapus baris itu di `.github/workflows/checks.yml` supaya mereka ikut memblokir.
+
+Job Android punya dua tempat yang sama: di `ci.yml` job `android` belum masuk `needs` milik `ci-ok` (tambahkan setelah hijau), dan di `release.yml` job `publish` punya `if:` yang membiarkan rilis jalan tanpa APK (hapus `if:` itu supaya Android wajib). Lakukan keduanya hanya setelah satu run Android hijau **dan** rilis `dry_run` dengan kunci rilis berhasil.
 
 ## Portabilitas rilis Linux
 Build Linux berjalan di runner Ubuntu tertua yang masih disediakan (`ubuntu-22.04` di `release.yml`) supaya binary-nya cukup butuh glibc yang lebih lama. Saat GitHub menghentikan image itu, pindah ke yang tertua berikutnya.

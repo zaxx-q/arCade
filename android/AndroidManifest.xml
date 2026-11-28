@@ -9,7 +9,7 @@
   No <uses-permission>: the Online leaderboard is off in the Android build for now (docs/ANDROID.md: it needs
   android.permission.INTERNET).
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.arcade.hub">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.github.zaxx_q.arcade">
 
     <!-- raylib draws with OpenGL ES 2.0, and the game cannot be played without a touch screen. -->
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />

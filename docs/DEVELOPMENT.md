@@ -5,6 +5,7 @@ Semuanya di-build dengan **CMake + compiler C**. raylib diunduh dan dibangun oto
 ## Struktur repository
 
 ```
+android/     Manifest, ikon, dan resource APK Android (panduan: ANDROID.md)
 app/         Executable hub: main loop, menu, layar leaderboard, smoke runner
 assets/      Font, suara, tekstur, dan beatmap (lagu); dikompilasi ke dalam executable (cmake/ArcadeAssets.cmake)
 cmake/       Konfigurasi build, raylib FetchContent, warning, toolchain
