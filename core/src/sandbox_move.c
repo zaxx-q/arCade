@@ -195,11 +195,10 @@ static void move_liquid(Sandbox *sb, int x, int y) {
     int slip = d->slip;
     if (me == EL_LAVA) /* lava thickens as it cools: runny at 1200 degrees, nearly stiff by 500 */
         slip = slip * arc_clampi(sb->temp[cell_index(sb, x, y)] - 450, 4, 800) / 800;
-    if (slip < 255 && !sandbox_chance(sb, slip))
-        return; /* thick liquids (lava) only act now and then */
 
     int budget = d->speed;     /* cells it may still fall this tick */
     int run_left = LIQUID_RUN; /* cells it may still slide sideways this tick */
+    bool asked = false;        /* has the slip chance been rolled yet this tick? */
     for (int step = 0; step < 4; step++) {
         int used = fall(sb, x, &y, budget);
         if (used > 0) {
@@ -211,6 +210,13 @@ static void move_liquid(Sandbox *sb, int x, int y) {
         /* Only the surface flows sideways: something on top (water, sand...) pins a cell down. */
         if (run_left <= 0 || !can_sink(sb, x, y - 1, me))
             return;
+        /* Thick liquids (lava) only spread now and then. They fall as freely as anything else: gravity does
+         * not care how thick it is. */
+        if (!asked) {
+            asked = true;
+            if (slip < 255 && !sandbox_chance(sb, slip))
+                return;
+        }
         int first = (rng_u32(&sb->rng) & 1u) ? 1 : -1;
         bool over = false;
         int walk = find_drop(sb, x, y, me, d->spread, first, &over);

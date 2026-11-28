@@ -19,12 +19,12 @@ Engine falling-sand dibagi menjadi beberapa file supaya tiap file tetap mudah di
 
 1. Bit `moved[]` digeser (bergerak di tick ini menjadi bergerak di tick lalu) dan `tick++`.
 2. Setiap sel dari baris paling bawah ke atas, arah kiri-kanan bergantian. Untuk tiap sel: `sandbox_react` (kimia dan suhu: sel boleh berubah, menyulut tetangga, tumbuh) lalu, kalau sel itu tidak berubah, `sandbox_move` (gerak menurut `MoveKind`).
-3. `sandbox_heat_step`: panas mengalir antar sel dan ke udara.
+3. `sandbox_heat_step`: panas mengalir antar sel bertetangga (udara juga sel) dan ke tepi dunia.
 4. Setiap 6 tick, `sandbox_life_step` memajukan Game of Life satu generasi.
 
 Setiap sel hanya bertindak satu kali per tick (`moved[]`), jadi sel yang jatuh tidak dihitung dua kali dan reaksi tidak merambat ke seluruh grid dalam satu tick.
 
-Tiap sel punya beberapa byte: `cells[]` (id elemen), `aux[]` (ingatan sel: arti byte ini berbeda untuk tiap elemen), `moved[]` (bit 0: sudah bergerak di tick ini, bit 1: bergerak di tick lalu, bit 3-6: arah terbang percikan dan sinar gamma, bit 7: tanda sementara untuk flood fill muatan) dan `temp[]` (suhu dalam derajat Celsius, `int16_t`). `aux` dan `temp` ikut berpindah bersama selnya, jadi minyak yang terbakar tetap terbakar dan air yang sudah panas tetap panas saat mengalir.
+Tiap sel punya beberapa byte: `cells[]` (id elemen), `aux[]` (ingatan sel: arti byte ini berbeda untuk tiap elemen), `moved[]` (bit 0: sudah bergerak di tick ini, bit 1: bergerak di tick lalu, bit 3-6: arah terbang percikan dan sinar gamma, bit 7: tanda sementara untuk flood fill muatan) `temp[]` (suhu dalam derajat Celsius utuh, `int16_t`) dan `tfrac[]` (sisa pecahan derajat dalam 1/65536, `uint16_t`). `aux`, `temp` dan `tfrac` ikut berpindah bersama selnya, jadi minyak yang terbakar tetap terbakar, air yang sudah panas tetap panas saat mengalir, dan segumpal lava yang jatuh membawa panasnya.
 
 ## Elemen yang tersedia (34 di palet)
 Urutan di tabel sama dengan urutan palet. Baris pertama palet adalah tombol angka `0`-`9`: Eraser, Sand, Water, Stone, Soil, Snow, Gunpowder, Seed, Ash, Thermite.
@@ -40,20 +40,22 @@ Urutan di tabel sama dengan urutan palet. Baris pertama palet adalah tombol angk
 | Tersembunyi | Gamma, Molten Uranium, Spark, Basalt | hanya muncul lewat reaksi (`EF_HIDDEN`), tidak ada di palet |
 
 ## Suhu (`sandbox_heat.c`)
-Setiap sel punya suhu (-273 sampai 9000 C, udara sekitar 20 C). Sel kosong adalah udara dan selalu 20 C; ia menyerap atau memberi panas lewat setiap sisi yang menyentuhnya, itulah cara sepotong baja panas pelan-pelan dingin. Aturannya, per tick:
+Setiap sel punya suhu (-273 sampai 9000 C, udara sekitar 20 C), **termasuk sel kosong**: udara juga bahan, hanya saja ia nyaris tidak menyimpan panas (kapasitas 2, air 4200). Suhu disimpan sebagai derajat utuh (`temp[]`) ditambah pecahan 1/65536 derajat (`tfrac[]`), sebab lava di udara kehilangan jauh kurang dari satu derajat per tick. Aturannya, per tick:
 
-- **Aliran panas** antar dua sel bertetangga sebanding dengan selisih suhunya dikali daya hantar pasangan itu. Daya hantar pasangan dihitung seperti dua resistor seri (`2ab/(a+b)`): satu sel penyekat (bata) menahan seluruh pasangan sebagus apa pun tetangganya (baja). Aliran dihitung dua kali per tick (`THERMAL_PASSES`) supaya panas merambat lebih cepat dari 1 sel per tick, dengan pembulatan acak supaya aliran yang kecil tidak hilang.
-- **Kapasitas panas** (`cap`) menentukan seberapa lambat sel menghangat: air (cap 8) lambat, baja (cap 1) dan gas cepat. **Kehilangan ke udara** (`loss`) dihitung per sisi yang terbuka.
-- **Sumber tetap** (`fixed`): Fire (800), Heater (700), Cooler (-80), dan padat yang sedang terbakar (dijaga minimal 600 C).
+- **Panas hanya berpindah lewat sentuhan.** Setiap pasangan sel bertetangga bertukar panas satu kali per tick sebesar selisih suhunya dikali sebuah koefisien. Koefisien itu adalah yang **lebih kecil** dari dua batas: (a) daya hantar pasangan itu, dihitung seperti dua resistor seri `ab/(a+b)`, jadi satu sel penyekat (bata) menahan seluruh pasangan sebagus apa pun tetangganya (baja); dan (b) panas yang membuat kedua suhu menjadi sama.
+- **Batas (b) membuat udara istimewa.** Kapasitas udara 2 melawan 3000 untuk lava, jadi sel udara hanya bisa mengambil sedikit panas lava: ia langsung ikut sama panas, tetapi lava nyaris tidak kehilangan apa-apa. Lava yang jatuh atau melayang di udara bebas hanya kehilangan sekitar 0,15% dari selisih suhunya per tick: jatuh 150 sel dari 1150 C hanya menurunkannya ke sekitar 970 C, jadi lava tidak pernah membatu di tengah udara. Begitu menyentuh baja, air, atau batu, panasnya terkuras dengan laju yang ditentukan daya hantar dan kapasitas bahan itu: genangan lava di atas pelat baja membatu dalam sekitar 40 tick, di atas pelat bata masih cair setelah ratusan tick.
+- **Udara bukan penampung tak berdasar.** Udara panas menyebar (sel udara yang bersentuhan langsung menyamakan suhu) dan hanya meninggalkan dunia lewat tepinya: sel di tepi grid bertukar panas dengan bingkai dunia yang diperlakukan sebagai penghantar baik bersuhu 20 C (`EDGE_CAP`). Benda yang menempel pada tepi dunia (lava ke dinding, lantai batu) cepat dingin. Selain itu dunia adalah irisan dari ruangan yang lebih besar, jadi udara juga kehilangan 1/256 dari kelebihan suhunya per tick ke samping (`AIR_LEAK_SHIFT`); tanpa itu Heater yang menyala lama akan mengisi seluruh dunia dengan udara panas.
+- **Cara menghitung.** Bilangan titik tetap (1/65536 derajat). Tiap pertukaran memberi satu sel persis apa yang hilang dari sel lain, jadi panas tidak tercipta atau lenyap dan tidak perlu pembulatan acak; sepasang sel tidak pernah menukar lebih dari yang membuat suhu keduanya sama, jadi tidak ada lonjakan atau osilasi. Empat sapuan (pasangan kiri-kanan genap dan ganjil, pasangan atas-bawah genap dan ganjil) mengerjakan pasangan yang saling lepas, jadi hasilnya tidak bergantung pada urutan sel, dan urutan sapuan bergantian tiap tick supaya panas tidak punya arah favorit. Tabel pecahan tiap pasang elemen dihitung sekali (`build_tables`).
+- **Kapasitas dan daya hantar** (`cap`, `cond` di `k_thermal[]`): baja 3800 / 3000 (menyerap dan melepas panas dengan cepat), air 4200 / 300 (menampung banyak panas, menghantar sedang), batu 2400 / 220, bata 1500 / 25 dan kayu 1000 / 12 (penyekat), uranium 2200 / 40 (penghantar buruk, itulah yang menyimpan panas gumpalan di dalamnya), udara 2. Kecepatan rambat per tick kira-kira `cond / cap`: baja menyamakan suhu hampir seketika, batu sekitar 5% dari selisih per tick, kayu setengah persen.
+- **Sumber tetap** (`fixed`): Fire (800), Heater (700), Cooler (-80), percikan (1200), dan padat yang sedang terbakar (dijaga minimal 600 C). Kapasitasnya besar, jadi suhunya hampir tidak turun saat memberi panas.
 - **Perubahan wujud**: air mendidih di 100 C dan membeku di 0 C, es dan salju meleleh di 0 C, uap mengembun di 96 C ke bawah, nitrogen menguap di atas -150 C, lava mengeras menjadi Basalt di bawah 500 C, Basalt melebur lagi menjadi lava di 1100 C, uranium meleleh di 1000 C dan membeku kembali di bawah 800 C, pasir menjadi kaca di 1100 C, batu dan kerikil menjadi lava di 1300 C, baja di 1500 C, kaca di 1700 C, bata di 1900 C.
-- **Kalor laten**: air yang mencapai 100 C tidak langsung menjadi uap. Suhunya ditahan di 100 sementara sel menyerap panas (disimpan di `aux`, satuan 16) dan baru berubah setelah cukup (110 satuan untuk mendidih, 60 untuk membeku dan melelehkan es, 30 untuk salju). Itu sebabnya panci air butuh waktu untuk mendidih dan es butuh waktu untuk meleleh.
+- **Kalor laten**: air yang mencapai 100 C tidak langsung menjadi uap. Suhunya ditahan di 100 sementara sel menyerap panas (disimpan di `aux`, satuan dua derajat suhu sel itu sendiri) dan baru berubah setelah cukup (110 satuan untuk mendidih, 60 untuk membeku, 120 untuk melelehkan es, 80 untuk salju, 150 untuk menguapkan nitrogen). Uap mengembun dengan cara yang sama di 96 C (100 satuan): selama mengembun ia menahan suhunya dan melepas panas ke sekitarnya, jadi awan uap bertahan beberapa saat dan menghangatkan udara. Itu sebabnya panci air butuh waktu untuk mendidih dan es butuh waktu untuk meleleh.
 - **Menyala sendiri**: bahan mudah terbakar menyala begitu suhunya mencapai suhu nyalanya, tanpa api di dekatnya: Fuse 250, Gunpowder 260, Seed 260, Oil 280, Wood 300, Termite 300, Plant 320, TNT 330, Methane 480, Thermite 700.
-- **Baris tidak aktif dilewati** (`heat_rows[]`): baris yang hanya berisi sel bersuhu udara tidak dihitung, jadi dunia yang tenang hampir tidak membebani CPU.
+- **Baris tidak aktif dilewati** (`heat_rows[]`): baris yang hanya berisi sel bersuhu udara (dalam 1/8 C) tidak dihitung, dan sel yang sudah sedekat itu dengan suhu udara dibulatkan ke 20 C persis, jadi dunia yang tenang hampir tidak membebani CPU dan udara panas yang sudah reda benar-benar menjadi tenang.
 
+Contoh yang bisa dicoba di game: panci baja berisi air di atas Heater (adegan awal). Baja langsung membara dan memanaskan air dari bawah, air mendidih, uapnya naik membawa panas (tekan `T`: kolom udara hangat terlihat di atas panci) dan mengembun lagi di tempat yang dingin. Panci yang sama dari bata hampir tidak mendidihkan air karena bata menyekat. Arahkan mouse ke sel mana saja, juga ke udara, untuk membaca suhunya.
 
-Contoh yang bisa dicoba di game: panci baja berisi air di atas Heater (adegan awal). Baja langsung membara dan memanaskan air dari bawah, air naik-turun (konveksi), mendidih pelan, uapnya naik dan mengembun lagi di tempat yang dingin. Panci yang sama dari bata hampir tidak mendidihkan air karena bata menyekat. Tekan `T` untuk tampilan termal dan arahkan mouse ke sel mana saja untuk membaca suhunya.
-
-Catatan: `sandbox_set_temp` hanya memberi energi sekali. Sel yang dipaksa ke suhu tertentu yang jauh dari yang dibutuhkan perubahan wujud tidak akan berubah kalau energinya kurang (kalor laten harus dibayar); sumber panas atau dingin yang menempel (Heater, Cooler, Fire, lava) memberi energi terus-menerus.
+Catatan: `sandbox_set_temp` hanya memberi panas sekali. Sel yang dipaksa ke suhu tertentu yang jauh dari yang dibutuhkan perubahan wujud tidak akan berubah kalau panasnya kurang (kalor laten harus dibayar); sumber panas atau dingin yang menempel (Heater, Cooler, Fire, lava) memberi panas terus-menerus. Benda panas yang melayang di udara bebas hampir tidak mendingin: itu disengaja (panas harus punya jalan keluar: sentuhan dengan bahan lain, atau tepi dunia).
 
 ## Ledakan (`sandbox_burst.c`)
 Ledakan bukan satu hitungan besar, melainkan ratusan partikel kecil (`EL_SPARK`) yang hidup di grid sebagai sel biasa. Tiap percikan terbang lurus dan memutuskan sendiri apa yang terjadi, jadi hasilnya berupa bintang yang bergerigi: panjang tiap sinar berbeda dan bentuk kawah bergantung pada apa yang menghalangi.
@@ -77,26 +79,26 @@ Sesekali (`SPARK_FORK` = 6/256 per langkah) percikan melahirkan kembaran yang me
 ## Uranium
 Uranium tidak lagi meledak karena kena ledakan. Ia memanaskan dirinya sendiri, meleleh, dan baru kemudian menjadi kritis, seperti reaktor yang lepas kendali.
 
-1. **Memanaskan diri.** Setiap sel Uranium atau Molten Uranium menambah `URANIUM_HEAT` = 8 C per tick pada dirinya. Satu sel melepas panasnya ke udara secepat ia membuatnya, jadi tetap hangat. Gumpalan besar terisolasi oleh badannya sendiri: bagian tengahnya terus memanas. Ukuran menentukan nasib (percobaan di lantai batu):
+1. **Memanaskan diri.** Sel Uranium atau Molten Uranium membuat panas sebanding dengan banyaknya uranium di sekitarnya: ia menghitung uranium di 24 sel di sekelilingnya (kotak 5 x 5) dan baru membuat panas kalau lebih dari `URANIUM_QUIET` = 10, dengan daya penuh `URANIUM_POWER` = 16000 satuan panas per tick (sekitar 7 C per tick kalau tak ada yang membawa panas pergi) saat dikelilingi penuh. Reaksi berantai butuh uranium yang cukup berdekatan, jadi satu sel, jejak tipis, dan gumpalan kecil tetap sejuk. Gumpalan besar memanas di tengahnya: uranium penghantar buruk (`cond` 40) dan udara hampir tidak menyerap panas, jadi panas tertahan di dalam gumpalan. Ukuran menentukan nasib (percobaan di lantai batu):
 
 | Gumpalan | Meleleh pada tick | Kritis pada tick |
 |----------|------------------|------------------|
-| 3 x 3 | hampir (sekitar 960 C), sesekali satu sel sesaat | tidak pernah |
-| 4 x 4 | sekitar 240 | tidak pernah (meleleh lalu diam) |
-| 5 x 5 | sekitar 180 | sekitar 780 |
-| 6 x 6 | sekitar 160 | sekitar 480 |
-| 8 x 8 | sekitar 140 | sekitar 200 |
-| 10 x 10 atau lebih | sekitar 130 | sekitar 170 |
+| 3 x 3 atau 4 x 4 | tidak pernah | tidak pernah |
+| 5 x 5 | sekitar 380 | sekitar 630 |
+| 6 x 6 | sekitar 220 | sekitar 300 |
+| 8 x 8 | sekitar 150 | sekitar 200 |
+| 10 x 10 atau lebih | sekitar 140 | sekitar 180 |
 
-2. **Meleleh.** Di **1000 C** Uranium menjadi Molten Uranium (cairan kental yang berkilau: jingga saat baru meleleh lalu memutih menjelang kritis) dan terus memanas. Di bawah 800 C ia membeku lagi. Molten Uranium yang menyentuh air langsung membeku kembali menjadi Uranium dan membuat uap. Air dan nitrogen di sekitar gumpalan membawa panas pergi: gumpalan 6 x 4 di dalam air tidak pernah kritis, gumpalan 10 x 10 tetap kritis.
+2. **Meleleh.** Di **1000 C** Uranium menjadi Molten Uranium (cairan kental yang berkilau: jingga saat baru meleleh lalu memutih menjelang kritis) dan terus memanas. Di bawah 800 C ia membeku lagi. Molten Uranium yang menyentuh air langsung membeku kembali menjadi Uranium dan membuat uap. Air dan nitrogen di sekitar gumpalan membawa panas pergi: gumpalan 6 x 4 di dalam air tidak pernah kritis, gumpalan 10 x 10 tetap kritis (sekitar tick 180).
 3. **Kritis.** Sel yang mencapai `URANIUM_CRIT` = 1230 C meledak menjadi **sinar gamma** (`EL_GAMMA`). Tidak ada kilatan layar.
 4. **Sinar gamma.** Terbang 3 sel per tick selama 40 sampai 63 tick, tidak berbelok, dan hanya berhenti di Wall atau tepi dunia. Lava, gas, api, dan sinar lain dilewati. Apa pun yang lain di jalurnya terbakar habis dan sisanya tertinggal di belakang sinar: air, es, dan salju menjadi uap; pasir menjadi kaca (180/256); bahan mudah terbakar menjadi api; cairan dan bubuk lain menjadi asap atau hilang; padat menjadi kerikil (1/4) atau hilang. TNT yang terkena meledak. **Uranium atau Molten Uranium yang terkena menjadi kritis juga** dan memancarkan sinar barunya sendiri: itulah reaksi berantai yang menyapu seluruh gumpalan. Sinar yang langsung dari uranium (generasi 0) sesekali (`GAMMA_SCATTER` = 16/256 per langkah) menghamburkan satu sinar anak ke arah lain, jadi gumpalan besar menyapu seluruh daerah, bukan hanya beberapa garis tipis. Gumpalan 144 sel membersihkan sebagian besar adegan 320 x 155.
 
 ## Lava
 Suhu lava menentukan hampir semuanya (`sandbox_heat.c`, `sandbox_color.c`, `sandbox_move.c`):
 
-- **Warna** mengikuti suhu (`lava_color`): merah tua di sekitar 500 C, merah, jingga, kuning, sampai hampir putih di atas 1500 C. Lava yang baru dituang (1150 C) berwarna jingga terang; tepinya yang menyentuh udara lebih cepat dingin dan lebih gelap.
-- **Kekentalan**: kemampuan mengalir (`slip`) dikalikan `(suhu - 450) / 800` (dibatasi 4 sampai 800), jadi lava panas mengalir seperti cairan dan lava yang dingin merayap seperti pasta, lalu berhenti.
+- **Warna** mengikuti suhu (`lava_color`): merah tua di sekitar 500 C, merah, jingga, kuning, sampai hampir putih di atas 1500 C. Lava yang baru dituang (1150 C) berwarna jingga terang; bagian yang menyentuh batu, logam, atau air lebih cepat dingin dan lebih gelap.
+- **Kekentalan**: kemampuan mengalir (`slip`) dikalikan `(suhu - 450) / 800` (dibatasi 4 sampai 800), jadi lava panas menyebar seperti cairan dan lava yang dingin merayap seperti pasta, lalu berhenti. Itu hanya berlaku untuk menyebar ke samping: lava jatuh sama bebasnya dengan cairan lain (gravitasi tidak peduli kekentalan), jadi tidak menggantung di udara.
+- **Dingin pelan di udara, cepat kena sentuhan**: di udara bebas lava hampir tidak kehilangan panas (lihat Suhu); di atas lantai batu yang menyentuh tepi dunia, atau di atas penghantar seperti baja, panasnya terkuras cepat; di atas penyekat seperti bata atau kayu ia tetap panas lama.
 - **Mengeras**: di bawah 500 C lava menjadi **Basalt** (batu gelap, tersembunyi dari palet). Basalt melebur lagi menjadi lava kalau dipanaskan sampai 1100 C. Waktunya (percobaan di lantai batu): genangan 6 x 3 mengeras dalam sekitar 100 tick, kolam 24 x 12 dalam sekitar 700 tick, dan gumpalan besar 36 x 30 membentuk kerak lebih dulu dan butuh lebih dari 2000 tick untuk membatu seluruhnya.
 - **Air**: lava yang bertemu air langsung menjadi Basalt dan membuat uap; nitrogen juga membatukannya.
 - **Api**: lava di atas 700 C sesekali melemparkan nyala ke udara di atasnya (`LAVA_FLAME` = 6/256 per tick), dan memanaskan tetangganya sampai bahan mudah terbakar menyala sendiri. Pasir di sampingnya meleleh menjadi kaca. Lava thermite masih membakar terus menembus material.
@@ -104,7 +106,7 @@ Suhu lava menentukan hampir semuanya (`sandbox_heat.c`, `sandbox_color.c`, `sand
 ## Menambah elemen (5 langkah)
 1. `ElementId` di `sandbox.h`: tambahkan satu nilai sebelum `EL_COUNT` (urutan = urutan palet; `EL_EMPTY` harus tetap 0).
 2. Satu baris di `k_elements[]` (`sandbox_elements.c`): nama, warna, `density`, `MoveKind` dan angka perilaku (`speed`, `spread`, `slip`, `grip`, `ignite`, `shade`, `spray`). Kolomnya dijelaskan di komentar di atas tabel.
-3. Satu baris di `k_thermal[]` (`sandbox_heat.c`): suhu awal, daya hantar, kapasitas, kehilangan ke udara, suhu menyala sendiri, dan perubahan wujud. Baris yang terlupa berisi nol dan tidak berguna; salin baris elemen yang mirip.
+3. Satu baris di `k_thermal[]` (`sandbox_heat.c`): suhu awal, daya hantar, kapasitas panas, suhu menyala sendiri, dan perubahan wujud. Baris yang terlupa berisi nol dan tidak berguna; salin baris elemen yang mirip.
 4. Kalau elemen punya perilaku khusus, tambahkan satu `case` di `sandbox_react()` (`sandbox_react.c`). Kalau butuh ingatan per sel, pakai `aux` dan tulis artinya di komentar di bagian atas file itu. Kalau butuh tampilan khusus (menyala, berkedip), tambahkan `case` di `sandbox_pixel()` (`sandbox_color.c`).
 5. Satu test di `tests/test_sandbox.c`.
 

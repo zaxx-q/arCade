@@ -23,7 +23,12 @@
 #define FUSE_DELAY 6       /* ticks a burning fuse cell waits before it lights the next cell */
 #define FUSE_LENGTH 10
 
-#define URANIUM_HEAT 8    /* degrees a uranium cell warms itself every tick: the decay heat */
+/* Decay heat of a uranium cell that is surrounded by uranium on all sides, in heat units per tick: enough to
+ * warm it by about 7 degrees per tick if nothing took the heat away */
+#define URANIUM_POWER 16000
+/* A cell only makes heat when it has MORE than this many uranium cells among the 24 around it (the 5 x 5
+ * square): the decay is a chain reaction that needs a critical amount of uranium close together */
+#define URANIUM_QUIET 10
 #define URANIUM_CRIT 1230 /* at this temperature a cell goes critical and flies apart as a gamma ray */
 #define LAVA_FLAME 6      /* chance (/256) per tick that hot lava throws a flame upwards */
 
@@ -101,15 +106,27 @@ void sandbox_ignite(Sandbox *sb, int x, int y) {
 
 /* ---- uranium ---- */
 
-/* Uranium warms itself: every cell gains a few degrees each tick. A lone cell or a thin trail loses that heat
- * to the air about as fast as it makes it and just sits there glowing, but a big lump is insulated by its own
- * bulk, so its middle keeps getting hotter. At 1000 degrees it melts (sandbox_heat.c turns it into Molten
- * Uranium, which runs like a very thick liquid and keeps heating), and at URANIUM_CRIT the cell goes critical
- * and flies apart as a gamma ray. Gamma rays set off every uranium cell they cross, so one critical cell in
- * a lump takes the whole lump, and a lot more besides, with it (sandbox_burst.c). Water and nitrogen carry
- * the heat away: a lump sitting in water stays cool, and molten uranium that touches water freezes. */
+/* Uranium warms itself, and the more uranium sits around a cell the more heat it makes (URANIUM_POWER,
+ * URANIUM_QUIET). A lone cell, a thin trail or a small lump (a 3 x 3 square, say) stays at room temperature,
+ * a big lump heats up in the middle, where the air cannot take the heat away because the lump's own bulk is
+ * in the way. At 1000 degrees it melts (sandbox_heat.c turns it into Molten Uranium, which runs like a very
+ * thick liquid and keeps heating), and at URANIUM_CRIT the cell goes critical and flies apart as a gamma ray.
+ * Gamma rays set off every uranium cell they cross, so one critical cell in a lump takes the whole lump, and
+ * a lot more besides, with it (sandbox_burst.c). Water and nitrogen carry the heat away: a lump sitting in
+ * water stays cool, and molten uranium that touches water freezes. */
+static bool is_uranium(ElementId id) {
+    return id == EL_URANIUM || id == EL_MOLTEN_URANIUM;
+}
+
 static void react_uranium(Sandbox *sb, int x, int y) {
-    sandbox_add_heat(sb, x, y, URANIUM_HEAT);
+    int around = 0;
+    for (int dy = -2; dy <= 2; dy++)
+        for (int dx = -2; dx <= 2; dx++)
+            if ((dx != 0 || dy != 0) && is_uranium(sandbox_at(sb, x + dx, y + dy)))
+                around++;
+    if (around > URANIUM_QUIET)
+        sandbox_heat_inject(sb, cell_at(sb, x, y),
+                            URANIUM_POWER * (around - URANIUM_QUIET) / (24 - URANIUM_QUIET));
     if (sandbox_temp(sb, x, y) >= URANIUM_CRIT)
         sandbox_go_critical(sb, x, y);
 }

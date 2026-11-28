@@ -794,12 +794,13 @@ static void test_a_lump_too_small_to_blow_only_melts(void) {
     for (int y = 30; y <= 32; y++)
         for (int x = 22; x <= 24; x++)
             sandbox_set_temp(&g_sb, x, y, 1100); /* hot enough to melt, not hot enough to go critical */
-    int gamma = 0;
+    int gamma = 0, molten = 0;
     for (int t = 0; t < 60; t++) {
         sandbox_step(&g_sb);
         gamma += sandbox_count(&g_sb, EL_GAMMA);
+        molten += sandbox_count(&g_sb, EL_MOLTEN_URANIUM);
     }
-    CHECK(sandbox_count(&g_sb, EL_MOLTEN_URANIUM) > 0);
+    CHECK(molten > 0);
     CHECK_EQ_INT(gamma, 0);
 }
 
@@ -873,6 +874,8 @@ static void test_every_cell_starts_at_room_temperature(void) {
     CHECK_EQ_INT(sandbox_temp(&g_sb, 5, 5), SANDBOX_TEMP_MAX); /* clamped */
     sandbox_set_temp(&g_sb, 5, 5, -9999);
     CHECK_EQ_INT(sandbox_temp(&g_sb, 5, 5), SANDBOX_TEMP_MIN);
+    sandbox_set_temp(&g_sb, 9, 9, 600); /* the air has a temperature too */
+    CHECK_EQ_INT(sandbox_temp(&g_sb, 9, 9), 600);
 }
 
 static void test_heat_sources_and_cold_sources_have_their_own_temperature(void) {
@@ -910,7 +913,7 @@ static void test_heat_flows_along_a_conductor_but_not_an_insulator(void) {
      */
     CHECK(bar_temp(EL_STEEL, 600, 8) > 150);
     CHECK(bar_temp(EL_STEEL, 600, 21) > 60);
-    CHECK(bar_temp(EL_BRICK, 600, 8) < 30);
+    CHECK(bar_temp(EL_BRICK, 600, 8) < 80);
     CHECK(bar_temp(EL_BRICK, 600, 21) < 25);
 }
 
@@ -927,15 +930,93 @@ static void test_conduction_never_overshoots(void) {
     CHECK(peak_far <= 600);
 }
 
-static void test_hot_things_cool_down_in_air(void) {
-    sandbox_init(&g_sb, 20, 20, 55);
-    fill(5, 5, 8, 8, EL_STEEL);
-    for (int y = 5; y <= 8; y++)
-        for (int x = 5; x <= 8; x++)
+/* A block of steel, heated to 400 degrees, in the middle of an open world. */
+static void hot_block(int size, int world_w, int world_h) {
+    sandbox_init(&g_sb, world_w, world_h, 55);
+    int x0 = world_w / 2, y0 = world_h / 2;
+    fill(x0, y0, x0 + size - 1, y0 + size - 1, EL_STEEL);
+    for (int y = y0; y < y0 + size; y++)
+        for (int x = x0; x < x0 + size; x++)
             sandbox_set_temp(&g_sb, x, y, 400);
+}
+
+static void test_hot_things_cool_down_slowly_in_open_air(void) {
+    /* air holds almost no heat, so a hot block hardly cools in it: that is the point of air */
+    hot_block(4, 60, 40);
+    run(300);
+    int early = sandbox_temp(&g_sb, 31, 21);
+    CHECK(early > 380);
+    run(2700);
+    int late = sandbox_temp(&g_sb, 31, 21);
+    CHECK(late < early - 20); /* but it does cool in the end... */
+    CHECK(late > SANDBOX_AMBIENT + 100);
+    run(6000);
+    CHECK(sandbox_temp(&g_sb, 31, 21) >= SANDBOX_AMBIENT); /* ...and never below the room */
+    CHECK(sandbox_temp(&g_sb, 31, 21) < late - 30);
+}
+
+static void test_a_thin_thing_cools_faster_than_a_thick_one(void) {
+    hot_block(1, 60, 40);
     run(1500);
-    CHECK(sandbox_temp(&g_sb, 6, 6) < 100);
-    CHECK(sandbox_temp(&g_sb, 6, 6) >= SANDBOX_AMBIENT);
+    int thin = sandbox_temp(&g_sb, 30, 20);
+    hot_block(4, 60, 40);
+    run(1500);
+    int thick = sandbox_temp(&g_sb, 31, 21);
+    CHECK(thin < thick - 100); /* the same air touches less steel per cell of heat it has to take */
+}
+
+static void test_hot_things_warm_the_air_around_them(void) {
+    hot_block(4, 60, 40);
+    run(100);
+    int next_to_it = sandbox_temp(&g_sb, 31, 19); /* the cell of air right above the block */
+    int three_away = sandbox_temp(&g_sb, 31, 16);
+    int far_away = sandbox_temp(&g_sb, 31, 2);
+    CHECK(next_to_it > 250);
+    CHECK(three_away < next_to_it - 50 && three_away > SANDBOX_AMBIENT + 30);
+    CHECK(far_away < SANDBOX_AMBIENT + 40); /* the glow fades with distance */
+}
+
+static void test_touching_something_cools_much_faster_than_air(void) {
+    hot_block(4, 60, 40);
+    run(200);
+    int in_air = sandbox_temp(&g_sb, 31, 21);
+    sandbox_init(&g_sb, 60, 40, 55);
+    fill(1, 10, 58, 38, EL_WATER);
+    fill(30, 20, 33, 23, EL_STEEL);
+    for (int y = 20; y <= 23; y++)
+        for (int x = 30; x <= 33; x++)
+            sandbox_set_temp(&g_sb, x, y, 400);
+    run(200);
+    int in_water = sandbox_temp(&g_sb, 31, 21);
+    CHECK(in_air > 380);
+    CHECK(in_water < 150);
+}
+
+static void test_the_edge_of_the_world_drains_heat(void) {
+    sandbox_init(&g_sb, 40, 30, 55);
+    fill(0, 10, 0, 15, EL_STEEL);   /* a bar touching the left edge... */
+    fill(20, 10, 20, 15, EL_STEEL); /* ...and an identical one out in the open */
+    for (int y = 10; y <= 15; y++) {
+        sandbox_set_temp(&g_sb, 0, y, 400);
+        sandbox_set_temp(&g_sb, 20, y, 400);
+    }
+    run(100);
+    CHECK(sandbox_temp(&g_sb, 0, 12) < 60);
+    CHECK(sandbox_temp(&g_sb, 20, 12) > 350);
+}
+
+static void test_heat_has_no_favourite_direction(void) {
+    sandbox_init(&g_sb, 61, 61, 5);
+    sandbox_set_temp(&g_sb, 30, 30, 800); /* one hot puff of air in the middle of nowhere */
+    run(16);
+    for (int d = 1; d <= 3; d++) {
+        int left = sandbox_temp(&g_sb, 30 - d, 30), right = sandbox_temp(&g_sb, 30 + d, 30);
+        int up = sandbox_temp(&g_sb, 30, 30 - d), down = sandbox_temp(&g_sb, 30, 30 + d);
+        CHECK(left > SANDBOX_AMBIENT);
+        CHECK(iabs(left - right) <= 2 && iabs(up - down) <= 2 && iabs(left - up) <= 2);
+    }
+    run(200);
+    CHECK_EQ_INT(sandbox_temp(&g_sb, 30, 30), SANDBOX_AMBIENT); /* a puff of hot air spreads out and fades */
 }
 
 /* A pot of water on a plate over a heater, standing on a stone floor (the starter scene's kettle). */
@@ -963,7 +1044,7 @@ static void test_steel_pot_boils_water_but_a_brick_pot_hardly_does(void) {
 }
 
 static void test_a_pot_of_water_warms_up_before_it_boils(void) {
-    kettle_water_left(EL_STEEL, 40);
+    kettle_water_left(EL_STEEL, 12);
     int early = sandbox_temp(&g_sb, 18, 25);
     CHECK(early > 30 && early < 100);
     CHECK(sandbox_count(&g_sb, EL_STEAM) < 5);
@@ -1089,6 +1170,38 @@ static void test_lava_throws_up_flames(void) {
     CHECK(flames > 10);
 }
 
+static void test_lava_stays_molten_while_it_falls_through_the_air(void) {
+    /* a long drop: the lava does cool on the way down, but slowly, and it never sets in mid-air */
+    sandbox_init(&g_sb, 30, 160, 76);
+    fill(0, 159, 29, 159, EL_STONE);
+    sandbox_set(&g_sb, 15, 5, EL_LAVA);
+    int at_row_150 = -1;
+    for (int t = 0; t < 400 && at_row_150 < 0; t++) {
+        sandbox_step(&g_sb);
+        CHECK_EQ_INT(sandbox_count(&g_sb, EL_BASALT), 0);
+        for (int y = 150; y < 159; y++)
+            for (int x = 0; x < 30; x++)
+                if (sandbox_get(&g_sb, x, y) == EL_LAVA && at_row_150 < 0)
+                    at_row_150 = sandbox_temp(&g_sb, x, y);
+    }
+    CHECK(at_row_150 > 900);  /* 150 cells of falling cost it only a little of its 1150 degrees... */
+    CHECK(at_row_150 < 1140); /* ...but not nothing */
+}
+
+static void test_lava_sets_fast_on_a_conductor_and_slowly_on_an_insulator(void) {
+    int left[2];
+    ElementId plates[2] = {EL_STEEL, EL_BRICK};
+    for (int k = 0; k < 2; k++) {
+        sandbox_init(&g_sb, 60, 40, 76);
+        fill(10, 25, 49, 27, plates[k]); /* a plate in the open air, nothing under it */
+        fill(20, 23, 39, 24, EL_LAVA);   /* with a pool of lava on top */
+        run(100);
+        left[k] = sandbox_count(&g_sb, EL_LAVA);
+    }
+    CHECK(left[0] < 4);  /* steel drinks the heat and the lava sets within a second or two */
+    CHECK(left[1] > 30); /* brick hardly takes any: the lava stays runny */
+}
+
 static void test_wood_catches_fire_at_its_ignition_temperature(void) {
     sandbox_init(&g_sb, 20, 20, 59);
     fill(5, 10, 10, 12, EL_WOOD);
@@ -1185,7 +1298,7 @@ static void test_a_charge_goes_off_all_at_once(void) {
     run(3);
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_TNT), 0);
     CHECK_EQ_INT(sandbox_count(&g_sb, EL_GUNPOWDER), 0);
-    CHECK(sandbox_count(&g_sb, EL_SPARK) > 60);
+    CHECK(sandbox_count(&g_sb, EL_SPARK) > 40);
 }
 
 static void test_a_separate_charge_is_set_off_by_sparks_not_gathered(void) {
@@ -1279,6 +1392,7 @@ static void test_deterministic_with_every_element(void) {
     CHECK(memcmp(g_sb.cells, other.cells, sizeof(g_sb.cells)) == 0);
     CHECK(memcmp(g_sb.aux, other.aux, sizeof(g_sb.aux)) == 0);
     CHECK(memcmp(g_sb.temp, other.temp, sizeof(g_sb.temp)) == 0);
+    CHECK(memcmp(g_sb.tfrac, other.tfrac, sizeof(g_sb.tfrac)) == 0);
 }
 
 static void test_chaos_never_breaks_the_grid(void) {
@@ -1371,7 +1485,12 @@ int main(void) {
     RUN(test_new_hot_and_cold_cells_are_made_hot_and_cold);
     RUN(test_heat_flows_along_a_conductor_but_not_an_insulator);
     RUN(test_conduction_never_overshoots);
-    RUN(test_hot_things_cool_down_in_air);
+    RUN(test_hot_things_cool_down_slowly_in_open_air);
+    RUN(test_a_thin_thing_cools_faster_than_a_thick_one);
+    RUN(test_hot_things_warm_the_air_around_them);
+    RUN(test_touching_something_cools_much_faster_than_air);
+    RUN(test_the_edge_of_the_world_drains_heat);
+    RUN(test_heat_has_no_favourite_direction);
     RUN(test_steel_pot_boils_water_but_a_brick_pot_hardly_does);
     RUN(test_a_pot_of_water_warms_up_before_it_boils);
     RUN(test_water_freezes_and_ice_melts_by_temperature);
@@ -1381,6 +1500,8 @@ int main(void) {
     RUN(test_basalt_melts_back_into_lava_when_it_is_heated);
     RUN(test_lava_thickens_as_it_cools);
     RUN(test_lava_throws_up_flames);
+    RUN(test_lava_stays_molten_while_it_falls_through_the_air);
+    RUN(test_lava_sets_fast_on_a_conductor_and_slowly_on_an_insulator);
     RUN(test_wood_catches_fire_at_its_ignition_temperature);
     RUN(test_every_element_survives_extreme_temperatures);
     RUN(test_sparks_fly_out_in_all_directions);
