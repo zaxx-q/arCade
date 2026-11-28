@@ -23,9 +23,11 @@
         android:hasCode="false"
         android:extractNativeLibs="false"
         android:enableOnBackInvokedCallback="false">
-        <!-- appCategory game: Android 16 keeps a game's orientation on big screens. extractNativeLibs false: the
-             library runs straight from the .apk (stored uncompressed, 16 KB aligned by build_apk.sh). Predictive
-             back off: the Back button must reach the game as a key (raylib's KEY_BACK), not close the app. -->
+        <!-- appCategory game: tells Android this is a game (from targetSdk 36, Android 16 stops honouring a fixed
+             orientation on big screens, except for games). extractNativeLibs false: the library runs straight from
+             the .apk (stored uncompressed, 16 KB aligned by build_apk.sh). Predictive back off: the Back button
+             must reach the game as a key (raylib's KEY_BACK) instead of closing the app; from targetSdk 36 on
+             Android treats this opt-out as temporary, which is why the target stays at 35 for now. -->
 
         <activity
             android:name="android.app.NativeActivity"

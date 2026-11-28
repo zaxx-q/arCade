@@ -64,6 +64,10 @@ in this Software without prior written authorization of the copyright holder.
 
 libcurl uses OpenSSL for TLS on Linux, and the Linux release links it statically (OpenSSL 3.x, from `libssl-dev` on the release runner). Windows builds use Schannel, the TLS of Windows, and contain no OpenSSL. Copyright (c) The OpenSSL Project Authors. Apache License 2.0, full text at https://www.apache.org/licenses/LICENSE-2.0. https://www.openssl.org / https://github.com/openssl/openssl
 
+## Android NDK: `android_native_app_glue` (Android builds only)
+
+raylib's Android platform compiles `android_native_app_glue.c` from the Android NDK into the program: the code that lets a native library act as an Android activity (`NativeActivity`). Copyright (C) 2010 The Android Open Source Project. Apache License 2.0, full text at https://www.apache.org/licenses/LICENSE-2.0. https://developer.android.com/ndk
+
 ## Synthwave City (game): `deferred/synthwave_city/`
 
 A C99 port of *Synthwave City* by Kris E. Granholm (https://github.com/highsierralabs/Synthwave_City), MIT license (full text at the end of this file). The city, traffic, and song generators, the flight model, and the hologram data (including the made-up ad brand names) were ported from TypeScript to C and matched to the original number for number. The GLSL scene shaders in `deferred/synthwave_city/shaders/` were copied with adjustments to GLSL 3.30: all of them except `bloom_*.frag`, `post.frag`, and the glue files `fullscreen.vert`, `prelude_vs.glsl`, and `prelude_fs.glsl`. No images, fonts, or audio files from that project were copied: the ad images are drawn by code and the sound is rendered by arCade's own synthesizer.

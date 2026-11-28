@@ -1,5 +1,6 @@
-# Every push to main that passes the FULL checks becomes a GitHub Release (Linux + Windows downloads).
-# Each download is ONE executable (no zip, no tar): assets/ and the license texts are compiled into it.
+# Every push to main that passes the FULL checks becomes a GitHub Release (Linux + Windows + Android downloads).
+# Linux and Windows are ONE executable each (no zip, no tar): assets/ and the license texts are compiled into it.
+# Android is one signed .apk (android.yml, signed with the release key from the repository secrets).
 # Manual run: Actions -> Release -> Run workflow (choose bump, prerelease, dry run).
 # Versions come from git tags + Conventional Commits (tools/next_version.sh). This workflow NEVER commits.
 name: Release
@@ -161,8 +162,26 @@ jobs:
           path: dist/arCade-v*-windows-x86_64.exe
           if-no-files-found: error
 
+  build-android:
+    needs: version
+    if: needs.version.outputs.skip != 'true'
+    uses: ./.github/workflows/android.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      release: true
+    # Named one by one on purpose (never `secrets: inherit`): these four are the only secrets the build can see.
+    secrets:
+      ARCADE_KEYSTORE_B64: ${{ secrets.ARCADE_KEYSTORE_B64 }}
+      ARCADE_KEYSTORE_PASSWORD: ${{ secrets.ARCADE_KEYSTORE_PASSWORD }}
+      ARCADE_KEY_ALIAS: ${{ secrets.ARCADE_KEY_ALIAS }}
+      ARCADE_KEY_PASSWORD: ${{ secrets.ARCADE_KEY_PASSWORD }}
+
   publish:
-    needs: [version, build-linux, build-windows]
+    needs: [version, build-linux, build-windows, build-android]
+    # The Android build is not required yet: until a release has gone through with it (docs/ANDROID.md), a failed
+    # Android job (a missing key, an NDK problem) still lets Linux and Windows publish, without the .apk, and says so.
+    # To make it required, delete this `if:` (then every job in `needs` must succeed).
+    if: ${{ !cancelled() && needs.build-linux.result == 'success' && needs.build-windows.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the tag and the release
@@ -172,10 +191,16 @@ jobs:
       PRERELEASE: ${{ inputs.prerelease }}
       DRY_RUN: ${{ inputs.dry_run }}
       GH_TOKEN: ${{ github.token }}
+      ANDROID_RESULT: ${{ needs.build-android.result }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Say so when there is no Android .apk
+        if: needs.build-android.result != 'success'
+        run: |
+          echo "::warning::build-android finished with '$ANDROID_RESULT': this release has no Android .apk (see that job's log)"
+          echo "### No Android .apk in this release (build-android: $ANDROID_RESULT)" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@v7
         with:
           pattern: release-*

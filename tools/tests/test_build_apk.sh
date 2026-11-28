@@ -168,6 +168,13 @@ case "$out$calls" in *"$secret"*) bad "the password appears in the output or in 
 case "$calls" in *keytool*) bad "release: a throwaway key was made" ;; *) ok ;; esac
 case "$out" in *THROWAWAY*) bad "release: announced as throwaway" ;; *) ok ;; esac
 expect_has "versionCode of 2.0.0" "--version-code 2000000" "$calls"
+# no key password given: it is the keystore's (apksigner would otherwise wait for it on stdin)
+: >"$LOG"
+ARCADE_KEYSTORE_PASSWORD="$secret" run --lib "$TMP/libarm64.so" --version 2.0.1 --out "$TMP/dist/release2.apk" \
+  --keystore "$TMP/release.jks" >/dev/null
+calls="$(cat "$LOG")"
+expect_has "key password defaults to the keystore's" "--key-pass env:ARCADE_KEYSTORE_PASSWORD" "$calls"
+expect_has "alias defaults to arcade" "--ks-key-alias arcade" "$calls"
 
 # ---- an old zipalign without -P: a clear message, no .apk ------------------------------------------------
 rm -f "$TMP/dist/old.apk"

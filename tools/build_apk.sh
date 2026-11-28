@@ -33,6 +33,9 @@ die() {
   exit 1
 }
 
+# shellcheck source=tools/android_sdk.sh
+. "$here/tools/android_sdk.sh" # sdk_root, find_tool, find_android_jar
+
 # ---- versions ---------------------------------------------------------------------------------------------
 # "1.2.3", or "1.2.3-dev+abc" (a development build): the numbers decide.
 version_code() {
@@ -46,44 +49,6 @@ version_code() {
   local code=$(((major * 1000 + minor) * 1000 + patch))
   ((code >= 1)) || code=1 # 0.0.0-dev builds: Android does not like 0
   echo "$code"
-}
-
-# ---- looking for the SDK tools ----------------------------------------------------------------------------
-sdk_root() { echo "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"; }
-
-# find_tool NAME: the build-tools program NAME, from the newest (or BUILD_TOOLS_VERSION) folder of the SDK, else PATH.
-find_tool() {
-  local name="$1" sdk dir
-  sdk="$(sdk_root)"
-  if [ -n "$sdk" ]; then
-    if [ -n "${BUILD_TOOLS_VERSION:-}" ]; then
-      dir="$sdk/build-tools/$BUILD_TOOLS_VERSION"
-    else
-      dir="$(printf '%s\n' "$sdk"/build-tools/*/ | sort -V | tail -n 1)"
-    fi
-    if [ -x "${dir%/}/$name" ]; then
-      echo "${dir%/}/$name"
-      return 0
-    fi
-  fi
-  command -v "$name"
-}
-
-find_android_jar() {
-  local sdk jar
-  if [ -n "${ANDROID_JAR:-}" ]; then
-    echo "$ANDROID_JAR"
-    return 0
-  fi
-  sdk="$(sdk_root)"
-  [ -n "$sdk" ] || return 1
-  jar="$sdk/platforms/android-$TARGET_SDK/android.jar"
-  if [ ! -f "$jar" ]; then
-    # the newest platform there is (aapt2 only reads the resource names from it)
-    jar="$(printf '%s\n' "$sdk"/platforms/android-[0-9]*/android.jar | sort -V | tail -n 1)"
-  fi
-  [ -f "$jar" ] || return 1
-  echo "$jar"
 }
 
 # A 64-bit ARM ELF shared object: 0x7f 'E' 'L' 'F', class 2 (64-bit), e_machine 0xB7 (AArch64) at byte 18.
@@ -165,15 +130,21 @@ main() {
   # 4. sign
   local -a sign_args
   if [ -n "$keystore" ]; then
+    # apksigner asks on stdin for a password that is not given (its default), which would hang a build: say it
     sign_args=(--ks "$keystore" --ks-key-alias "${ARCADE_KEY_ALIAS:-arcade}" --ks-pass env:ARCADE_KEYSTORE_PASSWORD)
-    [ -z "${ARCADE_KEY_PASSWORD:-}" ] || sign_args+=(--key-pass env:ARCADE_KEY_PASSWORD)
+    if [ -n "${ARCADE_KEY_PASSWORD:-}" ]; then
+      sign_args+=(--key-pass env:ARCADE_KEY_PASSWORD)
+    else
+      sign_args+=(--key-pass env:ARCADE_KEYSTORE_PASSWORD)
+    fi
     echo "build_apk: signing with the release key $keystore"
   else
     command -v keytool >/dev/null || die "keytool not found (it comes with the JDK): needed for the throwaway key"
     keytool -genkeypair -keystore "$work/throwaway.jks" -storepass arcade-throwaway -keypass arcade-throwaway \
       -alias throwaway -keyalg RSA -keysize 2048 -validity 36500 \
       -dname "CN=arCade throwaway key (test builds only)" >/dev/null 2>&1
-    sign_args=(--ks "$work/throwaway.jks" --ks-key-alias throwaway --ks-pass pass:arcade-throwaway)
+    sign_args=(--ks "$work/throwaway.jks" --ks-key-alias throwaway --ks-pass pass:arcade-throwaway
+      --key-pass pass:arcade-throwaway)
     echo "build_apk: THROWAWAY key: this .apk is for testing, it cannot be updated by a release"
   fi
   "$apksigner" sign "${sign_args[@]}" --v4-signing-enabled false --out "$work/signed.apk" "$work/aligned.apk"
