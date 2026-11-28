@@ -104,14 +104,17 @@ typedef struct ElementDef {
     uint8_t spray;  /* brush density: chance (out of 256) that a painted cell is filled */
 } ElementDef;
 
-/* Temperatures are whole degrees Celsius. An empty cell is always at the ambient temperature. */
+/* Temperatures are degrees Celsius. Every cell has one, empty air included: air holds almost no heat, so
+ * it follows whatever touches it, but a hot object still warms the air around it. */
 #define SANDBOX_AMBIENT 20
 #define SANDBOX_TEMP_MIN (-273)
 #define SANDBOX_TEMP_MAX 9000
 
 /* Per-cell memory. `aux` means something different for each element (fire: remaining life, plant: growth
  * budget, wood: burn timer, ...). It is 0 for a freshly painted cell. See sandbox_react.c. `temp` is the
- * cell's temperature; it travels with the cell when it moves (see sandbox_heat.c). */
+ * cell's temperature in whole degrees and `tfrac` the part of a degree on top of it, in 1/65536 (the heat
+ * model needs the fraction: lava in free air loses well under a degree per tick). Both travel with the cell
+ * when it moves (see sandbox_heat.c). */
 typedef struct Sandbox {
     int w, h;
     uint8_t cells[SANDBOX_MAX_W * SANDBOX_MAX_H];
@@ -120,9 +123,9 @@ typedef struct Sandbox {
      * ray (see sandbox_internal.h); all of it travels with the cell */
     uint8_t moved[SANDBOX_MAX_W * SANDBOX_MAX_H];
     int16_t temp[SANDBOX_MAX_W * SANDBOX_MAX_H];
-    int16_t heat_flow[SANDBOX_MAX_W * SANDBOX_MAX_H]; /* scratch for the conduction pass */
-    uint8_t heat_rows[SANDBOX_MAX_H];                 /* 1 = this row may hold something not at ambient */
-    bool heat_view; /* render as a thermal map instead of the normal colours */
+    uint16_t tfrac[SANDBOX_MAX_W * SANDBOX_MAX_H];
+    uint8_t heat_rows[SANDBOX_MAX_H]; /* 1 = this row may hold something not at ambient */
+    bool heat_view;                   /* render as a thermal map instead of the normal colours */
     unsigned tick;
     Rng rng;
 } Sandbox;
@@ -140,9 +143,9 @@ int sandbox_count(const Sandbox *sb, ElementId id);
  * The rectangle is clipped to the grid. Used by the hub's vault to measure how full it is. */
 int sandbox_count_in(const Sandbox *sb, int x, int y, int w, int h, ElementId id);
 
-/* Temperature of a cell in degrees Celsius (SANDBOX_AMBIENT for empty cells and outside the grid). */
+/* Temperature of a cell in whole degrees Celsius, air included (SANDBOX_AMBIENT outside the grid). */
 int sandbox_temp(const Sandbox *sb, int x, int y);
-/* Set or change the temperature of a non-empty cell (clamped to the allowed range). */
+/* Set or change the temperature of a cell (clamped to the allowed range). */
 void sandbox_set_temp(Sandbox *sb, int x, int y, int degrees);
 void sandbox_add_heat(Sandbox *sb, int x, int y, int degrees);
 /* Throw `sparks` sparks out from (x, y) in random directions; they start in the cells around that point,

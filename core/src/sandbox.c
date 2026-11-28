@@ -32,6 +32,7 @@ void sandbox_set(Sandbox *sb, int x, int y, ElementId id) {
     sb->aux[i] = 0; /* a freshly placed cell starts with a clean memory */
     sb->moved[i] = 0;
     sb->temp[i] = SANDBOX_AMBIENT; /* ... and with the temperature its element is made at */
+    sb->tfrac[i] = 0;
     sandbox_heat_on_put(sb, i, id);
 }
 
@@ -96,10 +97,14 @@ void sandbox_swap(Sandbox *sb, int a, int b) {
     sb->moved[b] = t;
     sb->moved[a] |= MOVED_NOW;
     sb->moved[b] |= MOVED_NOW;
-    int16_t temp = sb->temp[a]; /* heat moves with the cell */
+    int16_t temp = sb->temp[a]; /* heat moves with the cell (air packets carry theirs too) */
     sb->temp[a] = sb->temp[b];
     sb->temp[b] = temp;
-    if (sb->temp[a] != SANDBOX_AMBIENT || sb->temp[b] != SANDBOX_AMBIENT) {
+    uint16_t frac = sb->tfrac[a];
+    sb->tfrac[a] = sb->tfrac[b];
+    sb->tfrac[b] = frac;
+    if (sb->temp[a] != SANDBOX_AMBIENT || sb->temp[b] != SANDBOX_AMBIENT || sb->tfrac[a] != 0 ||
+        sb->tfrac[b] != 0) {
         sandbox_heat_mark(sb, a / sb->w);
         sandbox_heat_mark(sb, b / sb->w);
     }

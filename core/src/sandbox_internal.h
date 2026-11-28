@@ -47,9 +47,8 @@ static inline bool sandbox_is_fluid(ElementId id) {
 /* How an element deals with heat: conduction, phase changes, self-ignition (sandbox_heat.c). */
 typedef struct ThermalDef {
     int16_t temp0; /* temperature of a freshly made cell, in degrees C */
-    uint8_t cond;  /* conductivity: 0 insulates, 62 is a very good conductor */
-    uint8_t cap;   /* heat capacity: how much heat it takes to warm it by one degree (1..16) */
-    uint8_t loss; /* heat lost to open air through each exposed face, in 1/16384 of the difference per tick */
+    uint16_t cond; /* how well it passes heat on: 8 = an insulator, 3000 = a very good conductor */
+    uint16_t cap;  /* heat capacity: how much heat it takes to warm it by one degree. Air is 2, water 4200 */
     int16_t autoignite; /* catches fire by itself above this temperature; 0 = never */
     int16_t cold_t;     /* at or below this temperature it turns into cold_to ... */
     ElementId cold_to;
@@ -57,8 +56,10 @@ typedef struct ThermalDef {
     ElementId hot_to;
     uint8_t rate;  /* chance (/256) per tick that a phase change happens once its temperature is reached */
     uint8_t fixed; /* 1 = a heat source or sink: it always sits at temp0 */
-    uint8_t latent_hot;  /* heat (in units of 16) absorbed at hot_t before the change happens; 0 = at once */
-    uint8_t latent_cold; /* the same at cold_t */
+    /* extra heat (in steps of two degrees of its own) absorbed at hot_t before the change */
+    uint8_t latent_hot;
+    /* the same at cold_t. 0 = the change happens at once */
+    uint8_t latent_cold;
 } ThermalDef;
 
 /* ---- sandbox.c ---- */
@@ -76,8 +77,11 @@ void sandbox_move(Sandbox *sb, int x, int y);
 const ThermalDef *sandbox_thermal(ElementId id);
 void sandbox_heat_clear(Sandbox *sb);       /* every cell back to ambient */
 void sandbox_heat_mark(Sandbox *sb, int y); /* row y may now hold something that is not ambient */
+/* Put `energy` units of heat into cell i (its temperature rises by energy / capacity). Used by things that
+ * make heat themselves, like uranium. */
+void sandbox_heat_inject(Sandbox *sb, int i, int energy);
 void sandbox_heat_on_put(Sandbox *sb, int i, ElementId id); /* temperature of a cell that just became id */
-void sandbox_heat_step(Sandbox *sb);                        /* conduction + cooling for the whole grid */
+void sandbox_heat_step(Sandbox *sb);                        /* heat flow for the whole grid */
 bool sandbox_heat_react(Sandbox *sb, int x, int y); /* phase change / self-ignition; true = cell changed */
 
 /* ---- sandbox_burst.c ---- */

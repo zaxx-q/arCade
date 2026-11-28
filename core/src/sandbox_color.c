@@ -184,8 +184,9 @@ static uint32_t cell_color(const Sandbox *sb, int x, int y) {
 }
 
 /* Thermal map: blue is cold, a dim teal is room temperature, then yellow, orange, red and white as it heats
- * up. */
-static uint32_t heat_color(const Sandbox *sb, int i) {
+ * up. Air shows too, faintly: a hot block glows and the air around it takes on a haze that fades with
+ * distance. */
+static Rgb heat_ramp(int t) {
     static const struct {
         int t;
         int r, g, b;
@@ -193,20 +194,29 @@ static uint32_t heat_color(const Sandbox *sb, int i) {
                  {60, 120, 170, 60},    {150, 235, 215, 60},  {400, 255, 140, 30}, {800, 235, 50, 30},
                  {1300, 255, 200, 140}, {2200, 255, 255, 255}};
     const int n = (int)(sizeof stops / sizeof stops[0]);
-    if (sb->cells[i] == EL_EMPTY)
-        return pack(rgb(10, 14, 24));
-    int t = sb->temp[i];
     if (t <= stops[0].t)
-        return pack(rgb(stops[0].r, stops[0].g, stops[0].b));
+        return rgb(stops[0].r, stops[0].g, stops[0].b);
     for (int k = 1; k < n; k++) {
         if (t <= stops[k].t) {
             int span = stops[k].t - stops[k - 1].t;
             int f = (t - stops[k - 1].t) * 256 / span;
-            return pack(mix(rgb(stops[k - 1].r, stops[k - 1].g, stops[k - 1].b),
-                            rgb(stops[k].r, stops[k].g, stops[k].b), f));
+            return mix(rgb(stops[k - 1].r, stops[k - 1].g, stops[k - 1].b),
+                       rgb(stops[k].r, stops[k].g, stops[k].b), f);
         }
     }
-    return pack(rgb(255, 255, 255));
+    return rgb(255, 255, 255);
+}
+
+static uint32_t heat_color(const Sandbox *sb, int i) {
+    int t = sb->temp[i];
+    if (sb->cells[i] == EL_EMPTY) {
+        Rgb bg = rgb(10, 14, 24);
+        int dev = t - SANDBOX_AMBIENT;
+        if (dev > -4 && dev < 4)
+            return pack(bg);
+        return pack(mix(bg, heat_ramp(t), arc_clampi((dev < 0 ? -dev : dev) * 3, 24, 150)));
+    }
+    return pack(heat_ramp(t));
 }
 
 uint32_t sandbox_pixel(const Sandbox *sb, int x, int y) {
