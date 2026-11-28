@@ -82,6 +82,9 @@ int GetRenderWidth(void);  // Get current render width (it considers HiDPI)
 int GetScreenHeight(void);  // Get current screen height
 int GetScreenWidth(void);  // Get current screen width
 double GetTime(void);  // Get elapsed time in seconds since InitWindow()
+int GetTouchPointCount(void);  // Get number of touch points
+int GetTouchPointId(int index);  // Get touch point identifier for provided index
+Vector2 GetTouchPosition(int index);  // Get touch position XY for a touch point index (relative to screen size)
 void ImageDrawPixel(Image *dst, int posX, int posY, Color color);  // Draw pixel within an image
 void ImageFlipVertical(Image *image);  // Flip image vertically
 void ImageFormat(Image *image, int newFormat);  // Convert image data to desired format
@@ -214,6 +217,7 @@ FLAG_VSYNC_HINT  = 0x00000040,  // Set to try enabling V-Sync on GPU
 FLAG_WINDOW_RESIZABLE  = 0x00000004,  // Set to allow resizable window
 KEY_A  = 65,  // Key: A | a
 KEY_B  = 66,  // Key: B | b
+KEY_BACK  = 4,  // Key: Android back button
 KEY_BACKSPACE  = 259,  // Key: Backspace
 KEY_D  = 68,  // Key: D | d
 KEY_DOWN  = 264,  // Key: Cursor down

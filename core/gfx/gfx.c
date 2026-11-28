@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "arcade/gfx.h"
+#include "gfx_touch.h"
 #include "arcade/str.h"
 #include "arcade/version.h"
 #include "arcade/view.h"
@@ -65,6 +66,7 @@ void arcade_gfx_init_sized(bool headless, const char *assets_dir, int width, int
     if (!headless && fullscreen)
         ToggleBorderlessWindowed(); /* no video mode switch: instant, and it restores the old size */
     view_sync();
+    gfx_touch_init(headless, &g.view);
     if (!headless)
         InitAudioDevice(); /* may fail on machines without sound: games must cope */
 }
@@ -90,10 +92,13 @@ void arcade_flush_input(void) {
     ClearBackground(ARC_COL_BG);
     EndDrawing();
     view_sync();
+    gfx_touch_flush(
+        &g.view); /* back in the hub: the controls are off, and the fingers that are down are old */
 }
 
 void arcade_loop_begin(const GameContext *ctx) {
     view_sync();
+    gfx_touch_game_begin();
     g.headless = ctx->headless;
     g.frame = 0;
     g.max_frames = ctx->max_frames;
@@ -110,7 +115,7 @@ bool arcade_loop_running(void) {
         return false;
     if (g.headless)
         return g.max_frames <= 0 || g.frame < g.max_frames;
-    return !IsKeyPressed(KEY_ESCAPE);
+    return !arcade_key_pressed(KEY_ESCAPE); /* Esc, the Android back key or the back button */
 }
 
 static float axis(bool neg, bool pos) {
@@ -118,7 +123,7 @@ static float axis(bool neg, bool pos) {
 }
 
 void arcade_poll(ArcadeInput *in) {
-    if (g.headless) {
+    if (g.headless && !gfx_touch_testing()) {
         arcade_monkey_next(&g.monkey, in);
         return;
     }
@@ -135,16 +140,17 @@ void arcade_poll(ArcadeInput *in) {
     in->alt = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
     in->alt_pressed = IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
     in->action = IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_ENTER);
-    in->action_pressed = IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER);
+    in->action_pressed = IsKeyPressed(KEY_SPACE) || arcade_key_pressed(KEY_ENTER);
     in->left_pressed = IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A);
     in->right_pressed = IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D);
     in->up_pressed = IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W);
     in->down_pressed = IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S);
-    for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
+    for (int c = arcade_text_char(); c != 0; c = arcade_text_char()) /* the keyboard, or the on-screen one */
         if (c > 32 && c < 127)
             in->typed = c;
     float w = GetMouseWheelMove();
     in->wheel = w > 0.0f ? 1 : (w < 0.0f ? -1 : 0);
+    gfx_touch_merge(in); /* fingers: stick, action button, pointer */
 }
 
 /* Reads the frame being drawn, exports it as PNG and checks that it is not a single flat colour. */
@@ -189,15 +195,20 @@ void arcade_frame_begin(void) {
     view_sync(); /* the window may have been resized since the last frame ended */
     apply_design_transform();
     gfx_text_frame_begin();
+    gfx_touch_frame_begin();
 }
 
 void arcade_frame_end(void) {
+    arcade_native_end(); /* a game that forgot to leave the native section still gets its controls drawn */
+    apply_design_transform();
+    gfx_touch_draw(); /* the virtual controls and the keyboard go over everything the game drew */
     bool last = g.max_frames > 0 && g.frame + 1 >= g.max_frames;
     if (g.shot_path[0] != '\0' && (g.frame % 60 == 59 || last))
         snapshot();
     EndDrawing();
     g.native = false;
     view_sync(); /* EndDrawing polled the events: a resize or a mouse move is applied from here on */
+    gfx_touch_frame_end(&g.view); /* ... and so are the fingers */
     g.frame++;
 }
 

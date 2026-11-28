@@ -10,6 +10,7 @@
 #include "arcade/game.h"
 #include "arcade/input.h"
 #include "arcade/sandbox.h"
+#include "arcade/touch.h"
 #include "raylib.h"
 
 /* ---- Neon palette (use these so every game looks like it belongs to the hub) ---- */
@@ -108,6 +109,42 @@ bool arcade_is_fullscreen(void);
 /* Called by arcade_frame_begin / gfx_text: */
 Vector2 arcade_view_snap(Vector2 p); /* a design position moved to the nearest window pixel (crisp text) */
 void gfx_text_frame_begin(void);     /* drops font atlases made for another scale */
+
+/* ---- Touch screens (Android) ----
+ *
+ * A phone has no keyboard and no mouse. Inside a game loop nothing changes for the game: arcade_poll() turns
+ * the virtual stick (bottom left), the action button (bottom right) and every other finger into the same
+ * ArcadeInput as before (move_x/move_y, action, aim_x/aim_y, fire ...), "back" leaves the game, and the
+ * keyboard button shows an on-screen keyboard whose letters arrive as ArcadeInput.typed. Rules and tests:
+ * arcade/touch.h and arcade/osk.h. A game can ignore all of this.
+ *
+ * The hub reads keys through arcade_key_pressed() / arcade_text_char() instead of IsKeyPressed() /
+ * GetCharPressed(), so the same screens work with a finger. On a computer the touch UI is off, unless the
+ * environment variable ARCADE_TOUCH_UI=1 is set (the left mouse button is then one finger: a way to try it).
+ */
+/* True on a touch screen: screens may show touch-friendly hints. */
+bool arcade_touch_ui(void);
+/* IsKeyPressed(), or a tap on a zone registered for that key, or the on-screen keyboard's Enter/Backspace.
+ * KEY_ESCAPE is also pressed by the Android back key. */
+bool arcade_key_pressed(int key);
+/* The next typed character (GetCharPressed(), or the on-screen keyboard); 0 = none. */
+int arcade_text_char(void);
+/* Call while drawing: a tap inside r (design units) counts as pressing `key` in the next frame. The zones
+ * are forgotten at every arcade_frame_begin(). */
+void arcade_touch_key_zone(Rectangle r, int key);
+/* Shows or hides the on-screen keyboard (arcade_flush_input closes it). */
+void arcade_osk_open(bool open);
+bool arcade_osk_is_open(void);
+/* The keyboard's top edge in design units: keep what must stay visible above it. */
+float arcade_osk_top(void);
+
+#ifdef ARCADE_HEADLESS_BUILD
+/* Smoke tests only: the touch UI is on, the fingers are the ones given here (ids as a phone would number
+ * them) and arcade_poll() reads them instead of the monkey, like on a real device. */
+void arcade_touch_test_begin(void);
+void arcade_touch_test_fingers(const TouchPoint *pts, int n);
+void arcade_touch_test_end(void);
+#endif
 
 /* ---- Audio (optional: every game must still work silently) ---- */
 bool arcade_audio_ready(void); /* false in smoke runs and on machines without a sound device */

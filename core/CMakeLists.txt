@@ -14,11 +14,14 @@ arcade_apply_warnings(arcade_core)
 
 # arcade_gfx: raylib front-end helpers (window, frame loop, input polling, drawing, hub UI).
 if(NOT ARCADE_LOGIC_ONLY)
-  add_library(arcade_gfx STATIC gfx/gfx.c gfx/gfx_draw.c gfx/gfx_text.c)
+  add_library(arcade_gfx STATIC gfx/gfx.c gfx/gfx_draw.c gfx/gfx_text.c gfx/gfx_touch.c)
   target_include_directories(arcade_gfx PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
   target_link_libraries(arcade_gfx PUBLIC arcade_core raylib)
   if(ARCADE_HEADLESS)
     target_compile_definitions(arcade_gfx PUBLIC ARCADE_HEADLESS_BUILD=1)
+  endif()
+  if(ANDROID) # the NDK toolchain file sets ANDROID: the touch screen is the real input there
+    target_compile_definitions(arcade_gfx PUBLIC ARCADE_ANDROID=1)
   endif()
   arcade_apply_warnings(arcade_gfx)
 endif()

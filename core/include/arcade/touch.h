@@ -5,8 +5,8 @@
  *
  *   stick   (bottom left)   -> move_x / move_y and the one-shot left/right/up/down presses
  *   action  (bottom right)  -> action / action_pressed (Space / Enter)
- *   back    (top left)      -> "leave this game" (what Esc does on a computer)
- *   keys    (top right)     -> "show the on-screen keyboard" (the games' hotkeys: P, R, M ...)
+ *   back    (above the stick)   -> "leave this game" (what Esc does on a computer)
+ *   keys    (above the action) -> "show the on-screen keyboard" (the games' hotkeys: P, R, M ...)
  *   any other finger        -> the pointer: aim_x / aim_y and fire / fire_pressed (the left mouse button)
  *
  * A finger belongs to the control it first landed on until it is lifted: a finger that slides out of the

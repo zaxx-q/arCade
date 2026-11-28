@@ -34,7 +34,9 @@ static void test_layout_inside_window_and_apart(void) {
     }
     CHECK(l.stick.x < l.action.x); /* stick on the left, action on the right */
     CHECK(l.back.x < l.keys.x);
-    CHECK(l.back.y > 36.0f); /* under the top bar of the games */
+    CHECK(l.back.y + l.back.r < l.stick.y - l.stick.r); /* back and keys sit above the stick and the action */
+    CHECK(l.keys.y + l.keys.r < l.action.y - l.action.r);
+    CHECK(l.back.y > 100.0f); /* the top of the screen (title bar, lives, scores) is left to the games */
 }
 
 static void test_no_fingers_means_no_input(void) {

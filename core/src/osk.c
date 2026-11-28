@@ -3,9 +3,9 @@
 #include "arcade/osk.h"
 #include "arcade/str.h"
 
-#define KEY_H 46.0f
+#define KEY_H 58.0f /* tall enough for a thumb: a phone shows the 1280 x 720 canvas at about 1.5x */
 #define KEY_GAP 6.0f
-#define KEY_W_MAX 80.0f
+#define KEY_W_MAX 110.0f
 #define PAD 10.0f /* panel padding around the keys */
 
 /* The rows of each page. A row of characters becomes one key each; the special keys are added by osk_layout.

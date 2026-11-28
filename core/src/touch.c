@@ -9,7 +9,7 @@
 #define STICK_R 84.0f    /* the stick's visible radius */
 #define ACTION_R 64.0f   /* the action button's radius */
 #define SMALL_R 28.0f    /* the back and keys buttons */
-#define HUD_BAR 36.0f    /* height of the top bar every game draws (gfx_hud) */
+#define BUTTON_GAP 30.0f /* between the stick / action button and the small button above it */
 #define STICK_GRAB 1.35f /* a finger landing within this many radii of the stick centre takes the stick */
 #define BUTTON_GRAB 1.3f /* the same for the round buttons: a thumb is bigger than the drawing */
 #define DEADZONE 0.20f   /* the stick reads 0 closer to the centre than this (fraction of the radius) */
@@ -18,9 +18,12 @@
 void touch_layout_fit(TouchLayout *l, float left, float top, float right, float bottom) {
     l->stick = (TouchCircle){left + EDGE + STICK_R, bottom - EDGE - STICK_R, STICK_R};
     l->action = (TouchCircle){right - EDGE - ACTION_R, bottom - EDGE - ACTION_R - 20.0f, ACTION_R};
-    float row = arc_maxf(top, 0.0f) + HUD_BAR + 14.0f + SMALL_R; /* just under the top bar */
-    l->back = (TouchCircle){left + EDGE + SMALL_R, row, SMALL_R};
-    l->keys = (TouchCircle){right - EDGE - SMALL_R, row, SMALL_R};
+    /* back and keys sit above the stick and the action button, where the thumbs rest. The top of the screen
+     * is the games' (title bar, lives, scores, help text) and stays free. */
+    float back_y = l->stick.y - l->stick.r - BUTTON_GAP - SMALL_R;
+    float keys_y = l->action.y - l->action.r - BUTTON_GAP - SMALL_R;
+    l->back = (TouchCircle){left + EDGE + SMALL_R, arc_maxf(back_y, top + SMALL_R), SMALL_R};
+    l->keys = (TouchCircle){right - EDGE - SMALL_R, arc_maxf(keys_y, top + SMALL_R), SMALL_R};
 }
 
 static bool in_circle(TouchCircle c, float grow, float x, float y) {
