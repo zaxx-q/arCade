@@ -24,3 +24,7 @@ master_juggler_progress.txt
 !.vscode/extensions.json
 !.vscode/tasks.json
 !.vscode/launch.json
+# Android signing keys must never be committed (the release key lives in the repository secrets: docs/ANDROID.md)
+*.jks
+*.keystore
+*.jks.b64

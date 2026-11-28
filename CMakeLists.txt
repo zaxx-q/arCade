@@ -19,6 +19,25 @@ set(CMAKE_C_EXTENSIONS OFF) # -std=c99, not gnu99: keeps us honest about portabi
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+# ---- Android: the NDK toolchain file sets ANDROID (cmake --preset android-arm64, docs/ANDROID.md) -------
+if(ANDROID)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON) # every static library below ends up inside libarcade.so
+  if(ARCADE_BUILD_TESTS)
+    message(STATUS "Android: the unit tests are not built (they run on the build machine: use the logic preset)")
+    set(ARCADE_BUILD_TESTS OFF)
+  endif()
+  # Resolve the NDK path early: core/CMakeLists.txt needs it for android_native_app_glue.h,
+  # and it runs before ArcadeRaylib.cmake (which fetches raylib).
+  if(NOT ANDROID_NDK AND CMAKE_ANDROID_NDK)
+    set(ANDROID_NDK "${CMAKE_ANDROID_NDK}")
+  endif()
+  if(NOT ANDROID_NDK AND CMAKE_TOOLCHAIN_FILE)
+    get_filename_component(_toolchain_dir "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
+    get_filename_component(ANDROID_NDK "${_toolchain_dir}/../.." ABSOLUTE)
+  endif()
+  set(ARCADE_ANDROID_GLUE_DIR "${ANDROID_NDK}/sources/android/native_app_glue")
+endif()
+
 include(ArcadeVersion)
 include(ArcadeWarnings)
 include(ArcadeAssets)
@@ -43,7 +62,9 @@ endif()
 
 add_subdirectory(games)
 add_subdirectory(deferred)
-add_subdirectory(tools)
+if(NOT ANDROID)
+  add_subdirectory(tools) # command-line tools for the build machine
+endif()
 
 if(ARCADE_BUILD_TESTS)
   add_subdirectory(tests)

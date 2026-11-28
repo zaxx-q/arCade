@@ -20,6 +20,7 @@ arCade: a hub plus a collection of small games in **plain C99** drawn with **ray
 | Full build (downloads raylib once) | `cmake --preset dev && cmake --build --preset dev` | ~2 min first |
 | Run the hub | `build/dev/bin/arCade` | - |
 | Headless smoke of every game + PNGs | `cmake --preset headless && cmake --build --preset headless && build/headless/bin/arCade --smoke all --frames 300 --out smoke-out` | ~1 min |
+| Android .apk (needs the NDK + SDK, docs/ANDROID.md) | `cmake --preset android-arm64 && cmake --build --preset android-arm64 && bash tools/build_apk.sh --help` | CI |
 | Sanitizers (Linux/macOS) | `cmake --preset asan && cmake --build --preset asan && ctest --preset asan` | ~30s |
 | New game | `cmake -DID=my_game -DTITLE="My Game" -DOWNER="Name" -P tools/new_game.cmake` | ~1s |
 | Convert MIDI songs for Beat Dodge & Catch | `bash tools/songs/build_songs.sh` | ~2s |
@@ -45,6 +46,7 @@ core/src/             pure-C implementations (unit-tested)      core/gfx/  rayli
 app/                  hub: main.c (CLI + state machine), screens.c (menu, leaderboard), backdrop.c (live Synthwave City or sand), smoke.c
 games/<id>/           one game ON THE HUB MENU: <id>_logic.[ch] (pure) + <id>_game.c (raylib) + tests/ + GAME.md + AGENTS.md
 deferred/<id>/        same layout, but kept off the menu: still built, tested and smoke-tested; unlocked in the hub by the vault (docs/DEFERRED.md)
+android/               manifest + icon of the Android .apk (no Gradle, no Java: docs/ANDROID.md)
 games/_template/      source of `tools/new_game.cmake` (placeholders @ID@ @TITLE@ @OWNER@; never compiled directly)
 cmake/                helpers: arcade_add_game(), registry generator, raylib fetch, warnings, MinGW toolchain
 tools/                new_game.cmake, next_version.sh, check_repo.sh, format.sh, gen_raylib_subset.sh, tests/
@@ -121,7 +123,7 @@ assets/               compiled INTO the executable (beatmaps/, fonts/, gritty_go
 
 ## Codebase State
 - 18 games run and are unit-tested: 4 on the hub menu (`games/`: `beat_dodge` (Dodge and Catch modes), `different_color`, `gritty_golf`, `loop_lap`) and 14 in `deferred/` (reachable through the hub vault or `arCade --all`). `deferred/synthwave_city` is also the hub's live backdrop (`app/backdrop.c` runs it as a guest behind the menu, through `synthwave_city_session.h`), so that folder must exist. `gritty_golf` is a complete vendored game (25 levels) wrapped by an adapter; `different_color`, `loop_lap` and most of `deferred/` are complete ports of rules from the sibling project `simple-games`, and `deferred/synthwave_city` is a C port (bit-exact city plan and song) of the MIT-licensed web project Synthwave_City (see `THIRD_PARTY_NOTICES.md`); the rest are **placeholders** with their core mechanic working (remaining work is marked `TODO(<owner>)`: `grep -rn "TODO(" games deferred core app`).
-- Not verified locally: Windows MSVC build and native Windows runs (CI job `windows-msvc` is non-blocking until green once).
+- Not verified locally: Windows MSVC build and native Windows runs (CI job `windows-msvc` is non-blocking until green once); the Android build (never compiled with the real NDK nor run on a phone until the first `android.yml` run, see `docs/ANDROID.md`).
 
 ## Terminology
 | Term | Means |

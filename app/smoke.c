@@ -6,6 +6,8 @@
 
 #include "app.h"
 #include "arcade/gfx.h"
+#include "arcade/osk.h"
+#include "arcade/touch.h"
 
 /* The Online tab and the online line of the result screen, drawn by a client that has no network: it is
  * switched on, "received" two tables earlier (one fresh, one hours old) and was told how the shown run did.
@@ -123,6 +125,7 @@ static int run_hub_previews(const CliOptions *opt, AppState *app, const char *da
         ctx.assets_dir = assets_dir;
         ctx.screenshot_path = shot;
         arcade_loop_begin(&ctx);
+        arcade_flush_input(); /* these are hub screens: with ARCADE_TOUCH_UI=1 they get no game controls */
         float t = 0.0f;
         while (arcade_loop_running()) {
             t += ARC_DT;
@@ -249,6 +252,214 @@ static int run_city_check(const CliOptions *opt, AppState *app, const char *data
     return ok ? 0 : 1;
 }
 
+/* ---- touch screens ----------------------------------------------------------------------------------------
+ * The rules of the virtual controls and of the on-screen keyboard are unit-tested (tests/test_touch.c,
+ * test_osk.c). This checks what only the real front-end can: that fingers reach them through the same calls
+ * the hub and the games make, with scripted fingers numbered like a phone numbers them. */
+
+#define TOUCH_MAX_CHECKS 40
+static const char *g_check_name[TOUCH_MAX_CHECKS];
+static bool g_check_ok[TOUCH_MAX_CHECKS];
+static int g_check_n;
+
+static void expect(const char *name, bool ok) {
+    if (g_check_n < TOUCH_MAX_CHECKS) {
+        g_check_name[g_check_n] = name;
+        g_check_ok[g_check_n] = ok;
+        g_check_n++;
+    }
+}
+
+/* One drawn frame with the fingers `pts` on the glass. The hub's draw code registers its tap zones while it
+ * draws: this registers `zone` (if any) the same way. */
+static void touch_frame(const TouchPoint *pts, int n, const Rectangle *zone, int zone_key) {
+    arcade_touch_test_fingers(pts, n);
+    arcade_frame_begin();
+    if (zone != NULL)
+        arcade_touch_key_zone(*zone, zone_key);
+    arcade_frame_end();
+}
+
+static TouchPoint finger(int id, float x, float y) {
+    TouchPoint p = {id, x, y};
+    return p;
+}
+
+/* A finger down on (x, y) for one frame, then lifted for one. */
+static void tap(int id, float x, float y, const Rectangle *zone, int zone_key) {
+    TouchPoint p = finger(id, x, y);
+    touch_frame(&p, 1, zone, zone_key);
+}
+
+static void lift(const Rectangle *zone, int zone_key) {
+    touch_frame(NULL, 0, zone, zone_key);
+}
+
+static int run_touch_check(int *ran) {
+    g_check_n = 0;
+    GameContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.player = "SMOKE";
+    ctx.seed = 1;
+    ctx.headless = true;
+    arcade_touch_test_begin();
+
+    const Rectangle view = arcade_view_bounds(); /* the window in design units */
+    const float left = view.x, top = view.y, right = view.x + view.width, bottom = view.y + view.height;
+    TouchLayout pad;
+    touch_layout_fit(&pad, left, top, right, bottom);
+    Osk kb;
+    osk_init(&kb);
+    osk_layout(&kb, (left + right) / 2.0f, bottom, arc_minf(1000.0f, right - left - 40.0f)); /* the hub's */
+
+    /* -- the hub: a footer hint is a button -- */
+    const Rectangle zone = {100.0f, 600.0f, 200.0f, 60.0f};
+    arcade_flush_input();
+    lift(&zone, KEY_L);
+    expect("no finger, no key", !arcade_key_pressed(KEY_L));
+    tap(3, 150.0f, 630.0f, &zone, KEY_L);
+    expect("a tap on a zone presses its key", arcade_key_pressed(KEY_L));
+    tap(3, 150.0f, 630.0f, &zone, KEY_L);
+    expect("a finger that stays does not press again", !arcade_key_pressed(KEY_L));
+    lift(&zone, KEY_L);
+    tap(3, 150.0f, 630.0f, &zone, KEY_L);
+    expect("the next tap presses again", arcade_key_pressed(KEY_L));
+    lift(&zone, KEY_L);
+    tap(4, 900.0f, 300.0f, &zone, KEY_L);
+    expect("a tap outside the zone presses nothing", !arcade_key_pressed(KEY_L));
+    tap(4, 150.0f, 630.0f, &zone, KEY_L);
+    expect("a finger that slides into a zone does not press it", !arcade_key_pressed(KEY_L));
+    lift(&zone, KEY_L);
+
+    /* a finger that is already down when the screen changes belongs to the old screen */
+    TouchPoint old = finger(7, 150.0f, 630.0f);
+    arcade_touch_test_fingers(&old, 1);
+    arcade_flush_input();
+    touch_frame(&old, 1, &zone, KEY_L);
+    expect("a finger down at a screen change is ignored", !arcade_key_pressed(KEY_L));
+    lift(&zone, KEY_L);
+    tap(7, 150.0f, 630.0f, &zone, KEY_L);
+    expect("... until it is lifted and lands again", arcade_key_pressed(KEY_L));
+    lift(&zone, KEY_L);
+
+    /* -- the hub: the on-screen keyboard -- */
+    arcade_flush_input();
+    arcade_osk_open(true);
+    lift(NULL, 0);
+    int q = -1, shift = -1, enter = -1, del = -1;
+    for (int i = 0; i < kb.count; i++) {
+        if (kb.keys[i].kind == OSK_CHAR && kb.keys[i].ch == 'q')
+            q = i;
+        if (kb.keys[i].kind == OSK_SHIFT)
+            shift = i;
+        if (kb.keys[i].kind == OSK_ENTER)
+            enter = i;
+        if (kb.keys[i].kind == OSK_BACKSPACE)
+            del = i;
+    }
+    if (q < 0 || shift < 0 || enter < 0 || del < 0) {
+        expect("the keyboard has q, shift, Enter and Del", false);
+    } else {
+#define KEY_CENTRE(i) kb.keys[i].x + kb.keys[i].w / 2.0f, kb.keys[i].y + kb.keys[i].h / 2.0f
+        tap(1, KEY_CENTRE(q), NULL, 0);
+        expect("a key of the keyboard types its letter", arcade_text_char() == 'q');
+        expect("... and only once", arcade_text_char() == 0);
+        tap(1, KEY_CENTRE(q), NULL, 0);
+        expect("a finger that stays on a key types it once", arcade_text_char() == 0);
+        lift(NULL, 0);
+        tap(1, KEY_CENTRE(shift), NULL, 0);
+        lift(NULL, 0);
+        tap(1, KEY_CENTRE(q), NULL, 0);
+        expect("shift makes a capital", arcade_text_char() == 'Q');
+        lift(NULL, 0);
+        tap(1, KEY_CENTRE(del), NULL, 0);
+        expect("Del is the Backspace key", arcade_key_pressed(KEY_BACKSPACE));
+        lift(NULL, 0);
+        tap(1, KEY_CENTRE(enter), NULL, 0);
+        expect("Enter is the Enter key", arcade_key_pressed(KEY_ENTER));
+        lift(NULL, 0);
+    }
+    expect("the keyboard is open until the screen changes", arcade_osk_is_open());
+    arcade_flush_input();
+    expect("the next screen starts without it", !arcade_osk_is_open());
+
+    /* -- a game: stick, action button, pointer -- */
+    arcade_loop_begin(&ctx);
+    ArcadeInput in;
+    lift(NULL, 0);
+    tap(0, pad.stick.x + pad.stick.r, pad.stick.y, NULL, 0);
+    arcade_poll(&in);
+    expect("the stick moves the player", in.move_x > 0.9f && in.move_y == 0.0f && !in.fire);
+    TouchPoint two[3] = {finger(0, pad.stick.x + pad.stick.r, pad.stick.y),
+                         finger(1, pad.action.x, pad.action.y), finger(2, 640.0f, 360.0f)};
+    touch_frame(two, 3, NULL, 0);
+    arcade_poll(&in);
+    expect("the action button is Space", in.action && in.action_pressed);
+    expect("another finger is the pointer",
+           in.fire && in.fire_pressed && in.aim_x == 640.0f && in.aim_y == 360.0f);
+    expect("all three work at once", in.move_x > 0.9f);
+    lift(NULL, 0);
+    arcade_poll(&in);
+    expect("lifting every finger releases everything", in.move_x == 0.0f && !in.action && !in.fire);
+
+    /* -- a game: back asks twice -- */
+    tap(5, pad.back.x, pad.back.y, NULL, 0);
+    expect("the first tap on back only asks", !arcade_key_pressed(KEY_ESCAPE));
+    lift(NULL, 0);
+    tap(5, pad.back.x, pad.back.y, NULL, 0);
+    expect("the second one leaves the game", arcade_key_pressed(KEY_ESCAPE));
+    lift(NULL, 0);
+    tap(5, pad.back.x, pad.back.y, NULL, 0);
+    lift(NULL, 0);
+    for (int i = 0; i < 2 * ARC_FPS + 5; i++)
+        lift(NULL, 0);
+    tap(5, pad.back.x, pad.back.y, NULL, 0);
+    expect("... but not when the question has timed out", !arcade_key_pressed(KEY_ESCAPE));
+    lift(NULL, 0);
+
+    /* -- a game: the keyboard button, and typing in a game -- */
+    tap(6, pad.keys.x, pad.keys.y, NULL, 0);
+    expect("the keyboard button opens the keyboard", arcade_osk_is_open());
+    lift(NULL, 0);
+    osk_layout(&kb, (left + right) / 2.0f, bottom,
+               arc_minf(840.0f, right - left - 40.0f)); /* in a game: narrower */
+    if (q >= 0) {
+        tap(6, KEY_CENTRE(q), NULL, 0);
+        arcade_poll(&in);
+        expect("a key typed in a game arrives as ArcadeInput.typed", in.typed == 'q');
+        expect("... and is not a shot", !in.fire_pressed && !in.fire);
+        lift(NULL, 0);
+    }
+    tap(6, pad.keys.x, pad.keys.y, NULL, 0);
+    expect("the button closes it again", !arcade_osk_is_open());
+    lift(NULL, 0);
+
+    /* a finger down on the menu when the game starts is not a shot */
+    TouchPoint menu = finger(9, 640.0f, 360.0f);
+    arcade_touch_test_fingers(&menu, 1);
+    arcade_flush_input();
+    arcade_loop_begin(&ctx);
+    touch_frame(&menu, 1, NULL, 0);
+    arcade_poll(&in);
+    expect("the finger that started the game is not a shot", !in.fire && !in.fire_pressed);
+#undef KEY_CENTRE
+
+    lift(NULL, 0);
+    arcade_flush_input();
+    arcade_touch_test_end();
+
+    int failed = 0;
+    for (int i = 0; i < g_check_n; i++)
+        failed += g_check_ok[i] ? 0 : 1;
+    printf("SMOKE %-14s %d scripted-finger checks, %d failed -> %s\n", "hub_touch", g_check_n, failed,
+           failed == 0 ? "OK" : "FAIL");
+    for (int i = 0; i < g_check_n; i++)
+        if (!g_check_ok[i])
+            printf("  FAILED: %s\n", g_check_name[i]);
+    (*ran)++;
+    return failed == 0 ? 0 : 1;
+}
+
 int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_dir) {
     arcade_gfx_init_sized(true, assets_dir, opt->width, opt->height, false); /* --size: the frame size */
     if (!IsWindowReady()) {
@@ -295,7 +506,7 @@ int smoke_run(const CliOptions *opt, const char *data_dir, const char *assets_di
     }
     if (strcmp(opt->smoke_target, "all") == 0 || strcmp(opt->smoke_target, "hub") == 0)
         failed += run_hub_previews(opt, app, data_dir, assets_dir, &ran) + run_vault_check(opt, &ran) +
-                  run_city_check(opt, app, data_dir, assets_dir, &ran);
+                  run_city_check(opt, app, data_dir, assets_dir, &ran) + run_touch_check(&ran);
     arcade_gfx_shutdown();
     if (ran == 0) {
         fprintf(stderr, "smoke: no registered game matches '%s' (try --list)\n", opt->smoke_target);

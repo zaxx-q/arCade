@@ -25,6 +25,7 @@ jobs:
     outputs:
       code: ${{ steps.diff.outputs.code }}
       full: ${{ steps.diff.outputs.full }}
+      android: ${{ steps.diff.outputs.android }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,16 +39,22 @@ jobs:
         run: |
           code=true
           full=false
+          android=false
           if [ "$EVENT" = "pull_request" ]; then
             files="$(git diff --name-only "$BASE"...HEAD)"
             # documentation-only changes skip the build lanes
             if ! printf '%s\n' "$files" | grep -Eqv '^(docs/|LICENSE|THIRD_PARTY|\.vscode/|\.editorconfig$|.*\.md$)'; then code=false; fi
             if printf '%s' "$LABELS" | grep -q 'full-ci'; then full=true; fi
+            # the Android build compiles all the C code, so it runs when any of it (or its packaging) changes
+            if printf '%s\n' "$files" | grep -Eq '^(android/|app/|core/|cmake/|games/|deferred/|assets/|CMakeLists\.txt|CMakePresets\.json|tools/(build_apk|verify_apk|android_sdk)\.sh|\.github/workflows/android\.yml)'; then android=true; fi
           else
             full="$FULL_INPUT"
           fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "full=$full" >> "$GITHUB_OUTPUT"
+          {
+            echo "code=$code"
+            echo "full=$full"
+            echo "android=$android"
+          } >> "$GITHUB_OUTPUT"
 
   pr-title:
     name: pr-title
@@ -70,6 +77,13 @@ jobs:
     uses: ./.github/workflows/checks.yml
     with:
       full: ${{ needs.changes.outputs.full == 'true' }}
+
+  # Not required yet: it is not in the `needs` of ci-ok, so a failure is visible on the pull request but does not
+  # block the merge. Add `android` to that list once the build has been green on a real run (docs/ANDROID.md).
+  android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    uses: ./.github/workflows/android.yml
 
   ci-ok:
     name: CI OK

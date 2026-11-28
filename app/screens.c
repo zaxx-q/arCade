@@ -36,7 +36,14 @@
 typedef struct Hint {
     const char *key;  /* drawn on a keycap */
     const char *what; /* what the key does */
+    int tap;          /* the key a tap on this hint presses on a touch screen (0 = not tappable) */
+    int tap2;         /* a hint of two keys ("Left/Right"): a tap on its right half presses this one */
 } Hint;
+
+/* "Esc" on a computer; on a phone the same key is the back button of the system. */
+static const char *esc_label(void) {
+    return arcade_touch_ui() ? "Back" : "Esc";
+}
 
 /* raylib wants a corner "roundness" (0..1 of half the short side); this turns a radius in pixels into that.
  */
@@ -59,10 +66,27 @@ static int hint_row_width(const Hint *hints, int n) {
     return w;
 }
 
+/* On a touch screen a hint is also a button. The tap zone is much bigger than the keycap (a thumb is not a
+ * mouse pointer): half a gap to each side and 64 px high. */
+static void add_hint_zones(const Hint *h, int x, int y, int w) {
+    if (h->tap == 0)
+        return;
+    Rectangle z = {(float)(x - HINT_GAP / 2), (float)(y - 20), (float)(w + HINT_GAP), 64.0f};
+    if (h->tap2 == 0) {
+        arcade_touch_key_zone(z, h->tap);
+        return;
+    }
+    z.width /= 2.0f;
+    arcade_touch_key_zone(z, h->tap);
+    z.x += z.width;
+    arcade_touch_key_zone(z, h->tap2);
+}
+
 /* A row of footer hints: each is a small keycap plus what the key does. */
 static void draw_hint_row(int x, int y, const Hint *hints, int n) {
     for (int i = 0; i < n; i++) {
         int kw = gfx_text_width(hints[i].key, HINT_KEY_SIZE) + 14;
+        add_hint_zones(&hints[i], x, y, kw + 8 + gfx_text_width(hints[i].what, HINT_SIZE));
         Rectangle cap = {(float)x, (float)y, (float)kw, 24.0f};
         DrawRectangleRounded(cap, round_for(cap, 6.0f), 6, Fade(ARC_COL_PANEL, 0.95f));
         DrawRectangleRoundedLinesEx(cap, round_for(cap, 6.0f), 6, 1.0f, Fade(ARC_COL_DIM, 0.60f));
@@ -141,24 +165,29 @@ static void copy_trimmed(char *dst, size_t cap, const char *src) {
     dst[n] = '\0';
 }
 
+/* With the on-screen keyboard open (it covers the bottom half) the panel moves up out of its way. */
+#define NAME_OSK_SHIFT (-150)
+
 static void draw_name_view(const AppState *app, const char *buf, float nudge, float t) {
     const bool required = app->player[0] == '\0'; /* no name yet: an empty line cannot be accepted */
+    const int dy = arcade_osk_is_open() ? NAME_OSK_SHIFT : 0;
     gfx_backdrop(t);
     backdrop_draw(0.55f);
     draw_title("a collection of small, strange games");
-    draw_panel((Rectangle){390, 290, 500, 150}, 0.92f);
-    gfx_text_center("Enter your name", ARC_SCREEN_W / 2, 310, 26, ARC_COL_TEXT);
+    draw_panel((Rectangle){390, (float)(290 + dy), 500, 150}, 0.92f);
+    gfx_text_center("Enter your name", ARC_SCREEN_W / 2, 310 + dy, 26, ARC_COL_TEXT);
     char shown[LB_NAME_LEN + 2];
     snprintf(shown, sizeof(shown), "%s%s", buf, ((int)(t * 2.0f) & 1) ? "_" : " ");
-    gfx_text_center(shown, ARC_SCREEN_W / 2, 352, 34, ARC_COL_YELLOW);
+    gfx_text_center(shown, ARC_SCREEN_W / 2, 352 + dy, 34, ARC_COL_YELLOW);
     if (required)
-        gfx_text_center("type a name to continue", ARC_SCREEN_W / 2, 398, 15,
+        gfx_text_center("type a name to continue", ARC_SCREEN_W / 2, 398 + dy, 15,
                         nudge > 0.0f ? ARC_COL_RED : ARC_COL_DIM);
     else
-        gfx_text_center(TextFormat("empty keeps \"%s\"", app->player), ARC_SCREEN_W / 2, 398, 15,
+        gfx_text_center(TextFormat("empty keeps \"%s\"", app->player), ARC_SCREEN_W / 2, 398 + dy, 15,
                         ARC_COL_DIM);
-    if (!required || has_visible_char(buf)) { /* Enter only shows as a key once it would do something */
-        const Hint hint[] = {{"Enter", "continue"}};
+    /* Enter only shows as a key once it would do something; the on-screen keyboard has its own Enter */
+    if (!arcade_osk_is_open() && (!required || has_visible_char(buf))) {
+        const Hint hint[] = {{"Enter", "continue", KEY_ENTER, 0}};
         draw_hint_row_centered(ARC_SCREEN_H - 38, hint, 1);
     }
 }
@@ -169,19 +198,20 @@ Screen screen_name(AppState *app) {
     float t = 0.0f;
     float nudge = 0.0f; /* seconds left of the red "type a name" line after Enter on an empty line */
     arcade_flush_input();
+    arcade_osk_open(true); /* a touch screen has no keyboard (the next screen's flush closes it again) */
     while (!arcade_quit_requested()) {
         online_tick(app);
         t += ARC_DT;
         if (nudge > 0.0f)
             nudge -= ARC_DT;
-        for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
+        for (int c = arcade_text_char(); c != 0; c = arcade_text_char())
             if (c >= 32 && c < 127 && c != '|' && len < LB_NAME_LEN - 1) {
                 buf[len++] = (char)c;
                 buf[len] = '\0';
             }
-        if (IsKeyPressed(KEY_BACKSPACE) && len > 0)
+        if (arcade_key_pressed(KEY_BACKSPACE) && len > 0)
             buf[--len] = '\0';
-        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+        if (arcade_key_pressed(KEY_ENTER) || arcade_key_pressed(KEY_KP_ENTER)) {
             if (has_visible_char(buf)) {
                 copy_trimmed(app->player, sizeof(app->player), buf);
                 return SCR_MENU;
@@ -343,17 +373,27 @@ static void draw_menu_view(const AppState *app, int first, float t) {
     /* what a click on the background does: it flies the city, or it paints the sand toy */
     bool city = backdrop_mode() == BACKDROP_CITY;
     const char *toy = city ? "click the background to fly" : "left mouse: sand    right mouse: water";
-    int toy_w = gfx_text_width(toy, 15) + 28;
-    Rectangle pill = {(float)(ARC_SCREEN_W - MARGIN - toy_w), (float)ARC_SCREEN_H - 84.0f, (float)toy_w,
-                      32.0f};
-    DrawRectangleRounded(pill, round_for(pill, 16.0f), 8, Fade(ARC_COL_BG, 0.88f));
-    gfx_text_right(toy, ARC_SCREEN_W - MARGIN - 14, ARC_SCREEN_H - 78, 15, ARC_COL_DIM);
+    if (arcade_touch_ui()) /* no flying without a keyboard (see screen_menu), and no right button for water */
+        toy = city ? "" : "drag a finger to pour sand";
+    if (toy[0] != '\0') {
+        int toy_w = gfx_text_width(toy, 15) + 28;
+        Rectangle pill = {(float)(ARC_SCREEN_W - MARGIN - toy_w), (float)ARC_SCREEN_H - 84.0f, (float)toy_w,
+                          32.0f};
+        DrawRectangleRounded(pill, round_for(pill, 16.0f), 8, Fade(ARC_COL_BG, 0.88f));
+        gfx_text_right(toy, ARC_SCREEN_W - MARGIN - 14, ARC_SCREEN_H - 78, 15, ARC_COL_DIM);
+    }
 
-    Hint hints[6] = {{"Up/Down", "choose"}, {"Enter", "play"}, {"L", "leaderboard"}, {"N", "change name"}};
-    int hint_n = 4;
+    Hint hints[6];
+    int hint_n = 0;
+    if (!arcade_touch_ui()) { /* a finger taps a row: no cursor to move */
+        hints[hint_n++] = (Hint){"Up/Down", "choose", 0, 0};
+        hints[hint_n++] = (Hint){"Enter", "play", 0, 0};
+    }
+    hints[hint_n++] = (Hint){"L", "leaderboard", KEY_L, 0};
+    hints[hint_n++] = (Hint){"N", "change name", KEY_N, 0};
     if (city) /* the city has a soundtrack to silence */
-        hints[hint_n++] = (Hint){"M", "mute music"};
-    hints[hint_n++] = (Hint){"Esc", "quit"};
+        hints[hint_n++] = (Hint){"M", "mute music", KEY_M, 0};
+    hints[hint_n++] = (Hint){esc_label(), "quit", KEY_ESCAPE, 0};
     draw_hint_row(MARGIN, ARC_SCREEN_H - 38, hints, hint_n);
     gfx_text_right("v" ARCADE_VERSION_STRING, ARC_SCREEN_W - MARGIN, ARC_SCREEN_H - 35, 14, ARC_COL_DIM);
 }
@@ -383,7 +423,7 @@ Screen screen_menu(AppState *app) {
     while (!arcade_quit_requested()) {
         online_tick(app);
         t += ARC_DT;
-        bool esc = IsKeyPressed(KEY_ESCAPE);
+        bool esc = arcade_key_pressed(KEY_ESCAPE);
 
         if (flying) {
             if (esc) {
@@ -440,9 +480,9 @@ Screen screen_menu(AppState *app) {
 
         /* selection: keyboard, mouse wheel, hover */
         if (app->game_count > 0) {
-            if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S))
+            if (arcade_key_pressed(KEY_DOWN) || arcade_key_pressed(KEY_S))
                 app->selected = (app->selected + 1) % app->game_count;
-            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W))
+            if (arcade_key_pressed(KEY_UP) || arcade_key_pressed(KEY_W))
                 app->selected = (app->selected + app->game_count - 1) % app->game_count;
             float wheel = GetMouseWheelMove();
             if (over_panel && wheel > 0.0f && app->selected > 0)
@@ -454,16 +494,16 @@ Screen screen_menu(AppState *app) {
             first = first_for(app, first);
         }
 
-        if (app->game_count > 0 && (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER) ||
+        if (app->game_count > 0 && (arcade_key_pressed(KEY_ENTER) || arcade_key_pressed(KEY_KP_ENTER) ||
                                     (hover >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)))) {
             if (hover >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
                 app->selected = hover;
             app->launch = app->games[app->selected];
             return SCR_LAUNCH;
         }
-        if (IsKeyPressed(KEY_L))
+        if (arcade_key_pressed(KEY_L))
             return SCR_LEADERBOARD;
-        if (IsKeyPressed(KEY_N))
+        if (arcade_key_pressed(KEY_N))
             return SCR_NAME;
         if (esc)
             return SCR_QUIT;
@@ -471,11 +511,12 @@ Screen screen_menu(AppState *app) {
         /* the backdrop: B or the small button swaps the city and the sand toy */
         bool city = backdrop_mode() == BACKDROP_CITY;
         bool over_switch = CheckCollisionPointRec(m, switch_rect());
-        if (IsKeyPressed(KEY_B) || (over_switch && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)))
+        if (arcade_key_pressed(KEY_B) || (over_switch && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)))
             backdrop_set_mode(city ? BACKDROP_SANDBOX : BACKDROP_CITY);
-        else if (city && IsKeyPressed(KEY_M))
+        else if (city && arcade_key_pressed(KEY_M))
             backdrop_toggle_mute();
-        else if (city && !over_panel && !over_switch && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        else if (city && !arcade_touch_ui() && !over_panel && !over_switch &&
+                 IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             flying = true; /* a click on the background: the menu hides (from the next frame) */
             click_held = true;
             click_at = m;
@@ -579,7 +620,8 @@ static void draw_result_view(const AppState *app, float t) {
                                                                  : "sending to the online leaderboard...",
                             ARC_SCREEN_W / 2, 470, 18, ARC_COL_DIM);
     }
-    const Hint hints[] = {{"R", "play again"}, {"Enter", "menu"}, {"L", "leaderboard"}};
+    const Hint hints[] = {
+        {"R", "play again", KEY_R, 0}, {"Enter", "menu", KEY_ENTER, 0}, {"L", "leaderboard", KEY_L, 0}};
     draw_hint_row_centered(506, hints, (int)ARC_ARRAY_LEN(hints));
 }
 
@@ -589,13 +631,13 @@ Screen screen_result(AppState *app) {
     while (!arcade_quit_requested()) {
         online_tick(app);
         t += ARC_DT;
-        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
+        if (arcade_key_pressed(KEY_ENTER) || arcade_key_pressed(KEY_ESCAPE))
             return SCR_MENU;
-        if (IsKeyPressed(KEY_R)) {
+        if (arcade_key_pressed(KEY_R)) {
             app->launch = app->last_game;
             return SCR_LAUNCH;
         }
-        if (IsKeyPressed(KEY_L))
+        if (arcade_key_pressed(KEY_L))
             return SCR_LEADERBOARD;
         backdrop_update(false, false, 0, 0);
         arcade_frame_begin();
@@ -655,7 +697,7 @@ static void draw_first_run(float t) {
     gfx_text_center("Your scores on this computer always stay here. You can change this at any time:", cx,
                     454, 18, ARC_COL_DIM);
     gfx_text_center("press L for the leaderboard (it opens on Online), then O.", cx, 480, 18, ARC_COL_DIM);
-    const Hint hints[] = {{"Enter", "keep it on"}, {"N", "turn it off"}};
+    const Hint hints[] = {{"Enter", "keep it on", KEY_ENTER, 0}, {"N", "turn it off", KEY_N, 0}};
     draw_hint_row_centered(600, hints, (int)ARC_ARRAY_LEN(hints));
 }
 
@@ -667,11 +709,11 @@ void screen_online_first_run(AppState *app) {
     arcade_flush_input();
     while (!arcade_quit_requested()) {
         t += ARC_DT;
-        if (IsKeyPressed(KEY_ENTER)) {
+        if (arcade_key_pressed(KEY_ENTER)) {
             online_answer_first_run(app, true);
             return;
         }
-        if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+        if (arcade_key_pressed(KEY_N) || arcade_key_pressed(KEY_ESCAPE)) {
             online_answer_first_run(app, false);
             return;
         }
@@ -954,8 +996,10 @@ static void draw_leaderboard_view(const AppState *app, const LbView *v, bool sea
     gfx_text_center(v->heading, ARC_SCREEN_W / 2, 130, 28, ARC_COL_YELLOW);
     if (v->mode == LV_CONSENT || v->mode == LV_NO_ONLINE) {
         draw_notice(app, v);
-        const Hint consent[] = {{"Enter", "turn on"}, {"Tab", "local scores"}, {"Esc", "back"}};
-        const Hint none[] = {{"Tab", "local scores"}};
+        const Hint consent[] = {{"Enter", "turn on", KEY_ENTER, 0},
+                                {"Tab", "local scores", KEY_TAB, 0},
+                                {esc_label(), "back", KEY_ESCAPE, 0}};
+        const Hint none[] = {{"Tab", "local scores", KEY_TAB, 0}};
         if (v->mode == LV_CONSENT)
             draw_hint_row_centered(600, consent, (int)ARC_ARRAY_LEN(consent));
         else
@@ -999,26 +1043,27 @@ static void draw_leaderboard_view(const AppState *app, const LbView *v, bool sea
         draw_lb_row(v, &v->you, v->you_rank, 565, ARC_COL_GREEN);
     }
     if (searching || query[0] != '\0') {
-        gfx_text_center(TextFormat("find player: %s%s", query, searching ? "_" : ""), ARC_SCREEN_W / 2, 600,
-                        20, ARC_COL_GREEN);
+        /* the on-screen keyboard covers the bottom half: the line moves up under the heading */
+        gfx_text_center(TextFormat("find player: %s%s", query, searching ? "_" : ""), ARC_SCREEN_W / 2,
+                        arcade_osk_is_open() ? 160 : 600, 20, ARC_COL_GREEN);
         return;
     }
     Hint hints[7];
     int hn = 0;
-    hints[hn++] = (Hint){"Left/Right", v->mode == LV_ONLINE ? "game" : "switch game"};
+    hints[hn++] = (Hint){"Left/Right", v->mode == LV_ONLINE ? "game" : "switch game", KEY_LEFT, KEY_RIGHT};
     if (v->boards > 0)
-        hints[hn++] = (Hint){"Up/Down", v->mode == LV_ONLINE ? "board" : "switch board"};
+        hints[hn++] = (Hint){"Up/Down", v->mode == LV_ONLINE ? "board" : "switch board", KEY_UP, KEY_DOWN};
     if (v->count > VIEW_ROWS)
-        hints[hn++] = (Hint){"PgUp/PgDn", "scroll"};
+        hints[hn++] = (Hint){"PgUp/PgDn", "scroll", KEY_PAGE_UP, KEY_PAGE_DOWN};
     if (v->mode == LV_ONLINE) {
-        hints[hn++] = (Hint){"R", "refresh"};
-        hints[hn++] = (Hint){"O", "turn off"};
-        hints[hn++] = (Hint){"Tab", "local"};
+        hints[hn++] = (Hint){"R", "refresh", KEY_R, 0};
+        hints[hn++] = (Hint){"O", "turn off", KEY_O, 0};
+        hints[hn++] = (Hint){"Tab", "local", KEY_TAB, 0};
     } else {
-        hints[hn++] = (Hint){"F", "find player"};
-        hints[hn++] = (Hint){"Tab", "online"};
+        hints[hn++] = (Hint){"F", "find player", KEY_F, 0};
+        hints[hn++] = (Hint){"Tab", "online", KEY_TAB, 0};
     }
-    hints[hn++] = (Hint){"Esc", "back"};
+    hints[hn++] = (Hint){esc_label(), "back", KEY_ESCAPE, 0};
     draw_hint_row_centered(600, hints, hn);
 }
 
@@ -1044,25 +1089,27 @@ Screen screen_leaderboard(AppState *app) {
         ask_first = false;
         int scroll = 0; /* rows to scroll this frame */
         if (searching) {
-            for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
+            for (int c = arcade_text_char(); c != 0; c = arcade_text_char())
                 if (c >= 32 && c < 127 && c != '|' && qlen < LB_NAME_LEN - 1) {
                     query[qlen++] = (char)c;
                     query[qlen] = '\0';
                     rebuild = true;
                 }
-            if (IsKeyPressed(KEY_BACKSPACE) && qlen > 0) {
+            if (arcade_key_pressed(KEY_BACKSPACE) && qlen > 0) {
                 query[--qlen] = '\0';
                 rebuild = true;
             }
-            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
+            if (arcade_key_pressed(KEY_ENTER) || arcade_key_pressed(KEY_ESCAPE)) {
                 searching = false;
+                arcade_osk_open(false);
+            }
         } else if (g_lbv.mode == LV_CONSENT || g_lbv.mode == LV_NO_ONLINE) {
-            if (IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE) ||
-                (g_lbv.mode == LV_NO_ONLINE && IsKeyPressed(KEY_ENTER))) {
+            if (arcade_key_pressed(KEY_TAB) || arcade_key_pressed(KEY_ESCAPE) ||
+                (g_lbv.mode == LV_NO_ONLINE && arcade_key_pressed(KEY_ENTER))) {
                 online = false; /* back to the local scores; the next Esc leaves the screen */
                 board = 0;
                 rebuild = true;
-            } else if (g_lbv.mode == LV_CONSENT && IsKeyPressed(KEY_ENTER)) {
+            } else if (g_lbv.mode == LV_CONSENT && arcade_key_pressed(KEY_ENTER)) {
                 online_set_enabled(app, true); /* the player's choice, remembered in online.cfg */
                 if (tab == 0 && app->game_count > 0)
                     tab = 1;
@@ -1070,7 +1117,7 @@ Screen screen_leaderboard(AppState *app) {
                 rebuild = true;
                 ask = true;
             }
-        } else if (IsKeyPressed(KEY_TAB)) {
+        } else if (arcade_key_pressed(KEY_TAB)) {
             online = !online;
             if (online && tab == 0 && app->game_count > 0)
                 tab = 1; /* tables are per game: there is no "all games" online */
@@ -1080,73 +1127,75 @@ Screen screen_leaderboard(AppState *app) {
             rebuild = true;
             ask = online;
         } else if (g_lbv.mode == LV_ONLINE) {
-            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+            if (arcade_key_pressed(KEY_ESCAPE) || arcade_key_pressed(KEY_ENTER))
                 return SCR_MENU;
-            if (app->game_count > 0 && (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_LEFT))) {
+            if (app->game_count > 0 && (arcade_key_pressed(KEY_RIGHT) || arcade_key_pressed(KEY_LEFT))) {
                 int n = app->game_count; /* tabs 1..n */
-                tab = IsKeyPressed(KEY_RIGHT) ? tab % n + 1 : (tab + n - 2) % n + 1;
+                tab = arcade_key_pressed(KEY_RIGHT) ? tab % n + 1 : (tab + n - 2) % n + 1;
                 board = 1;
                 rebuild = true;
                 ask = true;
             }
-            if (g_lbv.boards > 0 && IsKeyPressed(KEY_DOWN)) {
+            if (g_lbv.boards > 0 && arcade_key_pressed(KEY_DOWN)) {
                 board = board % g_lbv.boards + 1;
                 rebuild = true;
                 ask = true;
             }
-            if (g_lbv.boards > 0 && IsKeyPressed(KEY_UP)) {
+            if (g_lbv.boards > 0 && arcade_key_pressed(KEY_UP)) {
                 board = (board + g_lbv.boards - 2) % g_lbv.boards + 1;
                 rebuild = true;
                 ask = true;
             }
             if (g_lbv.boards == 0) { /* no board selector: Up/Down scroll the list */
-                scroll += IsKeyPressed(KEY_DOWN) ? 1 : 0;
-                scroll -= IsKeyPressed(KEY_UP) ? 1 : 0;
+                scroll += arcade_key_pressed(KEY_DOWN) ? 1 : 0;
+                scroll -= arcade_key_pressed(KEY_UP) ? 1 : 0;
             }
-            scroll += IsKeyPressed(KEY_PAGE_DOWN) ? VIEW_ROWS : 0;
-            scroll -= IsKeyPressed(KEY_PAGE_UP) ? VIEW_ROWS : 0;
+            scroll += arcade_key_pressed(KEY_PAGE_DOWN) ? VIEW_ROWS : 0;
+            scroll -= arcade_key_pressed(KEY_PAGE_UP) ? VIEW_ROWS : 0;
             float wheel = GetMouseWheelMove();
             if (wheel != 0.0f)
                 scroll += wheel > 0.0f ? -3 : 3;
-            refresh = IsKeyPressed(KEY_R);
-            if (IsKeyPressed(KEY_O)) {
+            refresh = arcade_key_pressed(KEY_R);
+            if (arcade_key_pressed(KEY_O)) {
                 online_set_enabled(app, false); /* off: the next page offers to turn it on again */
                 rebuild = true;
             }
         } else { /* LV_LOCAL */
-            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+            if (arcade_key_pressed(KEY_ESCAPE) || arcade_key_pressed(KEY_ENTER))
                 return SCR_MENU;
-            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_LEFT)) {
-                int step = IsKeyPressed(KEY_RIGHT) ? 1 : app->game_count; /* +1, or -1 modulo the tab count */
+            if (arcade_key_pressed(KEY_RIGHT) || arcade_key_pressed(KEY_LEFT)) {
+                int step =
+                    arcade_key_pressed(KEY_RIGHT) ? 1 : app->game_count; /* +1, or -1 modulo the tab count */
                 tab = (tab + step) % (app->game_count + 1);
                 board = 0;       /* every game starts on "all boards" */
                 query[0] = '\0'; /* moving to another game ends a search */
                 qlen = 0;
                 rebuild = true;
             }
-            if (g_lbv.boards > 0 && IsKeyPressed(KEY_DOWN)) {
+            if (g_lbv.boards > 0 && arcade_key_pressed(KEY_DOWN)) {
                 board = (board + 1) % (g_lbv.boards + 1);
                 rebuild = true;
             }
-            if (g_lbv.boards > 0 && IsKeyPressed(KEY_UP)) {
+            if (g_lbv.boards > 0 && arcade_key_pressed(KEY_UP)) {
                 board = (board + g_lbv.boards) % (g_lbv.boards + 1);
                 rebuild = true;
             }
             if (g_lbv.boards == 0) { /* no board selector: Up/Down scroll the list */
-                scroll += IsKeyPressed(KEY_DOWN) ? 1 : 0;
-                scroll -= IsKeyPressed(KEY_UP) ? 1 : 0;
+                scroll += arcade_key_pressed(KEY_DOWN) ? 1 : 0;
+                scroll -= arcade_key_pressed(KEY_UP) ? 1 : 0;
             }
-            scroll += IsKeyPressed(KEY_PAGE_DOWN) ? VIEW_ROWS : 0;
-            scroll -= IsKeyPressed(KEY_PAGE_UP) ? VIEW_ROWS : 0;
+            scroll += arcade_key_pressed(KEY_PAGE_DOWN) ? VIEW_ROWS : 0;
+            scroll -= arcade_key_pressed(KEY_PAGE_UP) ? VIEW_ROWS : 0;
             float wheel = GetMouseWheelMove();
             if (wheel != 0.0f)
                 scroll += wheel > 0.0f ? -3 : 3;
-            if (IsKeyPressed(KEY_F) || IsKeyPressed(KEY_SLASH)) {
+            if (arcade_key_pressed(KEY_F) || arcade_key_pressed(KEY_SLASH)) {
                 searching = true;
+                arcade_osk_open(true); /* a touch screen has no keyboard */
                 qlen = 0;
                 query[0] = '\0';
                 rebuild = true;
-                (void)GetCharPressed(); /* swallow the key that opened the search box */
+                (void)arcade_text_char(); /* swallow the key that opened the search box */
             }
         }
         if (rebuild) {
@@ -1204,6 +1253,7 @@ void screens_draw_preview(AppState *app, int which, float t) {
         char kept[LB_NAME_LEN];
         arc_strlcpy(kept, app->player, sizeof(kept));
         app->player[0] = '\0';
+        arcade_osk_open(true); /* only does something when the touch UI is on */
         draw_name_view(app, "Ana", 0.0f, t);
         arc_strlcpy(app->player, kept, sizeof(app->player));
         break;

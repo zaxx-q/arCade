@@ -7,6 +7,14 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 if(ARCADE_HEADLESS)
   # raylib >= 6.0: CPU software renderer rendering into a memory framebuffer. No window, no GPU.
   set(PLATFORM "Memory" CACHE STRING "" FORCE)
+elseif(ANDROID)
+  # raylib's own Android platform (NativeActivity + OpenGL ES 2). It reads ANDROID_NDK to compile the NDK's
+  # native_app_glue into libraylib.a, so the variable must be known here.
+  # ANDROID_NDK and ARCADE_ANDROID_GLUE_DIR are resolved early in the root CMakeLists.txt (core needs it).
+  if(NOT EXISTS "${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c")
+    message(FATAL_ERROR "Android build: the NDK was not found (ANDROID_NDK='${ANDROID_NDK}'). Set ANDROID_NDK_HOME to an NDK r28 or newer, see docs/ANDROID.md")
+  endif()
+  set(PLATFORM "Android" CACHE STRING "" FORCE)
 else()
   set(PLATFORM "Desktop" CACHE STRING "" FORCE)
 endif()

@@ -1,0 +1,168 @@
+# Builds the Android .apk (arm64-v8a): the NDK + CMake build libarcade.so, tools/build_apk.sh packs and signs it,
+# tools/verify_apk.sh checks the result with the real Android tools. No Gradle and no Java code.
+#   - release.yml calls this with release: true. The .apk is then signed with the release key, which lives in the
+#     repository secrets (docs/ANDROID.md says how to make it). Without the secrets this fails on purpose: an .apk
+#     signed with a throwaway key must never reach a release, because nobody could update it afterwards.
+#   - ci.yml calls it for pull requests that touch the Android build, and Actions -> Android -> Run workflow runs it
+#     by hand: those use a throwaway key and give the .apk as a workflow artifact, for trying on a phone.
+name: Android
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Version X.Y.Z (empty: a test build, 0.0.0-dev.<commit>)"
+        type: string
+        default: ""
+      release:
+        description: "Sign with the release key (its secrets are then required)"
+        type: boolean
+        default: false
+    secrets:
+      ARCADE_KEYSTORE_B64:
+        description: "The release keystore (.jks), base64 encoded"
+        required: false
+      ARCADE_KEYSTORE_PASSWORD:
+        description: "Password of the keystore"
+        required: false
+      ARCADE_KEY_ALIAS:
+        description: "Alias of the key in the keystore (empty: arcade)"
+        required: false
+      ARCADE_KEY_PASSWORD:
+        description: "Password of the key (empty: the keystore's)"
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version X.Y.Z (empty: 0.0.0-dev.<commit>)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # Pinned, so that a new runner image cannot change what is built. The runner image has these installed (or
+  # the step below installs them).
+  NDK_VERSION: "28.2.13676358" # r28c: 16 KB page alignment by default
+  BUILD_TOOLS_VERSION: "35.0.0" # zipalign -P 16 needs 35.0.0 or newer (tools/build_apk.sh reads this variable too)
+  PLATFORM_VERSION: "35" # android.jar of targetSdk 35
+
+jobs:
+  apk:
+    name: apk (arm64-v8a)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash # with pipefail: `verify_apk.sh | tee` must not hide a failure
+    env:
+      VERSION_INPUT: ${{ inputs.version }}
+      RELEASE: ${{ inputs.release && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Third-party licenses cover what is linked in
+        run: grep -q 'android_native_app_glue' THIRD_PARTY_NOTICES.md
+
+      - name: Version
+        id: v
+        run: |
+          if [ -n "$VERSION_INPUT" ]; then version="$VERSION_INPUT"; else version="0.0.0-dev.${GITHUB_SHA::7}"; fi
+          # build_apk.sh refuses anything that is not a version, and prints the versionCode
+          code="$(bash tools/build_apk.sh --version-code "$version")"
+          echo "version $version, versionCode $code, release key: $RELEASE"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - name: Android SDK pieces (pinned versions)
+        run: |
+          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          need=()
+          [ -d "$sdk/ndk/$NDK_VERSION" ] || need+=("ndk;$NDK_VERSION")
+          [ -d "$sdk/build-tools/$BUILD_TOOLS_VERSION" ] || need+=("build-tools;$BUILD_TOOLS_VERSION")
+          [ -f "$sdk/platforms/android-$PLATFORM_VERSION/android.jar" ] || need+=("platforms;android-$PLATFORM_VERSION")
+          if [ "${#need[@]}" -gt 0 ]; then
+            echo "not on this runner image, installing: ${need[*]}"
+            # the licenses are accepted by answering "y" to every question (a short fixed text, not `yes`: with
+            # pipefail the broken pipe of `yes` would fail the step)
+            printf 'y\n%.0s' {1..20} | sudo env "JAVA_HOME=${JAVA_HOME:-}" "$sdk/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$sdk" "${need[@]}"
+          fi
+          test -d "$sdk/ndk/$NDK_VERSION"
+          test -x "$sdk/build-tools/$BUILD_TOOLS_VERSION/zipalign"
+          test -f "$sdk/platforms/android-$PLATFORM_VERSION/android.jar"
+          {
+            echo "ANDROID_HOME=$sdk"
+            echo "ANDROID_NDK_HOME=$sdk/ndk/$NDK_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Build tools (ninja, zip)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build zip
+
+      - name: Build libarcade.so (NDK, arm64-v8a)
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          # the Online leaderboard is off in the Android build (docs/ANDROID.md): the preset says so
+          cmake --preset android-arm64 -DARCADE_VERSION="$VERSION"
+          cmake --build --preset android-arm64
+          ls -l build/android-arm64/lib/libarcade.so
+
+      - name: Package and sign
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          # the release key is only handed to this step on a release; every other run uses a throwaway key
+          KEYSTORE_B64: ${{ inputs.release && secrets.ARCADE_KEYSTORE_B64 || '' }}
+          ARCADE_KEYSTORE_PASSWORD: ${{ inputs.release && secrets.ARCADE_KEYSTORE_PASSWORD || '' }}
+          ARCADE_KEY_ALIAS: ${{ inputs.release && secrets.ARCADE_KEY_ALIAS || '' }}
+          ARCADE_KEY_PASSWORD: ${{ inputs.release && secrets.ARCADE_KEY_PASSWORD || '' }}
+        run: |
+          apk="dist/arCade-v${VERSION}-android-arm64.apk"
+          args=(--lib build/android-arm64/lib/libarcade.so --version "$VERSION" --out "$apk")
+          if [ "$RELEASE" = "true" ]; then
+            missing=""
+            [ -n "$KEYSTORE_B64" ] || missing="$missing ARCADE_KEYSTORE_B64"
+            [ -n "$ARCADE_KEYSTORE_PASSWORD" ] || missing="$missing ARCADE_KEYSTORE_PASSWORD"
+            if [ -n "$missing" ]; then
+              echo "::error::The release key is not set up (missing repository secrets:$missing). An .apk signed with a throwaway key is never released. See docs/ANDROID.md."
+              exit 1
+            fi
+            keystore="$RUNNER_TEMP/release.jks"
+            trap 'rm -f "$keystore"' EXIT
+            (umask 077 && printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore")
+            args+=(--keystore "$keystore")
+          fi
+          bash tools/build_apk.sh "${args[@]}"
+
+      - name: Verify the .apk with the real Android tools
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          # optional repository variable: the SHA-256 of the release certificate (printed by every release build).
+          # Once set, a release signed with any other key fails here instead of becoming impossible to update.
+          EXPECTED_CERT: ${{ inputs.release && vars.ARCADE_KEY_SHA256 || '' }}
+        run: |
+          args=(--apk "dist/arCade-v${VERSION}-android-arm64.apk" --version "$VERSION")
+          if [ -n "$EXPECTED_CERT" ]; then args+=(--cert-sha256 "$EXPECTED_CERT"); fi
+          READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" bash tools/verify_apk.sh "${args[@]}" | tee verify.txt
+          {
+            echo "### Android .apk $VERSION"
+            echo
+            echo '```'
+            cat verify.txt
+            echo '```'
+            if [ "$RELEASE" != "true" ]; then
+              echo "Signed with a throwaway key: for trying on a phone only. Uninstall it before installing a release."
+            elif [ -z "$EXPECTED_CERT" ]; then
+              echo "Set the repository variable ARCADE_KEY_SHA256 to the certificate SHA-256 above, so that a wrong key fails the build (docs/ANDROID.md)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          # release-* is what release.yml's publish job downloads
+          name: ${{ inputs.release && 'release-android' || 'android-apk' }}
+          path: dist/arCade-v*-android-arm64.apk
+          if-no-files-found: error
+          retention-days: ${{ inputs.release && 90 || 7 }}
