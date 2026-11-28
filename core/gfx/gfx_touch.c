@@ -400,7 +400,6 @@ bool gfx_touch_testing(void) {
     return t.test;
 }
 
-#ifdef ARCADE_HEADLESS_BUILD
 void arcade_touch_test_begin(void) {
     t.test = true;
     t.on = true;
@@ -419,7 +418,6 @@ void arcade_touch_test_end(void) {
     t.on = env_wants_touch_ui();
     t.injected_n = 0;
 }
-#endif
 
 static bool vkey_has(int key) {
     for (int i = 0; i < t.vkey_n; i++)

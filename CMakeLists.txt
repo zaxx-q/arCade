@@ -26,6 +26,16 @@ if(ANDROID)
     message(STATUS "Android: the unit tests are not built (they run on the build machine: use the logic preset)")
     set(ARCADE_BUILD_TESTS OFF)
   endif()
+  # Resolve the NDK path early: core/CMakeLists.txt needs it for android_native_app_glue.h,
+  # and it runs before ArcadeRaylib.cmake (which fetches raylib).
+  if(NOT ANDROID_NDK AND CMAKE_ANDROID_NDK)
+    set(ANDROID_NDK "${CMAKE_ANDROID_NDK}")
+  endif()
+  if(NOT ANDROID_NDK AND CMAKE_TOOLCHAIN_FILE)
+    get_filename_component(_toolchain_dir "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
+    get_filename_component(ANDROID_NDK "${_toolchain_dir}/../.." ABSOLUTE)
+  endif()
+  set(ARCADE_ANDROID_GLUE_DIR "${ANDROID_NDK}/sources/android/native_app_glue")
 endif()
 
 include(ArcadeVersion)

@@ -10,17 +10,10 @@ if(ARCADE_HEADLESS)
 elseif(ANDROID)
   # raylib's own Android platform (NativeActivity + OpenGL ES 2). It reads ANDROID_NDK to compile the NDK's
   # native_app_glue into libraylib.a, so the variable must be known here.
-  if(NOT ANDROID_NDK AND CMAKE_ANDROID_NDK)
-    set(ANDROID_NDK "${CMAKE_ANDROID_NDK}")
-  endif()
-  if(NOT ANDROID_NDK AND CMAKE_TOOLCHAIN_FILE) # <ndk>/build/cmake/android.toolchain.cmake
-    get_filename_component(_toolchain_dir "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
-    get_filename_component(ANDROID_NDK "${_toolchain_dir}/../.." ABSOLUTE)
-  endif()
+  # ANDROID_NDK and ARCADE_ANDROID_GLUE_DIR are resolved early in the root CMakeLists.txt (core needs it).
   if(NOT EXISTS "${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c")
     message(FATAL_ERROR "Android build: the NDK was not found (ANDROID_NDK='${ANDROID_NDK}'). Set ANDROID_NDK_HOME to an NDK r28 or newer, see docs/ANDROID.md")
   endif()
-  set(ARCADE_ANDROID_GLUE_DIR "${ANDROID_NDK}/sources/android/native_app_glue")
   set(PLATFORM "Android" CACHE STRING "" FORCE)
 else()
   set(PLATFORM "Desktop" CACHE STRING "" FORCE)

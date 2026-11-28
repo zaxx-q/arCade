@@ -142,13 +142,11 @@ bool arcade_osk_is_open(void);
 /* The keyboard's top edge in design units: keep what must stay visible above it. */
 float arcade_osk_top(void);
 
-#ifdef ARCADE_HEADLESS_BUILD
 /* Smoke tests only: the touch UI is on, the fingers are the ones given here (ids as a phone would number
  * them) and arcade_poll() reads them instead of the monkey, like on a real device. */
 void arcade_touch_test_begin(void);
 void arcade_touch_test_fingers(const TouchPoint *pts, int n);
 void arcade_touch_test_end(void);
-#endif
 
 /* ---- Audio (optional: every game must still work silently) ---- */
 bool arcade_audio_ready(void); /* false in smoke runs and on machines without a sound device */
