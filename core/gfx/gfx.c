@@ -5,6 +5,9 @@
 
 #include "arcade/gfx.h"
 #include "gfx_touch.h"
+#ifdef ARCADE_ANDROID
+#include "gfx_android.h"
+#endif
 #include "arcade/str.h"
 #include "arcade/version.h"
 #include "arcade/view.h"
@@ -47,19 +50,30 @@ static void apply_design_transform(void) {
 void arcade_gfx_init_sized(bool headless, const char *assets_dir, int width, int height, bool fullscreen) {
     SetTraceLogLevel(LOG_WARNING);
     unsigned flags = FLAG_VSYNC_HINT;
+/* A phone has one fixed window, and raylib's EGL setup does not check that 4x MSAA exists. */
+#ifndef ARCADE_ANDROID
     if (!headless)
         flags |= FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE;
+#endif
     SetConfigFlags(flags);
     if (width < 1 || height < 1) {
         width = ARC_SCREEN_W;
         height = ARC_SCREEN_H;
     }
+#ifdef ARCADE_ANDROID
+    width = height = 0; /* 0 x 0: the whole screen */
+#endif
     InitWindow(width, height, "arCade " ARCADE_VERSION_STRING);
+#ifdef ARCADE_ANDROID
+    gfx_android_init();
+#endif
     gfx_text_init(assets_dir);
     SetExitKey(KEY_NULL); /* ESC means "back to the hub", not "close the window" */
     if (!headless) {
+#ifndef ARCADE_ANDROID
         SetWindowMinSize(ARC_VIEW_MIN_W, ARC_VIEW_MIN_H);
-        SetTargetFPS(ARC_FPS);
+#endif
+        SetTargetFPS(ARC_FPS); /* the games take one fixed step per frame: also on a 90 or 120 Hz screen */
     }
     memset(&g, 0, sizeof(g));
     g.headless = headless;
@@ -69,6 +83,14 @@ void arcade_gfx_init_sized(bool headless, const char *assets_dir, int width, int
     gfx_touch_init(headless, &g.view);
     if (!headless)
         InitAudioDevice(); /* may fail on machines without sound: games must cope */
+}
+
+const char *arcade_default_data_dir(void) {
+#ifdef ARCADE_ANDROID
+    return gfx_android_files_dir(); /* the folder of the executable is the read-only system */
+#else
+    return GetApplicationDirectory();
+#endif
 }
 
 void arcade_gfx_init(bool headless, const char *assets_dir) {

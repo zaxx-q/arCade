@@ -57,11 +57,11 @@ int app_all_games(const AppState *app, const GameDef **out, int cap) {
     return n;
 }
 
-/* Scores are saved next to the executable unless --data-dir says otherwise. The assets are compiled into the
- * executable, so assets_dir stays "" (= use the built-in copy) unless --assets-dir names a folder to read
- * from. */
+/* Scores are saved next to the executable (on Android: in the app's private folder) unless --data-dir says
+ * otherwise. The assets are compiled into the executable, so assets_dir stays "" (= use the built-in copy)
+ * unless --assets-dir names a folder to read from. */
 static void resolve_dirs(const CliOptions *opt, char *data_dir, size_t dn, char *assets_dir, size_t an) {
-    arc_strlcpy(data_dir, opt->data_dir[0] ? opt->data_dir : GetApplicationDirectory(), dn);
+    arc_strlcpy(data_dir, opt->data_dir[0] ? opt->data_dir : arcade_default_data_dir(), dn);
     arc_strlcpy(assets_dir, opt->assets_dir, an);
 }
 

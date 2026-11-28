@@ -6,7 +6,23 @@ if(NOT "synthwave_city" IN_LIST ARCADE_REGISTERED_IDS)
   message(FATAL_ERROR "app/backdrop.c needs the game 'synthwave_city' (games/ or deferred/): it is the hub's backdrop")
 endif()
 
-add_executable(arCade main.c screens.c backdrop.c smoke.c online.c "${ARCADE_REGISTRY_SOURCE}")
+set(ARCADE_APP_SOURCES main.c screens.c backdrop.c smoke.c online.c "${ARCADE_REGISTRY_SOURCE}")
+if(ANDROID)
+  # Android starts a NativeActivity, which loads a shared library and calls into it: the hub is libarcade.so
+  # (android.app.lib_name = "arcade" in android/AndroidManifest.xml) and its main() is called by raylib's
+  # android_main(). tools/build_apk.sh packs the library into the .apk.
+  add_library(arCade SHARED ${ARCADE_APP_SOURCES})
+  set_target_properties(arCade PROPERTIES OUTPUT_NAME arcade LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+  # ANativeActivity_onCreate is the entry point Android looks for. It lives in native_app_glue, which raylib
+  # compiled into libraylib.a: a linker takes an object out of a static library only when something needs it,
+  # and nothing in our code does, so it is asked for by name (this is what raylib's own examples do).
+  # The page size flags make every segment 16 KB aligned, which Android 15+ devices with 16 KB pages require
+  # (NDK r28 does this by itself; the flags keep an older NDK correct). Release builds are stripped.
+  target_link_options(arCade PRIVATE -u ANativeActivity_onCreate -Wl,-z,max-page-size=16384
+                      -Wl,-z,common-page-size=16384 $<$<CONFIG:Release>:-Wl,--strip-all>)
+else()
+  add_executable(arCade ${ARCADE_APP_SOURCES})
+endif()
 target_link_libraries(arCade PRIVATE arcade_gfx)
 foreach(_id IN LISTS ARCADE_REGISTERED_IDS)
   target_link_libraries(arCade PRIVATE game_${_id})
@@ -23,6 +39,17 @@ set_property(CACHE ARCADE_ONLINE PROPERTY STRINGS AUTO ON OFF)
 option(ARCADE_ONLINE_BUNDLE_CURL "Online leaderboard: build libcurl from source and link it statically (releases)" OFF)
 set(ARCADE_ONLINE_URL "https://arcade-leaderboard.zaxx-q.workers.dev" CACHE STRING
     "Server of the online leaderboard (https://host; the ARCADE_ONLINE_URL environment variable overrides it)")
+
+# Online on Android (not built yet: the preset passes -DARCADE_ONLINE=OFF, so the hub shows no Online tab).
+# What it takes, in short: libcurl built for the NDK, and for that a TLS library built for arm64 as well (the NDK
+# ships none; ArcadeCurl.cmake looks for the BUILD machine's static OpenSSL); net_curl.c has to give curl the
+# system's certificates, which are a folder of hashed files (/system/etc/security/cacerts: CURLOPT_CAPATH), not
+# one bundle file like CA_BUNDLE_PATHS lists; and the manifest needs
+# <uses-permission android:name="android.permission.INTERNET"/>. docs/ANDROID.md lists the steps.
+if(ANDROID AND NOT ARCADE_ONLINE STREQUAL "OFF")
+  message(WARNING "Android: the Online leaderboard is not supported yet, building without it (see app/CMakeLists.txt)")
+  set(ARCADE_ONLINE "OFF")
+endif()
 
 set(ARCADE_CURL_DEFS "") # compile definitions of every target that builds net_curl.c (empty = no libcurl)
 set(ARCADE_CURL_DESC "")

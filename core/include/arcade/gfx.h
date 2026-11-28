@@ -110,6 +110,10 @@ bool arcade_is_fullscreen(void);
 Vector2 arcade_view_snap(Vector2 p); /* a design position moved to the nearest window pixel (crisp text) */
 void gfx_text_frame_begin(void);     /* drops font atlases made for another scale */
 
+/* Where the program keeps its files (scores, progress): the folder of the executable on a computer, the app's
+ * private folder on Android. Works before arcade_gfx_init(). */
+const char *arcade_default_data_dir(void);
+
 /* ---- Touch screens (Android) ----
  *
  * A phone has no keyboard and no mouse. Inside a game loop nothing changes for the game: arcade_poll() turns

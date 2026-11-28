@@ -22,6 +22,8 @@ if(NOT ARCADE_LOGIC_ONLY)
   endif()
   if(ANDROID) # the NDK toolchain file sets ANDROID: the touch screen is the real input there
     target_compile_definitions(arcade_gfx PUBLIC ARCADE_ANDROID=1)
+    target_sources(arcade_gfx PRIVATE gfx/gfx_android.c)
+    target_include_directories(arcade_gfx PRIVATE "${ARCADE_ANDROID_GLUE_DIR}") # android_native_app_glue.h
   endif()
   arcade_apply_warnings(arcade_gfx)
 endif()
